@@ -36,7 +36,7 @@ Volldefinition: [`AGENTS.md`](AGENTS.md) (Abschnitt „Die 8 Prinzipien").
 knowledge-agent/
 ├── AGENTS.md          # Gesetz (§1–§11)
 ├── knowledge/         # lifecycle/ (8 Stufen + rekursion/ 5 Phasen), structured/
-├── connectors/        # 15 Connector-Dateien (Quellen je Phase/Stufe)
+├── connectors/        # 15 Connector-Dateien (9 in AGENTS.md referenziert; Quellen je Phase/Stufe)
 ├── data/memory/       # 3-Tier: tier1-base/ (+versions/v1), tier2-index/, tier3-working/
 ├── skills/            # 14 SKILL.md (8 Stufen-Skills + recursive-improve/)
 └── ergebnisse/        # Provenienz je Iteration (rekursion/), Analysen, Tests

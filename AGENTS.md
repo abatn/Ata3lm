@@ -317,7 +317,7 @@ Anfrage ─▶ MCP-Layer (Cognee/Graphiti/HeLa-Mem)
 - Plan: `ergebnisse/knowledge-agent-plan.md`
 - Lauf-Protokoll: `ergebnisse/lebenszyklus-8-phasen.md`
 
-## Connectors (9 Connectoren – referenziert in Kern-Dateien mit Quellen)
+## Connectors (9 hier referenzierte Connector-Dateien mit Quellen; 15 Dateien insgesamt in `connectors/`)
 
 | Connector | Phase/Stufe | Connector-Datei | Kern-Referenz | Quellen-Link |
 |---|---|---|---|---|
