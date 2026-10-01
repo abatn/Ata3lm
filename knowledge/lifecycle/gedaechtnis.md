@@ -65,19 +65,24 @@ Belegt in:
   „lokal, kostenlos, keine Cloud" – wird daher NICHT verwendet.
    Diese Abgrenzung ist dokumentiert, nicht verschwiegen.
 
-## 3.2 Dreischichtige Gedächtnis-Pipeline (Auftrag + Quellen)
+## 3.2 Gedächtnis-Pipeline: 3 Tiers + L4 + Shared (Auftrag + Quellen)
 
 Das Gedächtnis wird als **dreischichtige Pipeline** aufgebaut (MD-Abbild unter
-`data/memory/`). Jede Schicht ist quellenbelegt:
+`data/memory/`) — ergänzt um **L4 Procedural Memory** und einen **Shared Tier**.
+Jede Schicht ist quellenbelegt:
 
 | Schicht | Inhalt | Ordner | Quelle |
 |---|---|---|---|
 | **Tier 1 – Base Knowledge** | Identität, Ontologie (8 Stufen, 5 Phasen), Kernbeziehungen | `data/memory/tier1-base/` | SHIMI (arXiv:2504.06135), ARIADNE (arXiv:2105.09864), Graphiti (arXiv:2501.13956) |
 | **Tier 2 – Concept Index** | Konzept-zu-Ort-Mapping, semantisch-bewusstes selektives Laden | `data/memory/tier2-index/` | SHIMI (arXiv:2504.06135), SwiftMem (arXiv:2601.08160), A-MEM (arXiv:2502.12110) |
 | **Tier 3 – Working Memory** | begrenzter LRU-Cache, max. 15 aktive Items, Pinning | `data/memory/tier3-working/` | MemGPT (arXiv:2310.08560), Cortex (arXiv:2509.17360) |
+| **L4 – Procedural Memory** | Skills (versioniert, auditierbar, rückrollbar) | `skills/` (+ `versions/`) | Memory Survey (arXiv:2603.07670), TEA (arXiv:2506.12508), Mem^p (arXiv:2508.06433) |
+| **Shared Tier** | gemeinsamer Store mehrerer Agenten (ACL + Sync) | `data/memory/shared/` | Memory Survey §6.5/§9.6 (arXiv:2603.07670), Collaborative Memory (arXiv:2505.18279) |
 
 **Ablauf:** Anfrage → Tier 2 (Concept Index, selektiv) → passende Orte →
 Tier 3 (Working Memory, max 15, LRU-Eviction außer pinned).
+**Lifecycle:** Konsolidierung/Forgetting/Konfliktlösung (`reflective_agent.py`);
+Details: `ergebnisse/memory-lifecycle.md`.
 
 Quellen (jede Schicht mit Link):
 - SHIMI – semantische Hierarchie, Top-down-Traversal: https://arxiv.org/abs/2504.06135

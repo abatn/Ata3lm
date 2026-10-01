@@ -8,6 +8,10 @@
 > (`fast-write-routing.md` fehlte, `affective-signals.md` doppelt gelistet).
 > Beide Tabellen wurden auf die tatsächlichen 15 Dateien in `connectors/`
 > korrigiert.
+>
+> **Stand-Hinweis:** Dies ist ein **Snapshot vom 2026-09-30**. Datei-/Zeilenzahlen
+> (z. B. „87 `.md` Dateien") sind seither gewachsen (u. a. `shared/`, L4-Procedural,
+> Trust, Rekursionen 014–020). Aktueller Stand: `README.md`, `data/memory/README.md`.
 
 ---
 

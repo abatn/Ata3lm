@@ -34,12 +34,14 @@ Volldefinition: [`AGENTS.md`](AGENTS.md) (Abschnitt „Die 8 Prinzipien").
 
 ```text
 knowledge-agent/
-├── AGENTS.md          # Gesetz (§1–§11)
-├── knowledge/         # lifecycle/ (8 Stufen + rekursion/ 5 Phasen), structured/
+├── AGENTS.md          # Gesetz (§1–§11; §9.1 Drift/Versionierung/HITL, §9.2 Trust)
+├── README.md · CONTRIBUTING.md · LICENSE
+├── knowledge/         # lifecycle/ (8 Stufen + rekursion/ 5 Phasen), structured/, cognition/
 ├── connectors/        # 15 Connector-Dateien (9 in AGENTS.md referenziert; Quellen je Phase/Stufe)
-├── data/memory/       # 3-Tier: tier1-base/ (+versions/v1), tier2-index/, tier3-working/
-├── skills/            # 14 SKILL.md (8 Stufen-Skills + recursive-improve/)
-└── ergebnisse/        # Provenienz je Iteration (rekursion/), Analysen, Tests
+├── data/memory/       # Tier 1–3 (tier1-base/ +versions, tier2-index/, tier3-working/)
+│                      #   + shared/ (SharedTier) + Prozesse (*.py)
+├── skills/            # L4 Procedural: 14 SKILL.md + versions/vN/ + AUDIT.md
+└── ergebnisse/        # Provenienz je Iteration (rekursion/), Analysen, Tests, Diagramme
 ```
 
 ## Gedächtnis (3-Tier)

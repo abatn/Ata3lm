@@ -4,6 +4,11 @@
 > Zweck: Umbau von `data/memory/` (leer) zu einer dreischichtigen Gedächtnis-Pipeline.
 > Lab-Prinzip: Keine Erfindungen – jede Schicht mit Quellen-Link (verifiziert HTTP 200).
 > Geltung: unterliegt `AGENTS.md` (§6 Keine Erfindungen, §9 Gate).
+>
+> **Stand-Hinweis (später ergänzt):** Dieses Dokument beschreibt den **ersten**
+> 3-Tier-Aufbau. Später kamen **L4 Procedural Memory** (`skills/`), ein
+> **Shared Tier** (`data/memory/shared/`) und Prozesse (`ingestion_hook.py`,
+> `trust.py`) hinzu. Aktueller Stand: `data/memory/README.md`.
 
 ---
 

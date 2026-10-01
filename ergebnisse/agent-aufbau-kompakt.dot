@@ -27,15 +27,14 @@ digraph Aufbau {
   t1 [label="tier1-base/\n4 Dateien + versions/v1/", fillcolor="#FFF2CC", color="#BF8F00"];
   t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
   t3 [label="tier3-working/\nlru_cache.py + README", fillcolor="#FFF2CC", color="#BF8F00"];
-  py [label="Prozesse (2)\nfast_write_router.py\nreflective_agent.py", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (6)\nfast_write_router · reflective_agent\ningestion_hook · trust\nshared_memory · lru_cache", fillcolor="#FFF2CC", color="#BF8F00"];
+  shared [label="shared/\nSharedTier (ACL + Sync)", fillcolor="#FFF2CC", color="#BF8F00"];
 
   skills [label="skills/  ·  14 SKILL.md", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  res [label="ergebnisse/\n60 Einträge (inkl. rekursion/ 000–013 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
-
-  warn [shape=note, fillcolor="#FCE4D6", color="#C00000", fontsize=10, label="BEFUND (offen): AGENTS.md:320\n\"9 referenziert / 15 insgesamt\" —\nREADME-Report gesamtpruefung.md ist veraltet\n(listet 14, fast-write-routing fehlt)"];
+  res [label="ergebnisse/\n67 Einträge (inkl. rekursion/ 000–020 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
 
   root -> agents;
   root -> docs;
@@ -55,10 +54,9 @@ digraph Aufbau {
   data -> t1;
   data -> t2;
   data -> t3;
+  data -> shared;
   data -> py;
 
   skills -> sk_top;
   skills -> sk_rec;
-
-  res -> warn [style=dashed, color="#C00000", arrowsize=0.6];
 }

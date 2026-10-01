@@ -6,22 +6,41 @@
 
 ## 3-Schicht-Gedächtnis-Pipeline (Auftrag + Quellen)
 
-Das Gedächtnis ist als **dreischichtige Pipeline** aufgebaut:
+Das Gedächtnis ist als **dreischichtige Pipeline** aufgebaut — ergänzt um
+**L4 Procedural Memory** (`skills/`) und einen **Shared Tier** (`shared/`):
 
 | Schicht | Inhalt | Ordner | Quelle |
 |---|---|---|---|
 | **Tier 1 – Base Knowledge** | Identität, Ontologie (8 Stufen, 5 Phasen), Kernbeziehungen | `tier1-base/` | SHIMI (arXiv:2504.06135), ARIADNE (arXiv:2105.09864), Graphiti (arXiv:2501.13956) |
 | **Tier 2 – Concept Index** | Konzept-zu-Ort-Mapping (selektives Laden) | `tier2-index/` | SHIMI (arXiv:2504.06135), SwiftMem (arXiv:2601.08160), A-MEM (arXiv:2502.12110) |
 | **Tier 3 – Working Memory** | begrenzter LRU-Cache (max. 15 aktive Items) | `tier3-working/` | MemGPT (arXiv:2310.08560), Cortex (arXiv:2509.17360) |
+| **L4 – Procedural Memory** | Skills (versioniert, auditierbar, rückrollbar) | `skills/` (+ `versions/`) | Memory Survey (arXiv:2603.07670), TEA (arXiv:2506.12508), Mem^p (arXiv:2508.06433) |
+| **Shared Tier** | gemeinsamer Store mehrerer Agenten (ACL + Sync) | `shared/` | Memory Survey §6.5/§9.6 (arXiv:2603.07670), Collaborative Memory (arXiv:2505.18279) |
 
 **Ablauf:** Anfrage → Tier 2 (Concept Index) → passende Orte → Tier 3 (Working Memory, max 15, LRU).
+**L4:** Prozeduren (Skills) sind First-Class + versioniert. **Shared:** mehrere Agenten lesen/schreiben konfliktgeprüft (supersede statt löschen).
+
+## Prozesse (`data/memory/*.py`)
+
+| Datei | Aufgabe |
+|---|---|
+| `fast_write_router.py` | 3-Klassen-Kaskade (non-write/write-new/write-update) + MemRouter |
+| `reflective_agent.py` | Konsolidierung (Hub-Distillation), Adaptive Forgetting (3 Bed.), Konfliktlösung, HMM-Trägheit, Spreading Activation |
+| `ingestion_hook.py` | Lifecycle-Events, Encoding-Gate, asynchrone Enrichment-Queue |
+| `trust.py` | Privacy (PII), Poisoning-Guard, Bias-Check |
+| `shared/shared_memory.py` | SharedTier (ACL, Versionierung, Sync) |
+| `tier3-working/lru_cache.py` | Working Memory (LRU + wertbewusste Eviction) |
 
 ## Status (Auftrag)
 
-- **Tier 1:** angelegt (Identität, Ontologie, Kernbeziehungen befüllt).
-- **Tier 2:** angelegt (Concept Index befüllt).
-- **Tier 3:** angelegt (Working Memory, 0 aktive Items, max 15).
-- **Fakten:** Noch keine Fakten abgelegt; erster Schreibvorgang via Skill `skills/store-memory/SKILL.md`.
+- **Tier 1:** angelegt (Identität, Ontologie, Kernbeziehungen, episodischer Graph; `versions/v1`,`v2`).
+- **Tier 2:** angelegt (Concept Index, Hub-Index, Evicted-Index).
+- **Tier 3:** angelegt (Working Memory, max 15).
+- **L4 Procedural:** `skills/` (14 aktive + `versions/vN/`, `AUDIT.md`).
+- **Shared Tier:** `shared/` (ACL + Sync, Konflikt-Erkennung).
+- **Fakten:** vorhanden — strukturiertes Wissen in `knowledge/structured/`
+  (Entities/Relations, bi-temporal) + Inferenzen in `knowledge/cognition/`;
+  Rohdaten/Provenienz in `ergebnisse/`.
 
 ## Ablageformat (Auftrag)
 
