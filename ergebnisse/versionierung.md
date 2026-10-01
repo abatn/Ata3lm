@@ -60,6 +60,7 @@ cp data/memory/tier1-base/versions/v1/episodic_graph.json data/memory/tier1-base
 | Merge Remote-Initial (LICENSE, README) | `75b0a89` |
 | Push nach `origin/main` | `2bf32b8..75b0a89` |
 | Datei-Snapshot Tier-1 | `data/memory/tier1-base/versions/v1/` |
+| Snapshot zu Iteration 031 (Gesetz-Änderung §10.2, `approved` 2026-10-01) | `data/memory/tier1-base/versions/v4/` |
 
 ## 5. Regel für neue Versionen
 

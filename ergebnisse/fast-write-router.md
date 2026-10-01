@@ -49,10 +49,17 @@ classify(question, fact, correct):
      -> zero-shot (nicht-Verweigerung) falsch + mit Memory korrekt => write-update
 ```
 
-**Hinweis (ehrlich):** qwen3-1.7B/8B sind auf dem verfügbaren Endpoint **nicht**
-zugänglich (nur `nemotron-3-super-120b`). Daher lief der Test mit demselben Modell
-für beide Stufen (per ENV `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL` konfigurierbar).
-Die **Kaskaden-Logik** ist aus dem Paper; die Modellgrößen sind eine Umgebungs-Schranke.
+**Hinweis (ehrlich, aktualisiert 2026-10-01):** qwen3-1.7B/8B sind auf dem
+verfügbaren Endpoint weiterhin **nicht** zugänglich – die Modellgrößen des Papers
+bleiben eine Umgebungs-Schranke; die **Kaskaden-Logik** stammt aus dem Paper.
+
+Neu geprüft (Iteration 031, `ergebnisse/fwr-test.md`): der frühere Default
+`google/gemma-2b` war auf diesem Konto **nie deployed** (HTTP 404 „Not found for
+account") – Stufe 1 war damit ohne ENV-Override defekt. Von 15 geprüften kleinen
+Modellen antwortete nur `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`
+(1,2–3,8 s, zero-shot korrekt/Verweigerung korrekt) → **neuer Default** für
+`FWR_SMALL_MODEL`. `FWR_LARGE_MODEL` bleibt `nvidia/nemotron-3-super-120b-a12b`.
+Beide Stufen bleiben per ENV überschreibbar.
 
 ---
 

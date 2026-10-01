@@ -249,7 +249,7 @@ als erste Entscheidungsinstanz aktiviert:
 
 | Stufe | Modell | Aufgabe |
 |---|---|---|
-| **Stufe 1** | kleiner Router (Paper: qwen3-1.7B; Impl. `FWR_SMALL_MODEL`, Default `google/gemma-2b`) | Filtert offensichtliche **non-write**-Fälle (hohe Konfidenz, Modell kann es zero-shot) |
+| **Stufe 1** | kleiner Router (Paper: qwen3-1.7B; Impl. `FWR_SMALL_MODEL`, Default `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`) | Filtert offensichtliche **non-write**-Fälle (hohe Konfidenz, Modell kann es zero-shot) |
 | **Stufe 2** | großer Router (Paper: qwen3-8B; Impl. `FWR_LARGE_MODEL`, Default `nvidia/nemotron-3-super-120b-a12b`) | Klassifiziert die verbleibenden zwischen **write-new** und **write-update** |
 
 - **Eskalation (Impl.):** wenn die Zero-Shot-Antwort des kleinen Routers **nicht korrekt** ist (String-Match in `classify()`); ein expliziter `g_pred`-Vergleich ist (noch) nicht implementiert. (Paper-Konzept: `g* = V_large − V_small`.)

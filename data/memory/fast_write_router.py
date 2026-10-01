@@ -18,7 +18,7 @@ import json
 from typing import Optional
 from openai import OpenAI
 
-SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "google/gemma-2b")          # ~1.7B-Klasse
+SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")
 LARGE_MODEL = os.environ.get("FWR_LARGE_MODEL", "nvidia/nemotron-3-super-120b-a12b")
 
 _client = OpenAI(
