@@ -4,3 +4,4 @@ __pycache__/
 .venv/
 node_modules/
 *.log
+data/memory/tier3-working/ingestion_log.jsonl
