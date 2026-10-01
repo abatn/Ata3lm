@@ -111,9 +111,15 @@ F graphiti-Tool-Anzahl (Fact injiziert) · G EU AI Act-Jahr.
 weil beide Modelle auf unbekannten Fakten **verweigern** statt falsch zu antworten.
 Der Branch existiert im Code, wurde hier aber nicht geübt.
 
-**Befund 2 (Doku-Code-Abweichung, nicht behoben):**
+> Nachtrag 2026-10-01: inzwischen **geübt** (Fall C, `correct="Sahara"`) – Beweis
+> in `ergebnisse/doku-korrektur-fwr.md` §2. Der Unterschied liegt nur an `correct`:
+> dieser Lauf nutzte `correct="Antarctic Desert"` (`/tmp/opencode/fwr_final.py:18`),
+> `fast_write_router.py:176-177` dagegen `correct="Sahara"`.
+
+**Befund 2 (Doku-Code-Abweichung) – ERLEDIGT 2026-10-01:**
 `fast_write_router.py`-Docstring und `ergebnisse/fast-write-router.md` schreiben
-`write-update` = „zero-shot **falsch** + mit Memory korrekt". Der Code prüft nur:
+`write-update` = „zero-shot **falsch** + mit Memory korrekt". Der **damalige**
+Code prüfte nur:
 
 ```python
 if is_refusal(a_large):
@@ -122,9 +128,15 @@ else:
     cls = "write-update"     # jede Nicht-Verweigerung, ohne "falsch"/"mit Memory korrekt" zu prüfen
 ```
 
-Damit wird jede nicht-verweigernde Antwort als `write-update` etikettiert.
+~~Damit wird jede nicht-verweigernde Antwort als `write-update` etikettiert.
 **Keine Code-Änderung in dieser Iteration** – Korrektur wäre eine Verhaltensänderung
-und braucht eigenes Gate (§9/§4).
+und braucht eigenes Gate (§9/§4).~~
+
+**Behoben am 2026-10-01 nach Human-Gate-Freigabe (§9/§10.4):** `classify()`
+prüft jetzt `is_refusal(a_large) AND _matches(a_mem, correct)` (write-new) bzw.
+`NOT is_refusal AND NOT _matches(a_large, correct) AND _matches(a_mem, correct)`
+(write-update), sonst `uncertain` + `gate=ask`. Diff, Tests und Freigabe:
+`ergebnisse/fwr-code-korrektur.md`.
 
 ## 6. Reproduktion
 

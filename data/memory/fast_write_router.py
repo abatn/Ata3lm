@@ -61,25 +61,40 @@ def classify(question: str, fact: str, correct: str) -> dict:
     2. Sonst eskalieren an M_large:
        - Verweigerung zero-shot + mit Memory korrekt -> write-new.
        - Nicht-Verweigerung, falsch + mit Memory korrekt -> write-update.
+       - Sonst (z.B. mit Memory nicht korrekt) -> uncertain -> Gate ask
+         (AGENTS.md §10.4: „Bei Unsicherheit des Routers (Eskalation ohne klares
+         Signal) -> Human-Gate (ask)").
+
+    Gate (AGENTS.md §9/§10.4, Feld `gate`):
+      none = keine Speicherung (§10.1) · ask = menschliche Freigabe noetig
+      (write-new: neue Quelle §10.4; write-update: self_update an tier1-base §9).
     """
     # --- Stufe 1: kleiner Router (Front-End-Screening) ---
     a_small = _ask(SMALL_MODEL, question)
     if _matches(a_small, correct):
         return {"class": "non-write", "stage": 1, "escalated": False,
-                "small_answer": a_small}
+                "gate": "none", "small_answer": a_small}
 
     # --- Stufe 2: großer Router (Eskalation) ---
     a_large = _ask(LARGE_MODEL, question)
     a_mem = _ask(LARGE_MODEL, question, memory=fact)
 
-    if is_refusal(a_large):
-        cls = "write-new"
-    else:
-        cls = "write-update"
+    refusal = is_refusal(a_large)
+    large_ok = _matches(a_large, correct)
+    mem_ok = _matches(a_mem, correct)
 
-    return {"class": cls, "stage": 2, "escalated": True,
+    if refusal and mem_ok:
+        cls, gate = "write-new", "ask"
+    elif (not refusal) and (not large_ok) and mem_ok:
+        cls, gate = "write-update", "ask"
+    else:
+        cls, gate = "uncertain", "ask"
+
+    return {"class": cls, "stage": 2, "escalated": True, "gate": gate,
             "small_answer": a_small, "large_zero_shot": a_large,
-            "large_with_memory": a_mem}
+            "large_with_memory": a_mem,
+            "checks": {"refusal": refusal, "large_correct": large_ok,
+                       "memory_correct": mem_ok}}
 
 
 # --- MemRouter (arXiv:2605.00356) ---

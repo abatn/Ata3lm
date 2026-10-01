@@ -53,11 +53,21 @@ Rohausgaben: `ergebnisse/fwr-test.md` §4, `/tmp/opencode/st2.out`.
 
 ## 4. Befunde ohne Code-Fix (bewusst offen)
 
-1. **`write-update` wurde nicht geübt** – beide Modelle verweigern statt falsch zu
-   antworten; der Branch blieb in diesem Lauf unbenutzt.
+1. ~~`write-update` wurde nicht geübt~~ → **korrigiert 2026-10-01: `write-update`
+   ist geübt – siehe Beweis.** Fall C „Größte Wüste der Welt?“ (`correct="Sahara"`,
+   `fast_write_router.py:176-177`) liefert mit den aktuellen Defaults
+   `class=write-update stage=2`. Rohtexte: `ergebnisse/fast-write-router.md:70-78`;
+   Nachlauf 2026-10-01 (small `The Antarctic Desert is the largest desert in the
+   world.` · large0 nicht-verweigernd falsch · largeM `The largest desert in the
+   world is the Sahara.`): `ergebnisse/doku-korrektur-fwr.md`.
+   In *dieser* Iteration kam C nicht vor (dort liefen A/B/D/E/F/G);
+   `fwr-test.md` §4 nutzte für dieselbe Frage `correct="Antarctic Desert"` →
+   `non-write`.
 2. **Doku-Code-Abweichung**: Docstring/`fast-write-router.md` verlangen für
    `write-update` „zero-shot falsch + mit Memory korrekt"; der Code prüft nur
    `is_refusal(a_large)`. Korrektur = Verhaltensänderung → eigenes Gate nötig.
+   → **Erledigt 2026-10-01 nach Freigabe:** `classify()` wertet `a_mem` aus,
+   sonst `uncertain` + `gate=ask`; Diff/Test/Freigabe: `ergebnisse/fwr-code-korrektur.md`.
 
 ## 5. Quellen
 
@@ -85,10 +95,12 @@ vor der Umsetzung dokumentiert.
 
 ## 8. Nächstes Self-Feedback (t+1)
 
-- `write-update`-Fall gezielt erzeugen (Fixture, bei der das große Modell
-  nicht-verweigernd falsch antwortet) – oder die Doku-Code-Abweichung (§4.2) per
-  Gate schließen.
-- `ergebnisse/versionierung.md` §4 um den Eintrag `versions/v4` ergänzen.
+- ~~`write-update`-Fall gezielt erzeugen~~ → **erledigt 2026-10-01** (natürlich
+  reproduzierbar, siehe §4.1) – übrig bleibt nur die Doku-Code-Abweichung (§4,
+  Punkt 2), die ein eigenes Gate (§9) braucht → **auch erledigt 2026-10-01**
+  (Gate freigegeben, `ergebnisse/fwr-code-korrektur.md` §0).
+- ~~`ergebnisse/versionierung.md` §4 um den Eintrag `versions/v4` ergänzen~~ →
+  **erledigt 2026-10-01** (Zeile in §4 vorhanden).
 - Fallback-Modell `deepseek-ai/deepseek-v4.1-flash` beobachten (Ersatz bei
   nano-503/„worker exhausted").
 - `/tmp/opencode/ka_systemtest.py` dauerhaft ins Repo übernehmen (offen seit 030).
