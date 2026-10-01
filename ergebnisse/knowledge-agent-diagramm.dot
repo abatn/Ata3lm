@@ -1,0 +1,125 @@
+digraph KnowledgeAgent {
+  rankdir=TB;
+  compound=true;
+  bgcolor="white";
+  fontname="DejaVu Sans";
+  labelloc="t";
+  fontsize=20;
+  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/";
+  node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, margin="0.14,0.09"];
+  edge [fontname="DejaVu Sans", fontsize=9, color="#595959"];
+
+  // ================= Schicht 0 · Gesetz =================
+  subgraph cluster_law {
+    label="Schicht 0 · Gesetz";
+    style="filled,rounded"; fillcolor="#FCE4D6"; color="#C55A11"; fontsize=14;
+    law [label="AGENTS.md   §1–§8 Prinzipien   ·   §9 Automatisches Gate   ·   §10 Fast Write Routing   ·   §11 MCP-Layer", fillcolor="#F8CBAD", color="#C55A11"];
+  }
+
+  // ================= Schicht 1 · Lifecycle (8 Stufen) =================
+  subgraph cluster_stufen {
+    label="Schicht 1 · Lifecycle — 8 Stufen (knowledge/lifecycle/)";
+    style="filled,rounded"; fillcolor="#DEEBF7"; color="#2E75B6"; fontsize=14;
+    s1 [label="1 Erfahrung", fillcolor="#BDD7EE", color="#2E75B6"];
+    s2 [label="2 Wissen", fillcolor="#BDD7EE", color="#2E75B6"];
+    s3 [label="3 Gedächtnis", fillcolor="#BDD7EE", color="#2E75B6"];
+    s4 [label="4 Kognition", fillcolor="#BDD7EE", color="#2E75B6"];
+    s5 [label="5 Denken", fillcolor="#BDD7EE", color="#2E75B6"];
+    s6 [label="6 Nicht-Kognition", fillcolor="#BDD7EE", color="#2E75B6"];
+    s7 [label="7 Handeln", fillcolor="#BDD7EE", color="#2E75B6"];
+    s8 [label="8 Wissen+", fillcolor="#BDD7EE", color="#2E75B6"];
+    s1 -> s2 -> s3 -> s4 -> s5 -> s6 -> s7 -> s8;
+    s8 -> s1 [constraint=false, style=dashed, color="#2E75B6"];
+  }
+
+  // ================= Schicht 2 · Rekursion (5 Phasen) =================
+  subgraph cluster_phasen {
+    label="Schicht 2 · Rekursion — 5 Phasen (knowledge/lifecycle/rekursion/)";
+    style="filled,rounded"; fillcolor="#E2EFDA"; color="#548235"; fontsize=14;
+    p1 [label="Konstrukt\n(pi0 aus Ziel + Wissen)", fillcolor="#C6E0B4", color="#548235"];
+    p2 [label="Akt\n(pi ausführen → Traces)", fillcolor="#C6E0B4", color="#548235"];
+    p3 [label="Observe\n(Self-Inspect + Interact)", fillcolor="#C6E0B4", color="#548235"];
+    p4 [label="Compare\n(externes Signal + Score)", fillcolor="#C6E0B4", color="#548235"];
+    p5 [label="Revise\n(pi,I) → (pi(t+1),I(t+1))", fillcolor="#C6E0B4", color="#548235"];
+    p1 -> p2 -> p3 -> p4 -> p5;
+    p5 -> p1 [constraint=false, style=dashed, color="#548235", label="continue_improve"];
+    p5 -> p3 [constraint=false, style=dotted, color="#548235", label="Self-Feedback"];
+  }
+
+  // ================= Schicht 3 · Gedächtnis (3-Tier) =================
+  subgraph cluster_mem {
+    label="Schicht 3 · Gedächtnis — data/memory (3-Tier)";
+    style="filled,rounded"; fillcolor="#FFF2CC"; color="#BF8F00"; fontsize=14;
+    {rank=same; m1; m2; m3;}
+    m1 [label="tier1-base\nidentity · ontology\ncore-relations\nepisodic_graph.json", fillcolor="#FFE699", color="#BF8F00"];
+    m2 [label="tier2-index\nconcept-index\nhub-index\nevicted-index", fillcolor="#FFE699", color="#BF8F00"];
+    m3 [label="tier3-working\nfast_write_router.py\nreflective_agent.py\nlru_cache.py", fillcolor="#FFE699", color="#BF8F00"];
+    m1 -> m2 -> m3 [style=invis];
+  }
+
+  // ================= Schicht 4 · Connectoren =================
+  subgraph cluster_conn {
+    label="Schicht 4 · Connectoren (15) — connectors/";
+    style="filled,rounded"; fillcolor="#FBE5D6"; color="#ED7D31"; fontsize=14;
+    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · goedel-agent · hela-evolution · hela-semantic\nhtac-agentdice · mars-seaa · observer-agent · react · reflexion-trace", fillcolor="#F8CBAD", color="#ED7D31"];
+  }
+
+  // ================= Schicht 5 · MCP =================
+  subgraph cluster_mcp {
+    label="Schicht 5 · MCP-Server (16 konfiguriert · 14 aktiv)";
+    style="filled,rounded"; fillcolor="#E4DFEC"; color="#7030A0"; fontsize=14;
+    mcp [label="Projekt (10): graphiti · cognee · hela-mem · reflexion · react · mars · trace · godel-agent · agent-dice · adas\nUmgebung (6): n8n · obsidian · kubernetes · livekit-docs · sqlalchemy* · visuals*\n* = Binary fehlt → inaktiv", fillcolor="#D9D2E9", color="#7030A0"];
+  }
+
+  // ================= Schicht 6 · Skills =================
+  subgraph cluster_skills {
+    label="Schicht 6 · Skills — skills/";
+    style="filled,rounded"; fillcolor="#DDEBF7"; color="#1F4E79"; fontsize=14;
+    sk [label="recursive-improve → konstrukt · akt · observe · compare · revise\n(jeweils SKILL.md)", fillcolor="#BDD7EE", color="#1F4E79"];
+  }
+
+  // ================= Schicht 7 · Ergebnisse =================
+  subgraph cluster_res {
+    label="Schicht 7 · Ergebnisse — ergebnisse/";
+    style="filled,rounded"; fillcolor="#E2EFDA"; color="#375623"; fontsize=14;
+    res [label="rekursion/NNN-*.md (Provenienz je Iteration)\nPläne · Testberichte · Analysen · Diagramme", fillcolor="#C6E0B4", color="#375623"];
+  }
+
+  // ================= Schicht-Spine (von oben nach unten) =================
+  law -> s1 [ltail=cluster_law, lhead=cluster_stufen, style=bold, color="#C55A11", label="gilt für"];
+  s1 -> p1 [ltail=cluster_stufen, lhead=cluster_phasen, style=dashed, color="#548235", label="Stufen ↔ Phasen"];
+  p1 -> m1 [ltail=cluster_phasen, lhead=cluster_mem, style=dashed, color="#BF8F00", label="liest / schreibt M"];
+  m1 -> conn [ltail=cluster_mem, lhead=cluster_conn, style=dashed, color="#ED7D31", label="belegt durch"];
+  conn -> mcp [ltail=cluster_conn, lhead=cluster_mcp, style=dashed, color="#7030A0", label="optional über lokaler Memory"];
+  mcp -> sk [ltail=cluster_mcp, lhead=cluster_skills, style=dashed, color="#1F4E79"];
+  sk -> res [ltail=cluster_skills, lhead=cluster_res, style=dashed, color="#375623", label="dokumentiert"];
+
+  // ================= Mapping-Tabelle (das "×") =================
+  subgraph cluster_map {
+    label="Mapping Stufe → Phase (das ×)";
+    style="filled,rounded"; fillcolor="#F2F2F2"; color="#808080"; fontsize=13;
+    map [shape=plaintext, fontsize=11, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF">
+        <TR><TD ALIGN="LEFT">1 Erfahrung</TD><TD ALIGN="LEFT">Observe, Akt</TD></TR>
+        <TR><TD ALIGN="LEFT">2 Wissen</TD><TD ALIGN="LEFT">Konstrukt</TD></TR>
+        <TR><TD ALIGN="LEFT">3 Gedächtnis</TD><TD ALIGN="LEFT">Konstrukt</TD></TR>
+        <TR><TD ALIGN="LEFT">4 Kognition</TD><TD ALIGN="LEFT">Observe, Akt</TD></TR>
+        <TR><TD ALIGN="LEFT">5 Denken</TD><TD ALIGN="LEFT">Revise</TD></TR>
+        <TR><TD ALIGN="LEFT">6 Nicht-Kognition</TD><TD ALIGN="LEFT">alle (dämpft)</TD></TR>
+        <TR><TD ALIGN="LEFT">7 Handeln</TD><TD ALIGN="LEFT">Akt</TD></TR>
+        <TR><TD ALIGN="LEFT">8 Wissen+</TD><TD ALIGN="LEFT">Compare, Revise</TD></TR>
+      </TABLE>>];
+  }
+
+  // ================= Legende =================
+  legend [shape=plaintext, fontsize=10, label=<
+    <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+      <TR><TD ALIGN="LEFT"><B>Legende</B></TD></TR>
+      <TR><TD ALIGN="LEFT">──  Ablauf / Zyklus</TD></TR>
+      <TR><TD ALIGN="LEFT">- -  Bezug / Mapping</TD></TR>
+      <TR><TD ALIGN="LEFT">· ·  Self-Feedback / Dämpfung</TD></TR>
+    </TABLE>>];
+
+  res -> map [style=invis];
+  res -> legend [style=invis];
+}

@@ -1,0 +1,409 @@
+#!/usr/bin/env python3
+"""
+Reflective Agent – laufender Prozess (HeLa-Mem, ACL 2026).
+
+Quelle: HeLa-Mem, arXiv:2604.16839, §3.3 "Reflective Memory Agent" + §4.4.
+Wörtlich aus dem Paper:
+  - Hub Detection (Eq. 2): D(v_i) = sum_{j in N(i)} w_ij > delta_hub
+  - "the agent retrieves the hub node along with its strongly connected neighbors.
+     The LLM synthesizes this cluster of related memories to identify common themes
+     and causal relationships, abstracting them into declarative semantic entries.
+     These distilled records are stored in the Semantic Memory Store."
+  - Adaptive Forgetting: below retention threshold.
+
+Lab-Prinzip: keine Erfindung – Mechanismus wörtlich aus der Quelle; nur die
+Dateipfade sind die Projekt-Bindung (Auftrag).
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+# Projekt-Pfade (Auftrag)
+ROOT = Path("/home/opc/knowledge-agent")
+GRAPH_FILE = Path(os.environ.get("HELA_GRAPH", str(ROOT / "data/memory/tier1-base/episodic_graph.json")))
+STRUCTURED = ROOT / "knowledge/structured"
+INDEX_DIR = ROOT / "data/memory/tier2-index"
+
+# HeLa-Mem-Parameter (Paper §3.3): delta_hub = Schwellwert für Hub-Konsolidierung
+DELTA_HUB = float(os.environ.get("HELA_DELTA_HUB", "1.0"))
+# Adaptive Forgetting: kritischer Retentions-Schwellwert
+RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))
+
+# --- SEAA HMM-Trägheit (arXiv:2609.17331) ---
+# Zustandsraum (Paper §5.7.1): K=4 latente Zustände
+HMM_STATES = int(os.environ.get("SEAA_STATES", "4"))     # K (SEAA Table 2)
+HMM_LR = float(os.environ.get("SEAA_LR", "0.05"))        # eta (SEAA Table 2)
+HMM_BETA = float(os.environ.get("SEAA_BETA", "4.0"))     # beta (SEAA Table 2)
+# Paper §5.7.1: S = {calm, alert, impulsive, pessimistic}
+STATE_NAMES = ["calm", "alert", "impulsive", "pessimistic"]
+
+
+def _row_normalize(P):
+    import numpy as np
+    return P / P.sum(axis=1, keepdims=True)
+
+
+def parse_transition_delta(text: str, k: int):
+    """Δ(R_t): Richtungsmatrix aus dem Reflexionstext (SEAA Eq. 2).
+
+    SEAA parst Δ(R_t) per LLM aus dem Reflexionstext. Hier: LLM wenn verfügbar,
+    sonst deterministische Heuristik (Vorzeichen der Reflexion).
+    """
+    import numpy as np
+    delta = np.zeros((k, k))
+    key = os.environ.get("OPENAI_API_KEY")
+    if key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=key, base_url=os.environ.get("OPENAI_BASE_URL"))
+            # SEAA §4.2: Die Reflexion beantwortet 4 Fragen; (4) ist die
+            # "language-to-parameter mapping" = strukturierte Edit von P_t.
+            prompt = (
+                "Review this reflection; state was one of the agent's latent states.\n"
+                "(1) Did the action match my usual inertia?\n"
+                "(2) Which inertial tendency drove the decision, and was it biased?\n"
+                "(3) How should that tendency be adjusted?\n"
+                f"(4) What is the corresponding structured edit to P_t? "
+                f"Return ONLY a JSON array of {k} arrays of {k} numbers (the direction matrix delta), "
+                f"row-normalizable, where a negative diagonal entry means less inertia (more deviation).\n"
+                f"Reflection:\n{text}"
+            )
+            resp = client.chat.completions.create(
+                model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+                messages=[{"role": "user", "content": prompt}], max_tokens=2000, temperature=0.0,
+            )
+            msg = resp.choices[0].message
+            raw = (msg.content or getattr(msg, "reasoning_content", None) or "")
+            import re
+            m = re.search(r"\[[\s\S]*\]", raw)
+            if m:
+                delta = np.array(json.loads(m.group(0)), dtype=float)
+                if delta.shape == (k, k):
+                    return delta
+        except Exception:
+            pass
+    # Heuristik (Auftrag): negative Reflexion -> Diagonale senken (weniger Trägheit)
+    neg = any(w in text.lower() for w in ["falsch", "wrong", "fehler", "error", "failed", "bug"])
+    sign = -1.0 if neg else 1.0
+    np.fill_diagonal(delta, sign * 0.4)
+    for i in range(k):
+        for j in range(k):
+            if i != j:
+                delta[i, j] = -sign * 0.4 / (k - 1)
+    return delta
+
+
+class HMMInertia:
+    """SEAA HMM-Trägheit: editierbare Zustandsübergangsmatrix (arXiv:2609.17331).
+
+    Zwei Wege (beide im Paper):
+      - Eq. 2 (LLM):  P_{t+1} = Normalize(P_t + eta * Delta(R_t))  [update_from_reflection]
+      - Eq. 3/4 (LLM-frei, "direct numerical realization of Eq. 2") [step_free_prototype]
+        P_t = softmax(log P_base + beta * V_t)
+        r_t = cos(b_z, n_t) - 0.80 + eps
+        V_{t+1}[z] = clip(V_t[z] + eta * tanh(2 r_t))
+    Zustandsraum (Paper §5.7.1): K=4, S={calm, alert, impulsive, pessimistic}.
+    """
+
+    def __init__(self, states: int = HMM_STATES, lr: float = HMM_LR, beta: float = HMM_BETA):
+        import numpy as np
+        self.K = states
+        self.lr = lr
+        self.beta = beta
+        self.P = np.full((states, states), 1.0 / states)  # uniform (SEAA Listing 1)
+        # P_base diagonal-dominant (SEAA Table 2)
+        self.P_base = np.full((states, states), 0.1)
+        np.fill_diagonal(self.P_base, 0.7)
+        self.V = np.zeros(states)          # state-preference vector (init 0, SEAA §5.7.1)
+        self.z = 0                          # current latent state
+        # Prototyp-Verhalten pro Zustand (3 Traits, SEAA §5.7.1)
+        self.state_behavior = np.array([
+            [0.8, 0.2, 0.4],   # calm
+            [0.5, 0.5, 0.6],   # alert
+            [0.2, 0.9, 0.7],   # impulsive
+            [0.3, 0.1, 0.2],   # pessimistic
+        ])
+
+    def update_from_reflection(self, text: str):
+        """Eq. 2 (LLM): Reflexion ändert die Übergangswahrscheinlichkeiten."""
+        delta = parse_transition_delta(text, self.K)
+        before = self.P.copy()
+        self.P = _row_normalize(self.P + self.lr * delta)
+        return {"before": before.tolist(), "after": self.P.tolist(),
+                "delta": delta.tolist(), "lr": self.lr}
+
+    def step_free_prototype(self, n_t=None):
+        """LLM-freier Kern (SEAA §5.7.1, Eq. 3/4). Kein LLM nötig."""
+        import numpy as np
+        if n_t is None:
+            n_t = np.array([0.4, 0.4, 0.2])   # persönliches Erfahrungsbedürfnis
+        z = self.z
+        b = self.state_behavior[z]
+        cos = float(np.dot(b, n_t) / (np.linalg.norm(b) * np.linalg.norm(n_t) + 1e-9))
+        r = cos - 0.80 + np.random.randn() * 0.10          # Eq. 4
+        self.V[z] = np.clip(self.V[z] + self.lr * np.tanh(2 * r), -10, 10)  # Eq. 4
+        # Eq. 3: P_t = softmax(log P_base + beta * V_t); V[j] verstärkt Spalte j
+        # (Übergänge IN Zustand j) -> konzentriert P auf dominante Zustände.
+        self.P = np.exp(np.log(self.P_base) + self.beta * self.V[None, :])
+        self.P = self.P / self.P.sum(axis=1, keepdims=True)
+        # Zustandsübergang (Eq. 3): sample nächster Zustand
+        self.z = int(np.random.choice(self.K, p=self.P[z]))
+        return {"state": STATE_NAMES[z], "next_state": STATE_NAMES[self.z],
+                "r": round(r, 4), "V": [round(v, 4) for v in self.V.tolist()],
+                "P_row0": [round(x, 4) for x in self.P[0].tolist()]}
+
+
+def load_graph(path: Path) -> dict:
+    return json.loads(path.read_text())
+
+
+def hub_score(graph: dict, node: str) -> float:
+    """Eq. 2: D(v_i) = sum_{j in N(i)} w_ij  (associative strength)."""
+    return sum(graph.get("edges", {}).get(node, {}).values())
+
+
+def neighbors(graph: dict, node: str) -> list:
+    return list(graph.get("edges", {}).get(node, {}).keys())
+
+
+def detect_hubs(graph: dict) -> list:
+    """Nodes mit D(v_i) > delta_hub (HeLa-Mem §3.3 Hub Detection)."""
+    return [n for n in graph.get("nodes", {}) if hub_score(graph, n) > DELTA_HUB]
+
+
+def detect_forgetting(graph: dict) -> list:
+    """Adaptive Forgetting: Nodes unter dem Retentions-Schwellwert."""
+    return [n for n in graph.get("nodes", {}) if hub_score(graph, n) < RETAIN_MIN]
+
+
+def distill(graph: dict, hub: str) -> dict:
+    """Hebbian Distillation: Hub + stark verbundene Nachbarn -> semantischer Eintrag.
+
+    Der LLM-Schritt aus dem Paper wird hier optional über OPENAI_* ausgeführt;
+    ohne LLM wird die Cluster-Struktur deterministisch zusammengefasst (Auftrag).
+    """
+    ns = neighbors(graph, hub)
+    node_texts = [graph["nodes"][hub].get("content", hub)] + [
+        graph["nodes"][n].get("content", n) for n in ns if n in graph.get("nodes", {})
+    ]
+    cluster = " | ".join(node_texts)
+
+    # Optionaler LLM-Syntheseschritt (Paper: "The LLM synthesizes this cluster")
+    key = os.environ.get("OPENAI_API_KEY")
+    if key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=key, base_url=os.environ.get("OPENAI_BASE_URL"))
+            prompt = (
+                "Synthesize this cluster of related memories into a single declarative "
+                f"semantic entry (common themes + causal relationships):\n{cluster}"
+            )
+            resp = client.chat.completions.create(
+                model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2000, temperature=0.0,
+            )
+            msg = resp.choices[0].message
+            summary = (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
+            if not summary:
+                summary = f"(LLM leer) {cluster}"
+        except Exception as e:
+            summary = f"(LLM nicht verfügbar: {e}) {cluster}"
+    else:
+        summary = cluster
+
+    return {"hub": hub, "neighbors": ns, "summary": summary,
+            "hub_score": hub_score(graph, hub)}
+
+
+def write_semantic(entry: dict) -> Path:
+    """Destillierten Eintrag in den semantischen Store schreiben (knowledge/structured/)."""
+    STRUCTURED.mkdir(parents=True, exist_ok=True)
+    path = STRUCTURED / f"distilled-hub-{entry['hub']}.md"
+    path.write_text(
+        f"# Destilliert: Hub {entry['hub']}\n\n"
+        f"- Ontologie-Bezug: Wissen (2) – Hebbian Distillation\n"
+        f"- Quelle: HeLa-Mem (arXiv:2604.16839)\n"
+        f"- Evidence: Hub-Score D(v)={entry['hub_score']:.2f} > delta_hub\n"
+        f"- Status: destilliert\n"
+        f"- Nachbarn: {', '.join(entry['neighbors'])}\n\n"
+        f"## Destilliertes semantisches Wissen\n\n{entry['summary']}\n\n"
+        f"## Quellen\n- https://arxiv.org/abs/2604.16839\n"
+    )
+    return path
+
+
+def update_index(entry: dict) -> Path:
+    """Konzept-Index aktualisieren: Konzept -> Ort (tier2-index/). Idempotent."""
+    INDEX_DIR.mkdir(parents=True, exist_ok=True)
+    path = INDEX_DIR / "hub-index.md"
+    header = "# Tier 2 – Hub-Index (Reflective Agent)\n\n| Konzept | Ort | Hub-Score |\n|---|---|---|\n"
+    rows = {}
+    if path.exists():
+        for ln in path.read_text().splitlines():
+            if ln.startswith("| Hub "):
+                parts = [p.strip() for p in ln.strip("|").split("|")]
+                rows[parts[0]] = ln
+    rows[f"Hub {entry['hub']}"] = (
+        f"| Hub {entry['hub']} | `knowledge/structured/distilled-hub-{entry['hub']}.md` | D={entry['hub_score']:.2f} |"
+    )
+    path.write_text(header + "\n".join(rows[k] for k in sorted(rows)) + "\n")
+    return path
+
+
+def run_once() -> dict:
+    graph = load_graph(GRAPH_FILE)
+    hubs = detect_hubs(graph)
+    forgotten = detect_forgetting(graph)
+    hmm = HMMInertia()   # SEAA-HMM-Trägheitsmatrix
+    results = []
+    for hub in hubs:
+        entry = distill(graph, hub)
+        sem = write_semantic(entry)
+        idx = update_index(entry)
+        # SEAA: Reflexion ändert die HMM-Übergangswahrscheinlichkeiten (Eq. 2)
+        p_change = hmm.update_from_reflection(entry["summary"])
+        results.append({"hub": hub, "score": entry["hub_score"],
+                        "semantic": str(sem), "index": str(idx),
+                        "hmm_P_before": p_change["before"],
+                        "hmm_P_after": p_change["after"]})
+    return {"hubs": hubs, "forgotten": forgotten, "distilled": results,
+            "hmm_states": hmm.K, "hmm_lr": hmm.lr}
+
+
+# --- HeLa-Mem Dual-Path Spreading Activation Retrieval (arXiv:2604.16839 §3.4) ---
+# Base Activation (Eq. 3): S_base(v_i) = (sim(q,e_i) + alpha*keyword_match) * gamma(v_i)
+#   gamma(v_i) = exp(-dt/tau)  (Zeitzerfall), tau = 60 Tage
+# Spreading Activation: S(v_j) = S_base(v_j) + beta * sum_{i in N(j)} S_base(v_i) * w_ij
+# Parameter (HeLa-Mem): tau=60, beta=0.1, theta=0.6 (Spreading-Schwelle)
+TAU_DAYS = float(os.environ.get("HELA_TAU_DAYS", "60"))
+ALPHA = float(os.environ.get("HELA_ALPHA", "1.0"))
+BETA = float(os.environ.get("HELA_BETA", "0.1"))
+THETA = float(os.environ.get("HELA_THETA", "0.6"))
+
+
+def _embed(text: str, dim: int = 64):
+    """Einfache deterministische Embedding-Ersatzfunktion (Auftrag, kein Modell)."""
+    import numpy as np
+    v = np.zeros(dim)
+    for tok in str(text).lower().split():
+        v[hash(tok) % dim] += 1.0
+    n = np.linalg.norm(v)
+    return v / n if n > 0 else v
+
+
+def _cos(a, b) -> float:
+    import numpy as np
+    na, nb = np.linalg.norm(a), np.linalg.norm(b)
+    return float(np.dot(a, b) / (na * nb)) if na > 0 and nb > 0 else 0.0
+
+
+class DualPathRetrieval:
+    """HeLa-Mem Dual-Path Retrieval: Base + Spreading Activation (arXiv:2604.16839 §3.4)."""
+
+    def __init__(self, tau: float = TAU_DAYS, alpha: float = ALPHA,
+                 beta: float = BETA, theta: float = THETA):
+        self.tau, self.alpha, self.beta, self.theta = tau, alpha, beta, theta
+
+    def base_activation(self, graph: dict, query: str, now_days: float) -> dict:
+        """Eq. 3: S_base(v_i) = (sim(q,e_i) + alpha*keyword_match) * gamma(v_i)."""
+        import math
+        q = _embed(query)
+        q_tokens = set(query.lower().split())
+        out = {}
+        for nid, node in graph.get("nodes", {}).items():
+            e = _embed(node.get("content", nid))
+            sim = _cos(q, e)
+            kw = len(q_tokens & set(str(node.get("content", "")).lower().split()))
+            kw_match = 1.0 if kw > 0 else 0.0
+            dt = max(0.0, now_days - float(node.get("timestamp_days", 0.0)))
+            gamma = math.exp(-dt / self.tau)          # Zeitzerfall
+            out[nid] = (sim + self.alpha * kw_match) * gamma
+        return out
+
+    def spreading_activation(self, graph: dict, s_base: dict) -> dict:
+        """Spreading: S(v_j) = S_base(v_j) + beta * sum_{i in N(j)} S_base(v_i)*w_ij."""
+        s = dict(s_base)
+        for j in graph.get("nodes", {}):
+            inflow = 0.0
+            for i, edges in graph.get("edges", {}).items():
+                if j in edges:                        # i -> j Kante
+                    inflow += s_base.get(i, 0.0) * edges[j]
+            s[j] = s_base.get(j, 0.0) + self.beta * inflow
+        return s
+
+    def retrieve(self, graph: dict, query: str, now_days: float = 0.0, top_k: int = 5) -> dict:
+        s_base = self.base_activation(graph, query, now_days)
+        s = self.spreading_activation(graph, s_base)
+        # Schwelle: nur Knoten über theta gelten als "aktiviert"
+        activated = {k: round(v, 4) for k, v in s.items() if v >= self.theta}
+        ranked = sorted(s.items(), key=lambda kv: -kv[1])[:top_k]
+        # Spreading-Gewinn = S - S_base (welche Knoten durch Spreading dazukamen)
+        gain = {k: round(s[k] - s_base.get(k, 0.0), 4) for k in s}
+        return {"base": {k: round(v, 4) for k, v in s_base.items()},
+                "spread": {k: round(v, 4) for k, v in s.items()},
+                "gain": gain, "activated": activated,
+                "top_k": [k for k, _ in ranked]}
+
+
+def simulate_5_multihop(graph: dict = None):
+    """5 Multi-Hop-Abfragen: zeigt, welche Knoten durch Spreading aktiviert werden."""
+    if graph is None:
+        graph = load_graph(GRAPH_FILE)
+    dr = DualPathRetrieval()
+    queries = [
+        "Rekursions-Zyklus Compare Revise",
+        "Solver Bug Integer-Division",
+        "HMM Traegheit Revise",
+        "Fast Write Routing entscheidet",
+        "Minimum erstes Element",
+    ]
+    out = []
+    for q in queries:
+        r = dr.retrieve(graph, q, now_days=1.0, top_k=5)
+        # Knoten, die NUR durch Spreading über theta kommen (nicht in base)
+        spread_only = [k for k in r["spread"]
+                       if r["spread"][k] >= dr.theta and r["base"].get(k, 0.0) < dr.theta]
+        out.append({"query": q, "top_k": r["top_k"],
+                    "activated": list(r["activated"].keys()),
+                    "spread_only": spread_only,
+                    "gain": r["gain"]})
+    return out
+
+
+def simulate_3_reflections():
+    """3 verbale Reflexionen: jede parst Δ(R_t) und aktualisiert P_t.
+
+    SEAA (arXiv:2609.17331): „reflection changing who the agent is" (Eq. 2).
+    """
+    hmm = HMMInertia()
+    reflections = [
+        "The action was wrong and led to a failure; I should deviate more.",
+        "The action matched my usual inertia; keep this tendency.",
+        "The decision was biased and needs adjustment.",
+    ]
+    out = []
+    for i, text in enumerate(reflections, 1):
+        before = hmm.P.copy()
+        ch = hmm.update_from_reflection(text)
+        out.append({
+            "reflection": i,
+            "text": text,
+            "P_before_row0": [round(x, 4) for x in before[0].tolist()],
+            "P_after_row0": [round(x, 4) for x in ch["after"][0]],
+            "delta_row0": [round(x, 4) for x in ch["delta"][0]],
+            "lr": hmm.lr,
+        })
+    return out
+
+
+if __name__ == "__main__":
+    if os.environ.get("SPREAD_SIM") == "5":
+        print(json.dumps(simulate_5_multihop(), ensure_ascii=False, indent=2))
+    elif os.environ.get("SEAA_SIM") == "3":
+        print(json.dumps(simulate_3_reflections(), ensure_ascii=False, indent=2))
+    else:
+        out = run_once()
+        print(json.dumps(out, ensure_ascii=False, indent=2))
