@@ -39,9 +39,9 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 012 | `012-t5-rekursion.md` | `t=4 → t=5` | approved: Batnini, 2026-10-01 | siehe File |
 | 013 | `013-t6-rekursion.md` | `t=5 → t=6` | approved: Batnini, 2026-10-01 | siehe File |
 | 014 | `014-ingestion-hook-v2.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
-| 015 | `015-procedural-memory-l4.md` | System-Iteration (Skills) | pending: menschliche Freigabe ausstehend | siehe File |
-| 016 | `016-neuro-symbolic-loop.md` | System-Iteration (cognize) | pending: menschliche Freigabe ausstehend | siehe File |
-| 017 | `017-memory-lifecycle.md` | System-Iteration (Memory) | pending: menschliche Freigabe ausstehend | siehe File |
+| 015 | `015-procedural-memory-l4.md` | System-Iteration (Skills) | approved: Batnini, 2026-10-01 | siehe File |
+| 016 | `016-neuro-symbolic-loop.md` | System-Iteration (cognize) | approved: Batnini, 2026-10-01 | siehe File |
+| 017 | `017-memory-lifecycle.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
 
 ## Guardrail
 

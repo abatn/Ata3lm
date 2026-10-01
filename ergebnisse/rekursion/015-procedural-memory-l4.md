@@ -52,4 +52,4 @@ Update nur bei `approved`. (Kein Paper schreibt diese konkrete Mechanik vor.)
 
 ## 7. Freigabe
 
-**Freigabe-Status für π₁:** `pending` (menschliche Freigabe ausstehend).
+**Freigabe-Status für π₁:** `approved: Batnini, 2026-10-01`.
