@@ -59,5 +59,5 @@ min_trust=0.5, Dedup-Fenster=300 s. (τ=60, η=0.02, λ=0.995 = **belegt** aus H
 
 ## 7. Freigabe
 
-**Freigabe-Status für π₁:** `pending` (menschliche Freigabe ausstehend;
-Auslöser war der menschliche Auftrag vom 2026-10-01).
+**Freigabe-Status für π₁:** `approved: Batnini, 2026-10-01`
+(Auslöser: menschlicher Auftrag vom 2026-10-01; freigegeben).
