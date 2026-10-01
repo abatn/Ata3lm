@@ -10,14 +10,16 @@ digraph Aufbau {
 
   root [label="knowledge-agent/", fillcolor="#F8CBAD", color="#C55A11", fontsize=13];
 
-  agents [shape=note, label="AGENTS.md\nGesetz §1–§11", fillcolor="#FFF2CC", color="#BF8F00"];
-  readme [shape=note, label="README.md · LICENSE", fillcolor="#F2F2F2", color="#808080"];
+  agents [shape=note, label="AGENTS.md\nGesetz §1–§11 (+§9.1)", fillcolor="#FFF2CC", color="#BF8F00"];
+  docs [shape=note, label="README.md · CONTRIBUTING.md · LICENSE\n(MIT, c 2026 batnini)", fillcolor="#F2F2F2", color="#808080"];
+  git [shape=note, label="git: 2f2ba7f\nprivat: abatn/Ata3lm", fillcolor="#F2F2F2", color="#808080"];
 
   knowledge [label="knowledge/", fillcolor="#E2EFDA", color="#548235"];
   kn_life [label="lifecycle/\n8 Stufen-Dateien", fillcolor="#E2EFDA", color="#548235"];
   kn_rek [label="lifecycle/rekursion/\n5 Phasen + index + 8-Stufen-Zyklus = 7", fillcolor="#E2EFDA", color="#548235"];
   kn_struct [label="structured/\n8 (entity-/relation-/distilled)", fillcolor="#E2EFDA", color="#548235"];
-  kn_shell [label="6 README-Schalen\naction · cognition · expansion\nnon-cognitive · raw · reflection", fillcolor="#EDEDED", color="#808080"];
+  kn_cog [label="cognition/\nREADME + inference-001..003", fillcolor="#D5E8D4", color="#548235"];
+  kn_shell [label="5 README-Schalen\naction · expansion\nnon-cognitive · raw · reflection", fillcolor="#EDEDED", color="#808080"];
 
   conn [label="connectors/\n15 Connector-Dateien", fillcolor="#FBE5D6", color="#ED7D31"];
 
@@ -31,12 +33,13 @@ digraph Aufbau {
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  res [label="ergebnisse/\n54 Einträge (inkl. rekursion/ 000–013 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
+  res [label="ergebnisse/\n60 Einträge (inkl. rekursion/ 000–013 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
 
-  warn [shape=note, fillcolor="#FCE4D6", color="#C00000", fontsize=10, label="BEFUND: AGENTS.md:320 sagt\n\"9 Connectoren\" — Dateien: 15"];
+  warn [shape=note, fillcolor="#FCE4D6", color="#C00000", fontsize=10, label="BEFUND (offen): AGENTS.md:320\n\"9 referenziert / 15 insgesamt\" —\nREADME-Report gesamtpruefung.md ist veraltet\n(listet 14, fast-write-routing fehlt)"];
 
   root -> agents;
-  root -> readme;
+  root -> docs;
+  root -> git;
   root -> knowledge;
   root -> conn;
   root -> data;
@@ -46,6 +49,7 @@ digraph Aufbau {
   knowledge -> kn_life;
   knowledge -> kn_rek;
   knowledge -> kn_struct;
+  knowledge -> kn_cog;
   knowledge -> kn_shell;
 
   data -> t1;
@@ -56,5 +60,5 @@ digraph Aufbau {
   skills -> sk_top;
   skills -> sk_rec;
 
-  conn -> warn [style=dashed, color="#C00000", arrowsize=0.6];
+  res -> warn [style=dashed, color="#C00000", arrowsize=0.6];
 }

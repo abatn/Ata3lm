@@ -3,6 +3,11 @@
 > Datum: 2026-09-30
 > Zweck: Vollständige abschließende Prüfung aller Komponenten
 > Lab-Prinzip: Keine Erfindungen – nur was tatsächlich in den Dateien steht.
+>
+> **Korrektur 2026-10-01:** Die Connector-Tabellen waren unvollständig
+> (`fast-write-routing.md` fehlte, `affective-signals.md` doppelt gelistet).
+> Beide Tabellen wurden auf die tatsächlichen 15 Dateien in `connectors/`
+> korrigiert.
 
 ---
 
@@ -51,7 +56,7 @@
 | 12 | connectors/observer-agent.md | 55 |
 | 13 | connectors/react.md | 59 |
 | 14 | connectors/reflexion-trace.md | 73 |
-| 15 | connectors/affective-signals.md | 73 |
+| 15 | connectors/fast-write-routing.md | 59 |
 
 #### 3 Kern-Dateien
 | Datei | Pfad | Zeilen |
@@ -130,6 +135,7 @@
 | 12 | observer-agent.md | 55 | Observer-Agent | 200 |
 | 13 | react.md | 59 | ReAct | 200, 200 |
 | 14 | reflexion-trace.md | 73 | Reflexion, TRACE | 200, 200, 200 |
+| 15 | fast-write-routing.md | 59 | Dual-Layer (arXiv:2608.22215) | 200 |
 
 **Ergebnis:** ✅ Alle 15 Connectoren existieren, sind belegt und alle Quellen-Links geben HTTP 200.
 
