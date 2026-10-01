@@ -6,3 +6,7 @@ node_modules/
 *.log
 data/memory/tier3-working/ingestion_log.jsonl
 data/memory/shared/shared_store.jsonl
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
