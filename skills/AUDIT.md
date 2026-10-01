@@ -19,3 +19,5 @@
 | 2026-10-01T16:26:04.380262+00:00 | `skills/reflect/SKILL.md` | snapshot v1 | Baseline (Procedural Memory L4 eingeführt) |
 | 2026-10-01T16:26:04.380749+00:00 | `skills/store-memory/SKILL.md` | snapshot v1 | Baseline (Procedural Memory L4 eingeführt) |
 | 2026-10-01T16:26:04.381346+00:00 | `skills/structure-knowledge/SKILL.md` | snapshot v1 | Baseline (Procedural Memory L4 eingeführt) |
+| 2026-10-01T16:29:52.565677+00:00 | `skills/cognize/SKILL.md` | snapshot v2 | Update auf v2 |
+| 2026-10-01T16:29:52.565744+00:00 | `skills/cognize/SKILL.md` | update applied (v2) | Fester LLM→Symbolic→Commit-Loop dokumentiert (AWS Semantic Layer + Swansea) |

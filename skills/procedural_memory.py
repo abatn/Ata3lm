@@ -98,8 +98,8 @@ def propose_update(skill_file: Path, new_text: str, reason: str, approved: bool)
     vdir = skill_file.parent / "versions"
     existing = sorted(d.name for d in vdir.glob("v*")) if vdir.exists() else []
     nxt = f"v{len(existing) + 1}"
-    snapshot(skill_file, nxt, reason=f"Vorher-Stand vor Update ({nxt})")
     skill_file.write_text(new_text, encoding="utf-8")
+    snapshot(skill_file, nxt, reason=f"Update auf {nxt}")   # Version N = Zustand N
     audit(skill_file, f"update applied ({nxt})", reason, diff)
     return {"applied": True, "status": "approved", "version": nxt}
 
@@ -121,6 +121,7 @@ def _demo() -> None:
     AUDIT = tmp / "AUDIT.md"; DIFF_DIR = tmp / "diffs"   # Demo schreibt NICHT ins Repo-Audit
     demo_skill = tmp / "SKILL.md"
     demo_skill.write_text("---\nname: demo\ndescription: \"Demo-Skill.\"\n---\n\nAlt.\n", encoding="utf-8")
+    snapshot(demo_skill, "v1", reason="Baseline (Demo)")     # v1 = Ausgangszustand
     new_text = "---\nname: demo\ndescription: \"Demo-Skill.\"\n---\n\nNeu.\n"
     r1 = propose_update(demo_skill, new_text, reason="Verbesserung", approved=False)
     print(f"  ohne approved -> applied={r1['applied']} status={r1['status']} ({r1['reason']})")
