@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
 import time
 from dataclasses import asdict, dataclass, field
@@ -144,8 +145,9 @@ class EncodingGate:
 
 
 # =====================================================================
-# 2. Entity-Resolution – deterministisch (GLiNER-Prinzip: lokal, keine API,
-#    reproduzierbar). Regel-/Wörterbuch-basiert (kein Modell installiert).
+# 2. Entity-Resolution – GLiNER-Prinzip (lokal, keine API, reproduzierbar).
+#    Bevorzugt ECHTES GLiNER (GraphRAG-SDK Step 1; GLiNER-Relex arXiv:2605.10108)
+#    WENN installiert; sonst regel-/wörterbuchbasiert (Auftrag = Approximation).
 # =====================================================================
 ENTITY_RULES: list[tuple[str, re.Pattern]] = [
     ("Solver",  re.compile(r"\b(berechne_[a-zäöü]+|finde_[a-zäöü]+)\b")),
@@ -154,10 +156,48 @@ ENTITY_RULES: list[tuple[str, re.Pattern]] = [
     ("Stage",   re.compile(r"\b(Erfahrung|Wissen|Gedächtnis|Kognition|Denken|Nicht-Kognition|Handeln|Wissen\+)\b")),
 ]
 
+_GLINER = None  # lazy geladen
 
-def resolve_entities(text: str) -> list[dict[str, Any]]:
-    """Deterministische Entity-Erkennung. Gleicher Text -> gleiche Liste.
-    Rückgabe: [{entity_type, span, start, end, confidence}]."""
+
+def gliner_available() -> bool:
+    """True, wenn echtes GLiNER importierbar ist."""
+    try:
+        import gliner  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _get_gliner():
+    """Lädt echtes GLiNER einmalig. Nur aufrufen, wenn `gliner_available()`."""
+    global _GLINER
+    if _GLINER is None:
+        from gliner import GLiNER  # type: ignore
+        _GLINER = GLiNER.from_pretrained(
+            os.environ.get("GLINER_MODEL", "urchade/gliner_multi-v2.1"))
+    return _GLINER
+
+
+def resolve_entities(text: str, backend: Optional[str] = None,
+                     labels: Optional[list] = None) -> list[dict[str, Any]]:
+    """Entity-Resolution. backend = 'auto' | 'gliner' | 'rules'.
+
+    - 'auto'/'gliner' + GLiNER installiert → echtes GLiNER (GraphRAG-SDK Step 1).
+    - sonst → regelbasiert (Auftrag; Approximation des GLiNER-Prinzips).
+    Rückgabe: [{entity_type, span, start, end, confidence, backend}]."""
+    backend = backend or os.environ.get("GLINER_BACKEND", "auto")
+    if backend in ("auto", "gliner") and gliner_available():
+        model = _get_gliner()
+        labels = labels or ["Solver", "Concept", "Phase", "Stage"]
+        ents = model.predict_entities(text or "", labels, threshold=0.5)
+        out = [{"entity_type": e["label"], "span": e["text"], "start": e["start"],
+                "end": e["end"], "confidence": round(float(e["score"]), 4),
+                "backend": "gliner"} for e in ents]
+        out.sort(key=lambda e: (e["start"], e["entity_type"]))
+        return out
+    if backend == "gliner":          # explizit angefordert, aber nicht verfügbar
+        return []
+    # --- regelbasiert (Auftrag: Approximation des GLiNER-Prinzips) ---
     found: list[dict[str, Any]] = []
     for etype, pat in ENTITY_RULES:
         for m in pat.finditer(text or ""):
@@ -167,6 +207,7 @@ def resolve_entities(text: str) -> list[dict[str, Any]]:
                 "start": m.start(),
                 "end": m.end(),
                 "confidence": 1.0,          # exakter Wörterbuch-Treffer (Auftrag)
+                "backend": "rules",
             })
     found.sort(key=lambda e: (e["start"], e["entity_type"]))
     return found
