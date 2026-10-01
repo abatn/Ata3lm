@@ -1,0 +1,60 @@
+digraph Aufbau {
+  rankdir=TB;
+  bgcolor="white";
+  fontname="DejaVu Sans";
+  labelloc="t";
+  fontsize=16;
+  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-01)";
+  node [shape=folder, style=filled, fillcolor="#E8F0FE", color="#2E75B6", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.07"];
+  edge [color="#7F7F7F", arrowsize=0.6];
+
+  root [label="knowledge-agent/", fillcolor="#F8CBAD", color="#C55A11", fontsize=13];
+
+  agents [shape=note, label="AGENTS.md\nGesetz §1–§11", fillcolor="#FFF2CC", color="#BF8F00"];
+  readme [shape=note, label="README.md · LICENSE", fillcolor="#F2F2F2", color="#808080"];
+
+  knowledge [label="knowledge/", fillcolor="#E2EFDA", color="#548235"];
+  kn_life [label="lifecycle/\n8 Stufen-Dateien", fillcolor="#E2EFDA", color="#548235"];
+  kn_rek [label="lifecycle/rekursion/\n5 Phasen + index + 8-Stufen-Zyklus = 7", fillcolor="#E2EFDA", color="#548235"];
+  kn_struct [label="structured/\n8 (entity-/relation-/distilled)", fillcolor="#E2EFDA", color="#548235"];
+  kn_shell [label="6 README-Schalen\naction · cognition · expansion\nnon-cognitive · raw · reflection", fillcolor="#EDEDED", color="#808080"];
+
+  conn [label="connectors/\n15 Connector-Dateien", fillcolor="#FBE5D6", color="#ED7D31"];
+
+  data [label="data/memory/", fillcolor="#FFF2CC", color="#BF8F00"];
+  t1 [label="tier1-base/\n4 Dateien + versions/v1/", fillcolor="#FFF2CC", color="#BF8F00"];
+  t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
+  t3 [label="tier3-working/\nlru_cache.py + README", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (2)\nfast_write_router.py\nreflective_agent.py", fillcolor="#FFF2CC", color="#BF8F00"];
+
+  skills [label="skills/  ·  14 SKILL.md", fillcolor="#DEEBF7", color="#1F4E79"];
+  sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
+  sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
+
+  res [label="ergebnisse/\n54 Einträge (inkl. rekursion/ 000–013 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
+
+  warn [shape=note, fillcolor="#FCE4D6", color="#C00000", fontsize=10, label="BEFUND: AGENTS.md:320 sagt\n\"9 Connectoren\" — Dateien: 15"];
+
+  root -> agents;
+  root -> readme;
+  root -> knowledge;
+  root -> conn;
+  root -> data;
+  root -> skills;
+  root -> res;
+
+  knowledge -> kn_life;
+  knowledge -> kn_rek;
+  knowledge -> kn_struct;
+  knowledge -> kn_shell;
+
+  data -> t1;
+  data -> t2;
+  data -> t3;
+  data -> py;
+
+  skills -> sk_top;
+  skills -> sk_rec;
+
+  conn -> warn [style=dashed, color="#C00000", arrowsize=0.6];
+}
