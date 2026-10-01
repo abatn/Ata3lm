@@ -172,6 +172,34 @@ Quellen: arXiv:2607.26722 (DREvo: function-level evidence anchoring, line-level
 diff, Einzelkomponenten-Änderungen); projektintern Consistency Gap (arXiv:2609.08832).
 Template: `ergebnisse/proposal-template.md`.
 
+### 9.2 Trust & Governance: Privacy · Bias · Adversarial Robustness
+
+> Status-Trennung wie oben: **Belegt** = Quelle; **Auftrag** = Betriebsregel.
+> Implementierung: `data/memory/trust.py`. Doku: `ergebnisse/trust-governance.md`.
+
+**a) Privacy (PII-Erkennung + Anonymisierung VOR dem Store) — Belegt.**
+Vor dem Persistieren werden PII erkannt und anonymisiert.
+Quelle: SP-Mem (arXiv:2608.16551) — sensible Werte separieren, sanierte Inhalte
+speichern; agentmemory — Secrets/`<private>` vor dem Store entfernen.
+Auftrag: PII-Typen (E-Mail, Telefon, Kreditkarte, IBAN) → `[PII:<typ>]`.
+
+**b) Bias (periodische Checks gegen Ground-Truth-Checkpoints) — Belegt.**
+Bias wird regelmäßig gegen einen Ground-Truth-Checkpoint geprüft; Abweichung
+über τ → Flag.
+Quelle: DIB / Dynamic Memory Tagging (arXiv:2602.01558) — „Periodic Bias
+Evaluation" gegen Benchmark-Ground-Truth; Memory Contagion (arXiv:2606.23195).
+τ = Auftrag (Default 0.10).
+
+**c) Adversarial Robustness (Poisoning-Guard) — Belegt.**
+Nur **verifizierte** Items werden gespeichert: trusted origin **und** verified.
+Quelle: MPBench (arXiv:2606.04329, V-S1 „No Write-Path Validation");
+A-MemGuard (arXiv:2510.02373, Consensus-Validation); TMA-NM (arXiv:2606.24322,
+„write-time origin binding is necessary"); LTM-Security-Survey (arXiv:2604.16548,
+Verifiable Memory Governance); TrustAgent (arXiv:2503.09648).
+
+**Gate-Anbindung:** Ein Item, das Privacy-, Bias- oder Poisoning-Guard nicht
+passiert, wird **nicht** gespeichert (`rejected` mit Grund) — analog §9.
+
 ## 10. Fast Write Routing (Dual-Layer Agentic Memory)
 
 Dieser Abschnitt integriert das Paper **arXiv:2608.22215** ("Dual-Layer Agentic Memory

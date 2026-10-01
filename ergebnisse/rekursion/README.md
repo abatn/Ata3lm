@@ -43,6 +43,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 016 | `016-neuro-symbolic-loop.md` | System-Iteration (cognize) | approved: Batnini, 2026-10-01 | siehe File |
 | 017 | `017-memory-lifecycle.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
 | 018 | `018-multi-agent-sharing.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
+| 019 | `019-trust-governance.md` | System-Iteration (Governance) | pending: menschliche Freigabe ausstehend | siehe File |
 
 ## Guardrail
 
