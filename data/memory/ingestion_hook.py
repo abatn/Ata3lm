@@ -189,7 +189,10 @@ def resolve_entities(text: str, backend: Optional[str] = None,
     if backend in ("auto", "gliner") and gliner_available():
         model = _get_gliner()
         labels = labels or ["Solver", "Concept", "Phase", "Stage"]
-        ents = model.predict_entities(text or "", labels, threshold=0.5)
+        # Schwellwert kalibriert (nicht willkürlich, §9.1c): 0.5 → 0 von 2 Test-
+        # Sätzen trifft; 0.4 → 2/2 ohne Rauschen (s. ergebnisse/mcp-check-gliner.md).
+        threshold = float(os.environ.get("GLINER_THRESHOLD", "0.4"))
+        ents = model.predict_entities(text or "", labels, threshold=threshold)
         out = [{"entity_type": e["label"], "span": e["text"], "start": e["start"],
                 "end": e["end"], "confidence": round(float(e["score"]), 4),
                 "backend": "gliner"} for e in ents]

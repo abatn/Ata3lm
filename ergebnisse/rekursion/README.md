@@ -54,6 +54,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 027 | `027-drift-index.md` | System-Iteration (Governance/Monitoring) | approved: Batnini, 2026-10-01 | siehe File |
 | 028 | `028-bi-temporal.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
 | 029 | `029-forschungsluecken-4.md` | System-Iteration (Konsolidierung) | approved: Batnini, 2026-10-01 | siehe File |
+| 030 | `030-governance-mcp.md` | System-Iteration (Governance/MCP) | approved: Batnini, 2026-10-01 (Score 8/8) | siehe File |
 
 ## Guardrail
 

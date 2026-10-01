@@ -371,7 +371,7 @@ Anfrage ─▶ MCP-Layer (Cognee/Graphiti/HeLa-Mem)
 - Plan: `ergebnisse/knowledge-agent-plan.md`
 - Lauf-Protokoll: `ergebnisse/lebenszyklus-8-phasen.md`
 
-## Connectors (9 hier referenzierte Connector-Dateien mit Quellen; 15 Dateien insgesamt in `connectors/`)
+## Connectors (10 hier referenzierte Connector-Dateien mit Quellen; 16 Dateien insgesamt in `connectors/`)
 
 | Connector | Phase/Stufe | Connector-Datei | Kern-Referenz | Quellen-Link |
 |---|---|---|---|---|
@@ -389,3 +389,4 @@ Anfrage ─▶ MCP-Layer (Cognee/Graphiti/HeLa-Mem)
 | Bi-Temporal Modelle | Wissen+ (8) | `knowledge/lifecycle/wissen-plus.md:31-40` | AGENTS.md: — | https://github.com/getzep/graphiti |
 | Affective Computing + Psycho-Linguistisch | Nicht-Kognition (6) | `connectors/affective-signals.md:1` | AGENTS.md: — | https://jisem-journal.com/index.php/journal/article/view/12473 |
 | Fast Write Routing | Erfahrung (1) → Gedächtnis (3) | `connectors/fast-write-routing.md` | AGENTS.md: §10 | https://arxiv.org/abs/2608.22215 |
+| Governance-MCP (Drift/Lyapunov/GLiNER) | Gedächtnis (3), Denken (5), Handeln (7) | `connectors/governance-mcp.md:11-15`, `connectors/governance-mcp.md:48-53` | AGENTS.md: §9, §11 | https://github.com/neogenesislab/WhyLab-NeurIPS2026, https://arxiv.org/abs/2605.10108 |

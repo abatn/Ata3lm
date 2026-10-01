@@ -468,6 +468,27 @@ def simulate_3_reflections():
     return out
 
 
+# --- Lyapunov-bounded adaptive damping (WhyLab C3, arXiv-GitHub neogenesislab) ---
+def lyapunov_check(energies: list, tau: float = 0.0) -> dict:
+    """E[ΔV] ≤ 0 (WhyLab C3): mittlere Energieänderung nicht-positiv ⇒ stabil/kontraktiv.
+    Bei Verletzung (E[ΔV] > tau) → Human-Gate (ask)."""
+    if len(energies) < 2:
+        return {"E_dV": 0.0, "stable": True, "gate": "ok", "note": "zu wenig Daten"}
+    dV = [float(energies[i + 1]) - float(energies[i]) for i in range(len(energies) - 1)]
+    e_dv = sum(dV) / len(dV)
+    stable = e_dv <= tau
+    return {"E_dV": round(e_dv, 4), "dV": [round(x, 4) for x in dV],
+            "stable": stable, "gate": "ok" if stable else "ask"}
+
+
+def simulate_lyapunov() -> dict:
+    """Zwei Verläufe: stabil (E[ΔV] ≤ 0) vs. instabil (E[ΔV] > 0)."""
+    stable_seq = [1.0, 0.8, 0.6, 0.45, 0.3, 0.2]      # fallende „Energie" (V sinkt)
+    unstable_seq = [0.2, 0.3, 0.5, 0.8, 1.2, 1.7]     # steigende „Energie" (V wächst)
+    return {"stable": lyapunov_check(stable_seq),
+            "unstable": lyapunov_check(unstable_seq)}
+
+
 if __name__ == "__main__":
     if os.environ.get("SPREAD_SIM") == "5":
         print(json.dumps(simulate_5_multihop(), ensure_ascii=False, indent=2))
@@ -475,6 +496,8 @@ if __name__ == "__main__":
         print(json.dumps(simulate_3_reflections(), ensure_ascii=False, indent=2))
     elif os.environ.get("MEMORY_LIFECYCLE_SIM") == "1":
         print(json.dumps(simulate_lifecycle(), ensure_ascii=False, indent=2))
+    elif os.environ.get("LYAPUNOV_SIM") == "1":
+        print(json.dumps(simulate_lyapunov(), ensure_ascii=False, indent=2))
     else:
         out = run_once()
         print(json.dumps(out, ensure_ascii=False, indent=2))
