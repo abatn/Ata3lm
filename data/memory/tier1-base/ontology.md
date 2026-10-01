@@ -60,3 +60,19 @@ Quellen:
 **Funktionen:** `detect_hubs`, `distill`/`write_semantic` (Konsolidierung);
 `detect_forgetting` (3 Bedingungen); `resolve_conflict` (Supersede-Marker);
 `simulate_lifecycle` (Demo).
+
+## E. Bi-temporale Semantik (Belegt: Engram)
+
+> Quelle: **Engram** (arXiv:2606.09900) — valid time + transaction time + `supersedes`;
+> „never hard-delete a contradicted fact — invalidate it … and keep the history".
+> Implementierung: `data/memory/bi_temporal.py`. Doku: `ergebnisse/bi-temporal.md`.
+
+Jeder Fakt trägt **zwei Zeitachsen**:
+- **valid time** (`valid_from` / `valid_to`): wann gilt der Fakt **in der Welt**?
+- **transaction time** (`recorded_at` / `superseded_at`): wann wurde er **gespeichert/verworfen**?
+
+**Retroaktives Update:** Bei Widerspruch (gleiches s,p, anderes o) → alter Fakt bleibt
+mit `valid_to` + `superseded_at` (nicht gelöscht), neuer mit `valid_from` (+ `supersedes`).
+
+**As-of-Abfragen:** `as_of(valid_time, knowledge_time)` („was glaubten wir am knowledge_time
+über valid_time?"); zusätzlich `world_state_as_of` (nur valid) + `knowledge_as_of` (nur transaction).

@@ -52,6 +52,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 025 | `025-l4-operational.md` | System-Iteration (Skills/L4) | approved: Batnini, 2026-10-01 | siehe File |
 | 026 | `026-shared-supersession.md` | System-Iteration (Shared Memory) | approved: Batnini, 2026-10-01 | siehe File |
 | 027 | `027-drift-index.md` | System-Iteration (Governance/Monitoring) | approved: Batnini, 2026-10-01 | siehe File |
+| 028 | `028-bi-temporal.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
 
 ## Guardrail
 
