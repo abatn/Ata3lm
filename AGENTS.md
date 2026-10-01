@@ -200,6 +200,28 @@ Verifiable Memory Governance); TrustAgent (arXiv:2503.09648).
 **Gate-Anbindung:** Ein Item, das Privacy-, Bias- oder Poisoning-Guard nicht
 passiert, wird **nicht** gespeichert (`rejected` mit Grund) — analog §9.
 
+### 9.3 Zwei-Personen-Verifikation (EU-KI-VO Art. 14(5))
+
+> Status: **Belegt** (Zwei-Personen-Prinzip) + **Auftrag** (Anwendung).
+> Implementierung: `data/memory/approval.py`. Doku: `ergebnisse/zwei-personen.md`.
+
+**Belegt:** EU-KI-VO (VO (EU) 2024/1689) **Art. 14(5)** verlangt für High-Risk-Systeme
+nach **Annex III Punkt 1(a)** (Remote-Biometrie-Identifikation), dass die
+Identifikation „separately verified and confirmed by **at least two natural
+persons** with the necessary competence, training and authority" wird (Ausnahme:
+Law Enforcement, Migration, Grenzkontrolle, Asyl). Art. 14(1)–(4) regelt
+menschliche Aufsicht (Human Oversight) allgemein — die **Zwei-Personen**-Pflicht
+gilt nur für den genannten Annex-III-1(a)-Fall.
+
+**Auftrag (Projekt):** Der `approved`-Flow wird auf **Zwei-Personen-Verifikation**
+umgestellt — statt einer Freigabe müssen **mindestens zwei distinkte natürliche
+Personen** bestätigen.
+
+**Flow:** `pending → first_approved → second_approved → approved`.
+
+**Gate-Anbindung:** `approved` nur bei **≥ 2 distinkten** Personen; sonst bleibt
+der Status `first_approved`/`second_approved` (bzw. `rejected`).
+
 ## 10. Fast Write Routing (Dual-Layer Agentic Memory)
 
 Dieser Abschnitt integriert das Paper **arXiv:2608.22215** ("Dual-Layer Agentic Memory
