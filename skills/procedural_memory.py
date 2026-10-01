@@ -79,8 +79,8 @@ def snapshot(skill_file: Path, version: str, reason: str) -> Path:
     vdir = skill_file.parent / "versions" / version
     vdir.mkdir(parents=True, exist_ok=True)
     dst = vdir / "SKILL.md"
-    if dst.exists() and dst.read_text(encoding="utf-8") == skill_file.read_text(encoding="utf-8"):
-        return dst                              # idempotent: kein Duplikat im Audit
+    if dst.exists():
+        return dst                              # Versionen sind UNVERÄNDERLICH (kein Overwrite)
     shutil.copy2(skill_file, dst)
     audit(skill_file, action=f"snapshot {version}", reason=reason)
     return dst
