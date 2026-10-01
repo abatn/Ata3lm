@@ -34,22 +34,23 @@ Volldefinition: [`AGENTS.md`](AGENTS.md) (Abschnitt „Die 8 Prinzipien").
 
 ```text
 knowledge-agent/
-├── AGENTS.md          # Gesetz (§1–§11; §9.1 Drift/Versionierung/HITL, §9.2 Trust)
+├── AGENTS.md          # Gesetz (§1–§11; §9.1 Drift/Versionierung/HITL, §9.2 Trust, §9.3 Zwei-Personen)
 ├── README.md · CONTRIBUTING.md · LICENSE
 ├── knowledge/         # lifecycle/ (8 Stufen + rekursion/ 5 Phasen), structured/, cognition/
 ├── connectors/        # 15 Connector-Dateien (9 in AGENTS.md referenziert; Quellen je Phase/Stufe)
 ├── data/memory/       # Tier 1–3 (tier1-base/ +versions, tier2-index/, tier3-working/)
 │                      #   + shared/ (SharedTier) + Prozesse (*.py)
-├── skills/            # L4 Procedural: 14 SKILL.md + versions/vN/ + AUDIT.md
+├── skills/            # L4 Procedural: 14 SKILL.md + versions/vN/ (je Skill) + AUDIT.md
 └── ergebnisse/        # Provenienz je Iteration (rekursion/), Analysen, Tests, Diagramme
 ```
 
-## Gedächtnis (3-Tier)
+## Gedächtnis (3-Tier + L4 Procedural + Shared Tier)
 
 - **tier1-base/** — Identität, Ontologie, Kernbeziehungen, episodischer Graph
-  (`episodic_graph.json`) + `versions/v1/`
+  (`episodic_graph.json`) + `versions/v1`–`v3`
 - **tier2-index/** — concept-index, hub-index, evicted-index
-- **tier3-working/** — Working Memory (`lru_cache.py`, max. 15 Items)
+- **tier3-working/** — Working Memory (`lru_cache.py`, max. 15; Default wertbewusste Eviction)
+- **L4** — Prozeduren (`skills/`, versioniert) · **Shared** — Multi-Agent-Store (`data/memory/shared/`)
 
 ## Guardrails
 

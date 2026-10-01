@@ -10,9 +10,9 @@ digraph Aufbau {
 
   root [label="knowledge-agent/", fillcolor="#F8CBAD", color="#C55A11", fontsize=13];
 
-  agents [shape=note, label="AGENTS.md\nGesetz §1–§11 (+§9.1)", fillcolor="#FFF2CC", color="#BF8F00"];
+  agents [shape=note, label="AGENTS.md\nGesetz §1–§11 (+§9.1–§9.3)", fillcolor="#FFF2CC", color="#BF8F00"];
   docs [shape=note, label="README.md · CONTRIBUTING.md · LICENSE\n(MIT, c 2026 batnini)", fillcolor="#F2F2F2", color="#808080"];
-  git [shape=note, label="git: 2f2ba7f\nprivat: abatn/Ata3lm", fillcolor="#F2F2F2", color="#808080"];
+  git [shape=note, label="git: 7d80bbe\nprivat: abatn/Ata3lm", fillcolor="#F2F2F2", color="#808080"];
 
   knowledge [label="knowledge/", fillcolor="#E2EFDA", color="#548235"];
   kn_life [label="lifecycle/\n8 Stufen-Dateien", fillcolor="#E2EFDA", color="#548235"];
@@ -24,17 +24,17 @@ digraph Aufbau {
   conn [label="connectors/\n15 Connector-Dateien", fillcolor="#FBE5D6", color="#ED7D31"];
 
   data [label="data/memory/", fillcolor="#FFF2CC", color="#BF8F00"];
-  t1 [label="tier1-base/\n4 Dateien + versions/v1/", fillcolor="#FFF2CC", color="#BF8F00"];
+  t1 [label="tier1-base/\n4 Dateien + versions/v1–v3", fillcolor="#FFF2CC", color="#BF8F00"];
   t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
   t3 [label="tier3-working/\nlru_cache.py + README", fillcolor="#FFF2CC", color="#BF8F00"];
-  py [label="Prozesse (6)\nfast_write_router · reflective_agent\ningestion_hook · trust\nshared_memory · lru_cache", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (9)\nfast_write_router · reflective_agent · ingestion_hook\ntrust · approval · bias_monitor · bi_temporal\nshared_memory · lru_cache", fillcolor="#FFF2CC", color="#BF8F00"];
   shared [label="shared/\nSharedTier (ACL + Sync)", fillcolor="#FFF2CC", color="#BF8F00"];
 
   skills [label="skills/  ·  14 SKILL.md", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  res [label="ergebnisse/\n67 Einträge (inkl. rekursion/ 000–020 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
+  res [label="ergebnisse/\n75 Einträge (inkl. rekursion/ 000–028 · veraltet/ · Diagramme)", fillcolor="#E2EFDA", color="#375623"];
 
   root -> agents;
   root -> docs;

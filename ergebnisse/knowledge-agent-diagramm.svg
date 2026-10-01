@@ -13,7 +13,7 @@
 <text text-anchor="middle" x="763" y="-1106" font-family="DejaVu Sans" font-size="20.00">Quelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/</text>
 <g id="clust1" class="cluster">
 <title>cluster_law</title>
-<path fill="#fce4d6" stroke="#c55a11" d="M44,-1013C44,-1013 630,-1013 630,-1013 636,-1013 642,-1019 642,-1025 642,-1025 642,-1076 642,-1076 642,-1082 636,-1088 630,-1088 630,-1088 44,-1088 44,-1088 38,-1088 32,-1082 32,-1076 32,-1076 32,-1025 32,-1025 32,-1019 38,-1013 44,-1013"/>
+<path fill="#fce4d6" stroke="#c55a11" d="M55,-1013C55,-1013 619,-1013 619,-1013 625,-1013 631,-1019 631,-1025 631,-1025 631,-1076 631,-1076 631,-1082 625,-1088 619,-1088 619,-1088 55,-1088 55,-1088 49,-1088 43,-1082 43,-1076 43,-1076 43,-1025 43,-1025 43,-1019 49,-1013 55,-1013"/>
 <text text-anchor="middle" x="337" y="-1072.8" font-family="DejaVu Sans" font-size="14.00">Schicht 0 · Gesetz</text>
 </g>
 <g id="clust2" class="cluster">
@@ -33,8 +33,8 @@
 </g>
 <g id="clust4" class="cluster">
 <title>cluster_mem</title>
-<path fill="#fff2cc" stroke="#bf8f00" d="M993,-680C993,-680 1414,-680 1414,-680 1420,-680 1426,-686 1426,-692 1426,-692 1426,-767 1426,-767 1426,-773 1420,-779 1414,-779 1414,-779 993,-779 993,-779 987,-779 981,-773 981,-767 981,-767 981,-692 981,-692 981,-686 987,-680 993,-680"/>
-<text text-anchor="middle" x="1203.5" y="-763.8" font-family="DejaVu Sans" font-size="14.00">Schicht 3 · Gedächtnis — data/memory (3&#45;Tier)</text>
+<path fill="#fff2cc" stroke="#bf8f00" d="M991,-680C991,-680 1417,-680 1417,-680 1423,-680 1429,-686 1429,-692 1429,-692 1429,-767 1429,-767 1429,-773 1423,-779 1417,-779 1417,-779 991,-779 991,-779 985,-779 979,-773 979,-767 979,-767 979,-692 979,-692 979,-686 985,-680 991,-680"/>
+<text text-anchor="middle" x="1204" y="-763.8" font-family="DejaVu Sans" font-size="14.00">Schicht 3 · Gedächtnis — data/memory (3&#45;Tier + L4 + Shared)</text>
 </g>
 <g id="clust6" class="cluster">
 <title>cluster_conn</title>
@@ -59,8 +59,8 @@
 <!-- law -->
 <g id="node1" class="node">
 <title>law</title>
-<path fill="#f8cbad" stroke="#c55a11" d="M622,-1057C622,-1057 52,-1057 52,-1057 46,-1057 40,-1051 40,-1045 40,-1045 40,-1033 40,-1033 40,-1027 46,-1021 52,-1021 52,-1021 622,-1021 622,-1021 628,-1021 634,-1027 634,-1033 634,-1033 634,-1045 634,-1045 634,-1051 628,-1057 622,-1057"/>
-<text text-anchor="middle" x="337" y="-1036.2" font-family="DejaVu Sans" font-size="11.00">AGENTS.md &#160;&#160;§1–§8 Prinzipien &#160;&#160;· &#160;&#160;§9 Automatisches Gate &#160;&#160;· &#160;&#160;§10 Fast Write Routing &#160;&#160;· &#160;&#160;§11 MCP&#45;Layer</text>
+<path fill="#f8cbad" stroke="#c55a11" d="M611,-1057C611,-1057 63,-1057 63,-1057 57,-1057 51,-1051 51,-1045 51,-1045 51,-1033 51,-1033 51,-1027 57,-1021 63,-1021 63,-1021 611,-1021 611,-1021 617,-1021 623,-1027 623,-1033 623,-1033 623,-1045 623,-1045 623,-1051 617,-1057 611,-1057"/>
+<text text-anchor="middle" x="337" y="-1036.2" font-family="DejaVu Sans" font-size="11.00">AGENTS.md &#160;&#160;§1–§8 Prinzipien &#160;&#160;· &#160;&#160;§9 Gate (§9.1–§9.3) &#160;&#160;· &#160;&#160;§10 Fast Write Routing &#160;&#160;· &#160;&#160;§11 MCP&#45;Layer</text>
 </g>
 <!-- s1 -->
 <g id="node2" class="node">
@@ -195,17 +195,17 @@
 <!-- m1 -->
 <g id="node15" class="node">
 <title>m1</title>
-<path fill="#ffe699" stroke="#bf8f00" d="M1106.5,-748C1106.5,-748 1001.5,-748 1001.5,-748 995.5,-748 989.5,-742 989.5,-736 989.5,-736 989.5,-700 989.5,-700 989.5,-694 995.5,-688 1001.5,-688 1001.5,-688 1106.5,-688 1106.5,-688 1112.5,-688 1118.5,-694 1118.5,-700 1118.5,-700 1118.5,-736 1118.5,-736 1118.5,-742 1112.5,-748 1106.5,-748"/>
-<text text-anchor="middle" x="1054" y="-733.2" font-family="DejaVu Sans" font-size="11.00">tier1&#45;base</text>
-<text text-anchor="middle" x="1054" y="-721.2" font-family="DejaVu Sans" font-size="11.00">identity · ontology</text>
-<text text-anchor="middle" x="1054" y="-709.2" font-family="DejaVu Sans" font-size="11.00">core&#45;relations</text>
-<text text-anchor="middle" x="1054" y="-697.2" font-family="DejaVu Sans" font-size="11.00">episodic_graph.json</text>
+<path fill="#ffe699" stroke="#bf8f00" d="M1125.5,-748C1125.5,-748 1020.5,-748 1020.5,-748 1014.5,-748 1008.5,-742 1008.5,-736 1008.5,-736 1008.5,-700 1008.5,-700 1008.5,-694 1014.5,-688 1020.5,-688 1020.5,-688 1125.5,-688 1125.5,-688 1131.5,-688 1137.5,-694 1137.5,-700 1137.5,-700 1137.5,-736 1137.5,-736 1137.5,-742 1131.5,-748 1125.5,-748"/>
+<text text-anchor="middle" x="1073" y="-733.2" font-family="DejaVu Sans" font-size="11.00">tier1&#45;base</text>
+<text text-anchor="middle" x="1073" y="-721.2" font-family="DejaVu Sans" font-size="11.00">identity · ontology</text>
+<text text-anchor="middle" x="1073" y="-709.2" font-family="DejaVu Sans" font-size="11.00">core&#45;relations</text>
+<text text-anchor="middle" x="1073" y="-697.2" font-family="DejaVu Sans" font-size="11.00">episodic_graph.json</text>
 </g>
 <!-- p1&#45;&gt;m1 -->
 <g id="edge19" class="edge">
 <title>p1&#45;&gt;m1</title>
-<path fill="none" stroke="#bf8f00" stroke-dasharray="5,2" d="M882,-780.01C883.33,-779.67 884.67,-779.34 886,-779 917.29,-771.07 950.95,-759.65 979.86,-748.9"/>
-<polygon fill="#bf8f00" stroke="#bf8f00" points="973.85,-756.11 981,-748.29 970.53,-749.94 973.85,-756.11"/>
+<path fill="none" stroke="#bf8f00" stroke-dasharray="5,2" d="M882,-779.94C883.33,-779.63 884.67,-779.31 886,-779 913.29,-772.56 942.34,-764.06 969.21,-755.5"/>
+<polygon fill="#bf8f00" stroke="#bf8f00" points="970.56,-758.74 979,-752.34 968.41,-752.08 970.56,-758.74"/>
 <text text-anchor="middle" x="886.5" y="-789.8" font-family="DejaVu Sans" font-size="9.00">liest / schreibt M</text>
 </g>
 <!-- p3 -->
@@ -264,11 +264,11 @@
 <!-- m2 -->
 <g id="node16" class="node">
 <title>m2</title>
-<path fill="#ffe699" stroke="#bf8f00" d="M1240,-748C1240,-748 1166,-748 1166,-748 1160,-748 1154,-742 1154,-736 1154,-736 1154,-700 1154,-700 1154,-694 1160,-688 1166,-688 1166,-688 1240,-688 1240,-688 1246,-688 1252,-694 1252,-700 1252,-700 1252,-736 1252,-736 1252,-742 1246,-748 1240,-748"/>
-<text text-anchor="middle" x="1203" y="-733.2" font-family="DejaVu Sans" font-size="11.00">tier2&#45;index</text>
-<text text-anchor="middle" x="1203" y="-721.2" font-family="DejaVu Sans" font-size="11.00">concept&#45;index</text>
-<text text-anchor="middle" x="1203" y="-709.2" font-family="DejaVu Sans" font-size="11.00">hub&#45;index</text>
-<text text-anchor="middle" x="1203" y="-697.2" font-family="DejaVu Sans" font-size="11.00">evicted&#45;index</text>
+<path fill="#ffe699" stroke="#bf8f00" d="M1259,-748C1259,-748 1185,-748 1185,-748 1179,-748 1173,-742 1173,-736 1173,-736 1173,-700 1173,-700 1173,-694 1179,-688 1185,-688 1185,-688 1259,-688 1259,-688 1265,-688 1271,-694 1271,-700 1271,-700 1271,-736 1271,-736 1271,-742 1265,-748 1259,-748"/>
+<text text-anchor="middle" x="1222" y="-733.2" font-family="DejaVu Sans" font-size="11.00">tier2&#45;index</text>
+<text text-anchor="middle" x="1222" y="-721.2" font-family="DejaVu Sans" font-size="11.00">concept&#45;index</text>
+<text text-anchor="middle" x="1222" y="-709.2" font-family="DejaVu Sans" font-size="11.00">hub&#45;index</text>
+<text text-anchor="middle" x="1222" y="-697.2" font-family="DejaVu Sans" font-size="11.00">evicted&#45;index</text>
 </g>
 <!-- m1&#45;&gt;m2 -->
 <!-- conn -->
@@ -282,18 +282,17 @@
 <!-- m1&#45;&gt;conn -->
 <g id="edge20" class="edge">
 <title>m1&#45;&gt;conn</title>
-<path fill="none" stroke="#ed7d31" stroke-dasharray="5,2" d="M1092.55,-680C1099.54,-673.3 1106.99,-666.15 1114.47,-658.97"/>
-<polygon fill="#ed7d31" stroke="#ed7d31" points="1116.94,-661.45 1121.73,-652 1112.09,-656.4 1116.94,-661.45"/>
-<text text-anchor="middle" x="1141.5" y="-662.8" font-family="DejaVu Sans" font-size="9.00">belegt durch</text>
+<path fill="none" stroke="#ed7d31" stroke-dasharray="5,2" d="M1105.65,-680C1111.4,-673.48 1117.53,-666.54 1123.69,-659.55"/>
+<polygon fill="#ed7d31" stroke="#ed7d31" points="1126.36,-661.81 1130.35,-652 1121.11,-657.18 1126.36,-661.81"/>
+<text text-anchor="middle" x="1151.5" y="-662.8" font-family="DejaVu Sans" font-size="9.00">belegt durch</text>
 </g>
 <!-- m3 -->
 <g id="node17" class="node">
 <title>m3</title>
-<path fill="#ffe699" stroke="#bf8f00" d="M1406,-748C1406,-748 1300,-748 1300,-748 1294,-748 1288,-742 1288,-736 1288,-736 1288,-700 1288,-700 1288,-694 1294,-688 1300,-688 1300,-688 1406,-688 1406,-688 1412,-688 1418,-694 1418,-700 1418,-700 1418,-736 1418,-736 1418,-742 1412,-748 1406,-748"/>
-<text text-anchor="middle" x="1353" y="-733.2" font-family="DejaVu Sans" font-size="11.00">tier3&#45;working</text>
-<text text-anchor="middle" x="1353" y="-721.2" font-family="DejaVu Sans" font-size="11.00">fast_write_router.py</text>
-<text text-anchor="middle" x="1353" y="-709.2" font-family="DejaVu Sans" font-size="11.00">reflective_agent.py</text>
-<text text-anchor="middle" x="1353" y="-697.2" font-family="DejaVu Sans" font-size="11.00">lru_cache.py</text>
+<path fill="#ffe699" stroke="#bf8f00" d="M1387.5,-742C1387.5,-742 1318.5,-742 1318.5,-742 1312.5,-742 1306.5,-736 1306.5,-730 1306.5,-730 1306.5,-706 1306.5,-706 1306.5,-700 1312.5,-694 1318.5,-694 1318.5,-694 1387.5,-694 1387.5,-694 1393.5,-694 1399.5,-700 1399.5,-706 1399.5,-706 1399.5,-730 1399.5,-730 1399.5,-736 1393.5,-742 1387.5,-742"/>
+<text text-anchor="middle" x="1353" y="-727.2" font-family="DejaVu Sans" font-size="11.00">tier3&#45;working</text>
+<text text-anchor="middle" x="1353" y="-715.2" font-family="DejaVu Sans" font-size="11.00">lru_cache.py</text>
+<text text-anchor="middle" x="1353" y="-703.2" font-family="DejaVu Sans" font-size="11.00">(+ README)</text>
 </g>
 <!-- m2&#45;&gt;m3 -->
 <!-- mcp -->

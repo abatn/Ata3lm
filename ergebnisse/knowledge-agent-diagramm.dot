@@ -13,7 +13,7 @@ digraph KnowledgeAgent {
   subgraph cluster_law {
     label="Schicht 0 · Gesetz";
     style="filled,rounded"; fillcolor="#FCE4D6"; color="#C55A11"; fontsize=14;
-    law [label="AGENTS.md   §1–§8 Prinzipien   ·   §9 Automatisches Gate   ·   §10 Fast Write Routing   ·   §11 MCP-Layer", fillcolor="#F8CBAD", color="#C55A11"];
+    law [label="AGENTS.md   §1–§8 Prinzipien   ·   §9 Gate (§9.1–§9.3)   ·   §10 Fast Write Routing   ·   §11 MCP-Layer", fillcolor="#F8CBAD", color="#C55A11"];
   }
 
   // ================= Schicht 1 · Lifecycle (8 Stufen) =================
@@ -48,12 +48,12 @@ digraph KnowledgeAgent {
 
   // ================= Schicht 3 · Gedächtnis (3-Tier) =================
   subgraph cluster_mem {
-    label="Schicht 3 · Gedächtnis — data/memory (3-Tier)";
+    label="Schicht 3 · Gedächtnis — data/memory (3-Tier + L4 + Shared)";
     style="filled,rounded"; fillcolor="#FFF2CC"; color="#BF8F00"; fontsize=14;
     {rank=same; m1; m2; m3;}
     m1 [label="tier1-base\nidentity · ontology\ncore-relations\nepisodic_graph.json", fillcolor="#FFE699", color="#BF8F00"];
     m2 [label="tier2-index\nconcept-index\nhub-index\nevicted-index", fillcolor="#FFE699", color="#BF8F00"];
-    m3 [label="tier3-working\nfast_write_router.py\nreflective_agent.py\nlru_cache.py", fillcolor="#FFE699", color="#BF8F00"];
+    m3 [label="tier3-working\nlru_cache.py\n(+ README)", fillcolor="#FFE699", color="#BF8F00"];
     m1 -> m2 -> m3 [style=invis];
   }
 

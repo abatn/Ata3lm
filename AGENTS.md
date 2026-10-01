@@ -165,6 +165,8 @@ willkürlich gesetzt werden:
 Auftrag (Default): max. **10 %** Änderung pro Iteration; darüber → Human-Gate (ask).
 Der Default ist NICHT forschungsbelegt, sondern vorläufige Projekt-Vorgabe; bei
 Kalibrierungsdaten durch den gelernten Schwellwert ersetzen.
+Implementierung: `data/memory/bias_monitor.py` (JSD-basierter Drift-Index (DI),
+Capped-Simplex-Gewichtung, Lyapunov-Damping; τ-Flag → Human-Gate).
 
 **d) Evidenz-Pflicht — Status: Belegt.**
 Jeder Proposal enthält **Score-Änderung, Diff und Drift (Δ zur Baseline)**.
@@ -181,7 +183,9 @@ Template: `ergebnisse/proposal-template.md`.
 Vor dem Persistieren werden PII erkannt und anonymisiert.
 Quelle: SP-Mem (arXiv:2608.16551) — sensible Werte separieren, sanierte Inhalte
 speichern; agentmemory — Secrets/`<private>` vor dem Store entfernen.
-Auftrag: PII-Typen (E-Mail, Telefon, Kreditkarte, IBAN) → `[PII:<typ>]`.
+Auftrag: PII-Typen (E-Mail, Telefon, Kreditkarte, IBAN) werden **entfernt**
+(`PIIFilter.minimize()`, Datenminimierung) – NICHT als `[PII:<typ>]` markiert;
+`anonymize` ist Alias (löscht ebenfalls). Vgl. `ergebnisse/pii-minimierung.md`.
 
 **b) Bias (periodische Checks gegen Ground-Truth-Checkpoints) — Belegt.**
 Bias wird regelmäßig gegen einen Ground-Truth-Checkpoint geprüft; Abweichung
@@ -236,8 +240,8 @@ als erste Entscheidungsinstanz aktiviert:
 | Kategorie | Bedeutung | Aktion |
 |-----------|-----------|--------|
 | **non-write** | Modell kann bereits ohne externes Memory antworten | Nicht speichern (spart Kosten, vermeidet Bloat) |
-| **write-new** | Modell verweigert Antwort ohne Memory → Wissen fehlt | In Cognee/Graphiti (externes Memory) speichern |
-| **write-update** | Modell antwortet falsch (veraltetes Wissen) | Bestehende Memory überschreiben |
+| **write-new** | Modell verweigert Antwort ohne Memory → Wissen fehlt | `knowledge/structured/` + `data/memory/tier3-working/` (vgl. §10.7); Cognee/Graphiti = externes Memory-Konzept |
+| **write-update** | Modell antwortet falsch (veraltetes Wissen) | Bestehende Memory **supersedieren** (invalidieren, NICHT löschen; vgl. §10.7) |
 
 ### 10.2 Architektur: Kleine-zu-Große Kaskade (Small-to-Large Cascade)
 
@@ -245,10 +249,10 @@ als erste Entscheidungsinstanz aktiviert:
 
 | Stufe | Modell | Aufgabe |
 |---|---|---|
-| **Stufe 1** | kleiner Router (qwen3-1.7B) | Filtert offensichtliche **non-write**-Fälle (hohe Konfidenz, Modell kann es zero-shot) |
-| **Stufe 2** | großer Router (qwen3-8B) | Klassifiziert die verbleibenden zwischen **write-new** und **write-update** |
+| **Stufe 1** | kleiner Router (Paper: qwen3-1.7B; Impl. `FWR_SMALL_MODEL`, Default `google/gemma-2b`) | Filtert offensichtliche **non-write**-Fälle (hohe Konfidenz, Modell kann es zero-shot) |
+| **Stufe 2** | großer Router (Paper: qwen3-8B; Impl. `FWR_LARGE_MODEL`, Default `nvidia/nemotron-3-super-120b-a12b`) | Klassifiziert die verbleibenden zwischen **write-new** und **write-update** |
 
-- **Eskalationsgate:** `g* = V_large − V_small`; eskalieren nur wenn `g_pred > 0`.
+- **Eskalation (Impl.):** wenn die Zero-Shot-Antwort des kleinen Routers **nicht korrekt** ist (String-Match in `classify()`); ein expliziter `g_pred`-Vergleich ist (noch) nicht implementiert. (Paper-Konzept: `g* = V_large − V_small`.)
 - **Belegte Wirkung:** < 50 % der Inputs eskaliert, ≤ 68 % redundante Writes reduziert.
 
 **Operative Implementierung:** `data/memory/fast_write_router.py` (verhaltensbasiert,
@@ -322,7 +326,7 @@ liegen – **kein Ersatz**.
 
 | Layer | Inhalt | Verfügbarkeit | Quelle |
 |---|---|---|---|
-| **Basis** | lokale Memory (`data/memory/`, 3-Tier) | **immer** (lokal, keine Cloud) | `data/memory/README.md` |
+| **Basis** | lokale Memory (`data/memory/`, 3-Tier + L4 Procedural + Shared Tier) | **immer** (lokal, keine Cloud) | `data/memory/README.md` |
 | **Optional** | MCPs: Cognee, Graphiti, HeLa-Mem | optional (kann ausfallen) | arXiv:2608.22215 (Dual-Layer) |
 
 Quelle (Dual-Layer-Konzept): arXiv:2608.22215 – „parametric memory Θ (stable,
