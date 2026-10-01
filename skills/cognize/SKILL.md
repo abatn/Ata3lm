@@ -1,6 +1,6 @@
 ---
 name: cognize
-description: "Kognition (Stufe 4 des 8-Stufen-Zyklus): Ontologie lesen, Kandidaten-Verknüpfungen vorschlagen, symbolisch gegen die Ontologie validieren (Konsistenz/Constraints via OWL/SHACL) und nur belegte Verknüpfungen nach Working Memory schreiben. Nutze diesen Skill, wenn aus gespeichertem Wissen neue Verknüpfungen abgeleitet werden sollen – ohne Erfindungen, jede Inferenz mit Prämissen-Beleg und Quellen-Link."
+description: "Kognition (Stufe 4 des 8-Stufen-Zyklus): Ontologie lesen, Kandidaten-Verknüpfungen vorschlagen, vorgeschaltete Inferenz-Schicht (SHACL-SPARQL-Regeln) materialisiert implizite Triples, dann symbolische Validierung (SHACL Core + SHACL-SPARQL) gegen die Ontologie, und nur belegte Verknüpfungen nach Working Memory schreiben. Nutze diesen Skill, wenn aus gespeichertem Wissen neue Verknüpfungen abgeleitet werden sollen – ohne Erfindungen, jede Inferenz mit Prämissen-Beleg und Quellen-Link."
 ---
 
 # Skill: cognize
@@ -14,13 +14,16 @@ description: "Kognition (Stufe 4 des 8-Stufen-Zyklus): Ontologie lesen, Kandidat
 ## Zweck
 
 Wissen verstehen, verknüpfen, Schlussfolgerungen ziehen: Der Skill liest
-die Ontologie, erzeugt Kandidaten-Verknüpfungen und übernimmt nur
+die Ontologie, erzeugt Kandidaten-Verknüpfungen, materialisiert **vor** der
+Validierung die impliziten Konsequenzen (Inferenz-Schicht) und übernimmt nur
 symbolisch validierte, belegte Verknüpfungen (Self-Feedback (Auftrag) für
 Stufe 5).
 
 ## Wann anwenden
 
 - Wenn neue Kanten/Relationen aus bestehendem Wissen abgeleitet werden sollen.
+- Wenn implizite Konsequenzen (Inferenz) vor der Validierung materialisiert
+  werden müssen.
 - Wenn Kandidaten-Verknüpfungen gegen Ontologie-Constraints geprüft werden müssen.
 - NICHT anwenden ohne lesbare Ontologie und ohne dokumentierte Quellen.
 
@@ -38,20 +41,31 @@ Stufe 5).
      (Vorgabe (Auftrag): 0.80); Treffer darunter werden verworfen oder als
      `rejected` dokumentiert.
 
-3. **Symbolisch validieren (Konsistenz/Constraints)**
-   - Jede Kandidaten-Verknüpfung gegen die Ontologie prüfen:
-     Konsistenz und Constraints via OWL/SHACL (deterministisch,
-     reproduzierbar, mit Provenienz).
-   - Vorgeschriebene vs. gelernte Struktur beachten (Pydantic-Ontologie vs.
-     gelernte Struktur; Hybrid-Retrieval als Abrufweg).
+3. **Inferenz-Schicht (vorgeschaltet, VOR SHACL)**
+   - Zuerst die impliziten Konsequenzen materialisieren: SHACL-SPARQL-Regeln
+     (`CONSTRUCT-WHERE`) iterativ bis zum Fixpunkt anwenden (wie OWL-Reasoner,
+     z. B. HermiT); alternativ SPARQL-CONSTRUCT oder OWL-Reasoner.
+   - Grund: SHACL prüft nur explizite Triples; bestimmte Invaliditäten
+     (z. B. Zeitintervall endet vor Start) werden erst durch Inferenz sichtbar.
+   - Quelle: Robaldo & Batsakis (Swansea University), Semantic Web Journal.
 
-4. **Belegte Verknüpfungen schreiben**
+4. **Symbolisch validieren (Konsistenz/Constraints) — auf dem materialisierten Graph**
+   - SHACL Core für einfache Constraints (Kardinalität, Datentyp, Wertebereich).
+   - SHACL-SPARQL für komplexe Regeln (Zeitintervall-Logik, transitive
+     Beziehungen).
+   - Deterministisch, reproduzierbar, mit Provenienz; vorgeschriebene vs.
+     gelernte Struktur beachten (Pydantic-Ontologie vs. gelernte Struktur;
+     Hybrid-Retrieval als Abrufweg).
+
+5. **Belegte Verknüpfungen schreiben**
    - Nur validierte Verknüpfungen mit Prämissen-Beleg + Quellen-Link nach
      Working Memory (Auftrag) schreiben.
    - Unvalidierte oder unbelegte Kandidaten → `rejected` mit Grund.
 
-5. **Jede Schlussfolgerung in `knowledge/cognition/` dokumentieren**
-   - Format: Prämissen → Konklusion (Pflichtfelder laut
+6. **Inferenz-Kette + Schlussfolgerung in `knowledge/cognition/` dokumentieren**
+   - Pro Inferenz eine Datei `inference-<id>.md`: Input-Triples, Regel
+     (Regel-ID), Output-Triples, Quelle (Provenienz als First-Class State).
+   - Zusätzlich Prämissen → Konklusion (Pflichtfelder laut
      `knowledge/cognition/README.md`).
    - Pflicht: Prämissen-Beleg + Quellen-Link pro Inferenz, sonst `rejected`.
 
@@ -66,6 +80,8 @@ Stufe 5).
    Änderung nur mit menschlicher Freigabe.
 5. Keine beleglosen Ontologie-Änderungen (Provenienz + Human-Gate).
 6. Jede Iteration → Provenienz-File (vgl. `AGENTS.md` Durchsetzung).
+7. Inferenz VOR Validierung: erst materialisieren (SHACL-SPARQL), dann prüfen.
+   Keine Validierung nur auf dem expliziten Graph – das verpasst Invaliditäten.
 
 ## Input / Output
 
@@ -87,3 +103,10 @@ Output: validierte Verknüpfungen in Working Memory +
 - Graphiti (vorgeschriebene Pydantic-Ontologie vs. gelernte Struktur;
   Hybrid-Retrieval):
   https://github.com/getzep/graphiti
+- Robaldo & Batsakis, Swansea University (HRC School of Law) — „On the
+  interplay between validation and inference in SHACL – an investigation on
+  the Time Ontology", Semantic Web Journal: erst Inferenz (SHACL-SPARQL),
+  dann Validierung; SHACL allein unzureichend für zeitliche Invaliditäten:
+  https://www.semantic-web-journal.net/system/files/swj3959.pdf
+- W3C SHACL Advanced Features (SPARQL-Rules, CONSTRUCT-WHERE):
+  https://www.w3.org/TR/shacl-af/#SPARQLRule

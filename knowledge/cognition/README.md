@@ -33,7 +33,36 @@ Grund (bei rejected): <fehlender Beleg / verletzter Constraint / ...>
 
 Regel: Fehlen Prämissen-Beleg oder Quellen-Link → Status `rejected`.
 
+## Inferenz-Kette (Provenienz als First-Class State)
+
+Vor der SHACL-Validierung läuft eine **Inferenz-Schicht**: SHACL-SPARQL-Regeln
+(`CONSTRUCT-WHERE`) werden iterativ bis zum Fixpunkt angewendet, danach
+validieren SHACL-Shapes den materialisierten Graphen. Quelle: Robaldo &
+Batsakis (Swansea University), Semantic Web Journal — „Once the inferred
+triples are available, SHACL shapes can then be used to identify invalid
+patterns within the inferred knowledge graph."
+
+Pro Inferenz wird die Kette als eigene Datei dokumentiert:
+
+```text
+# knowledge/cognition/inference-<id>.md
+Regel-ID:     R<id>                 # z. B. R1
+Regel:        <CONSTRUCT-WHERE / OWL-Axiom>
+Input-Triples:
+  - <s> <p> <o>     (Quelle: <Link>)
+Output-Triples:
+  - <s> <p> <o>     (neu materialisiert)
+Quelle:       <Paper/Code-Link>
+Status:       belegt | rejected
+```
+
+- Pflicht: **Regel-ID + Input-Triples + Output-Triples + Quelle**.
+- Ohne Regel-ID oder Quellen-Link → Status `rejected`.
+
 ## Status
 
 - Angelegt, wartet auf t=1. (Auftrag)
 - Noch keine Inferenzen dokumentiert; erste Iteration schreibt hierher.
+- Inferenz-Schicht (SHACL-SPARQL) + Format `inference-<id>.md` definiert
+  (2026-10-01); Beleg: `ergebnisse/inferenz-shacl.md`,
+  Test: `ergebnisse/inferenz-shacl-test.md`.
