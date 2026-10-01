@@ -43,3 +43,20 @@ Quellen:
 - ARIADNE 3-Tier (Tier 2 Semantic, bi-temporale Felder): https://arxiv.org/abs/2105.09864
 - Graphiti (Fakten mit Validitätsfenstern): https://arxiv.org/abs/2501.13956
 - SHIMI (semantische Hierarchie): https://arxiv.org/abs/2504.06135
+
+## D. Memory-Lifecycle (Belegt: HeLa-Mem + Memory Survey)
+
+> Quellen: **HeLa-Mem** (arXiv:2604.16839 §3.3), **Memory Survey** (arXiv:2603.07670).
+> Implementierung: `data/memory/reflective_agent.py`. Doku: `ergebnisse/memory-lifecycle.md`.
+
+| Operator | Regel | Status/Quelle |
+|---|---|---|
+| **Konsolidierung** | Hub `D(v) > δ_hub` → Hub + Nachbarn werden zu **semantischem Eintrag** (Hebbian Distillation) | Belegt (HeLa-Mem) |
+| **Forgetting** | **3 Bedingungen gleichzeitig:** `weight < δ_prune` **und** `age > δ_age` **und** `access == 0` | Belegt (HeLa-Mem) |
+| **Konfliktlösung** | Bei Widerspruch: alter Fakt wird **superseded** (`invalid_at`), **nicht gelöscht**; neuer gilt (prefer newest) | Belegt (Memory Survey; Graphiti bi-temporal) |
+
+**Parameter (Auftrag):** `δ_hub`, `δ_prune=0.05`, `δ_age=60` Tage; `τ=60`, `η=0.02`, `λ=0.995` (belegt, HeLa-Mem).
+
+**Funktionen:** `detect_hubs`, `distill`/`write_semantic` (Konsolidierung);
+`detect_forgetting` (3 Bedingungen); `resolve_conflict` (Supersede-Marker);
+`simulate_lifecycle` (Demo).

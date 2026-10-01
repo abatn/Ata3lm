@@ -28,8 +28,13 @@ INDEX_DIR = ROOT / "data/memory/tier2-index"
 
 # HeLa-Mem-Parameter (Paper §3.3): delta_hub = Schwellwert für Hub-Konsolidierung
 DELTA_HUB = float(os.environ.get("HELA_DELTA_HUB", "1.0"))
-# Adaptive Forgetting: kritischer Retentions-Schwellwert
-RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))
+# Adaptive Forgetting (HeLa-Mem §3.3): DREI Bedingungen gleichzeitig:
+#   (1) total edge weight < delta_prune  (strukturelle Irrelevanz)
+#   (2) inactive duration  > delta_age   (temporale Dormanz)
+#   (3) zero recent access
+DELTA_PRUNE = float(os.environ.get("HELA_DELTA_PRUNE", "0.05"))       # Auftrag
+DELTA_AGE_DAYS = float(os.environ.get("HELA_DELTA_AGE_DAYS", "60"))   # Auftrag (HeLa-Mem tau=60)
+RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))         # legacy (nur 1 Bedingung)
 
 # --- SEAA HMM-Trägheit (arXiv:2609.17331) ---
 # Zustandsraum (Paper §5.7.1): K=4 latente Zustände
@@ -173,9 +178,73 @@ def detect_hubs(graph: dict) -> list:
     return [n for n in graph.get("nodes", {}) if hub_score(graph, n) > DELTA_HUB]
 
 
-def detect_forgetting(graph: dict) -> list:
-    """Adaptive Forgetting: Nodes unter dem Retentions-Schwellwert."""
-    return [n for n in graph.get("nodes", {}) if hub_score(graph, n) < RETAIN_MIN]
+def detect_forgetting(graph: dict, now_days: float = 0.0) -> list:
+    """Adaptive Forgetting (HeLa-Mem §3.3): nur wenn ALLE drei Bedingungen gelten:
+      (1) hub_score (total edge weight) < delta_prune,
+      (2) inaktive Dauer > delta_age,
+      (3) zero recent access.
+    Fehlende Metadaten werden als „aktiv" gewertet (konservativ, kein Löschen)."""
+    out = []
+    for n in graph.get("nodes", {}):
+        node = graph["nodes"][n]
+        weight = hub_score(graph, n)
+        last = float(node.get("last_access_days", now_days))
+        age = now_days - last
+        access = int(node.get("recent_access", 1))
+        if weight < DELTA_PRUNE and age > DELTA_AGE_DAYS and access == 0:
+            out.append(n)
+    return out
+
+
+def resolve_conflict(facts: list, subject: str, predicate: str, obj: str,
+                     now_iso: str) -> dict:
+    """Konfliktlösung (Memory Survey + Graphiti): bei Widerspruch wird der alte
+    Fakt NICHT gelöscht, sondern mit Supersede-Marker invalidiert; der neue gilt.
+
+    - Memory Survey (arXiv:2603.07670): „contradiction detection", „temporal
+      versioning (prefer the newest record)".
+    - Graphiti (arXiv:2501.13956, Projekt): alte Fakten invalidieren, nicht löschen.
+    """
+    delta = {"conflict": False, "superseded": [], "added": None}
+    for f in facts:
+        if (f.get("s") == subject and f.get("p") == predicate
+                and f.get("status") == "valid" and f.get("o") != obj):
+            f["status"] = "superseded"
+            f["invalid_at"] = now_iso
+            delta["superseded"].append(dict(f))
+            delta["conflict"] = True
+    new = {"s": subject, "p": predicate, "o": obj, "status": "valid",
+           "valid_from": now_iso, "invalid_at": None}
+    facts.append(new)
+    delta["added"] = dict(new)
+    return delta
+
+
+def simulate_lifecycle() -> dict:
+    """Lifecycle-Demo: Konsolidierung (Hub), Adaptive Forgetting (3 Bed.), Konflikt."""
+    # Synthetischer Graph (kein Schreiben nach tier1-base)
+    graph = {
+        "nodes": {
+            "hub_n2": {"content": "Hub", "last_access_days": 100.0, "recent_access": 3},
+            "isolated_n5": {"content": "isoliert", "last_access_days": 0.0, "recent_access": 0},
+        },
+        "edges": {"hub_n2": {"n0": 0.9, "n1": 0.9}, "isolated_n5": {"n9": 0.01}},
+    }
+    now = 100.0
+    hubs = detect_hubs(graph)
+    forgotten = detect_forgetting(graph, now_days=now)
+
+    facts = [{"s": "solver", "p": "current_version",
+              "o": "berechne_durchschnitt", "status": "valid",
+              "valid_from": "2026-09-30", "invalid_at": None}]
+    conflict = resolve_conflict(facts, "solver", "current_version",
+                               "berechne_median", "2026-10-01")
+    return {
+        "consolidation": {"hubs": hubs, "action": "hebbian-distillation"},
+        "forgetting": {"forgotten": forgotten,
+                       "conditions": "weight<delta_prune AND age>delta_age AND access==0"},
+        "conflict": conflict,
+    }
 
 
 def distill(graph: dict, hub: str) -> dict:
@@ -404,6 +473,8 @@ if __name__ == "__main__":
         print(json.dumps(simulate_5_multihop(), ensure_ascii=False, indent=2))
     elif os.environ.get("SEAA_SIM") == "3":
         print(json.dumps(simulate_3_reflections(), ensure_ascii=False, indent=2))
+    elif os.environ.get("MEMORY_LIFECYCLE_SIM") == "1":
+        print(json.dumps(simulate_lifecycle(), ensure_ascii=False, indent=2))
     else:
         out = run_once()
         print(json.dumps(out, ensure_ascii=False, indent=2))
