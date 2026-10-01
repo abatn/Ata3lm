@@ -114,6 +114,7 @@ basierend auf dem Compare-Score und dem Ursprung der Änderung.
 | Neue Quelle (nicht in Ontologie) | **Immer menschliches Gate (ask)** | Keine Erfindungen |
 | Interface-Änderung | **Immer menschliches Gate (ask)** | Stabilität gewährleisten |
 | self_update an Originaldatei | **Immer menschliches Gate (ask)** | Guardrail bleibt bestehen |
+| Drift > Drift-Bound (Default 10 % des Modells) | **Menschliches Gate (ask)** | Verhindert Runaway-Selbstedits (Auftrag); Details §9.1 |
 
 ### Anwendung
 
@@ -130,6 +131,46 @@ basierend auf dem Compare-Score und dem Ursprung der Änderung.
 **Hinweis:** Dieses automatische Gate ergänzt – ersetzt nicht – das menschliche Gate.
 Kritische Operationen (neue Quellen, Interface-Änderungen, self_update an Originaldateien)
 benötigen immer menschliche Freigabe.
+
+### 9.1 Drift-Bound, Versionierung & HITL-Status (Belegt / Auftrag)
+
+> Status-Trennung (vgl. Kopf dieses Files): **Belegt** = mit Quelle (Paper/Code,
+> Link). **Auftrag** = gesetzte Betriebsregel, KEIN wissenschaftlicher Claim.
+
+**a) Human-in-the-Loop (HITL) — Status: Auftrag.**
+Das Gate (kein `self_update` ohne `approved`) ist eine Projekt-Betriebsregel,
+KEINE Forschungsaussage. Belegt ist nur der Nutzen von Boundary-Governance:
+- arXiv:2606.04306 (Organizational Control Layer: unsichere Ausführungen
+  88 % → 0 %; approves / revises / blocks / escalates)
+- arXiv:2604.23049 (Decoupled Human-in-the-Loop)
+- arXiv:2609.15803 (Delegating Authorization / Approval-Gating)
+- **Caveat/Gegenbeleg:** arXiv:2606.08919 („Oversight Has a Capacity") zeigt,
+  dass mehr Oversight das System unsicherer machen kann (inverted-U).
+  Daher wird „HITL ist nicht verhandelbar" NICHT als Forschungssatz geführt.
+
+**b) Versionierung & Rollback — Status: Belegt (Reversibilität), Auftrag (Mechanik).**
+Belegt: schwache Reversibilität erzeugt hohe Governance-Last — arXiv:2604.14717
+(„Layered Mutability": Hysterese-Ratio 0,68).
+Auftrag: Jede Änderung an `AGENTS.md` und `data/memory/tier1-base/` wird
+versioniert (Git **und** `data/memory/tier1-base/versions/vN/`); Rollback ist
+ein Einzeiler. Details: `ergebnisse/versionierung.md`.
+
+**c) Drift-Bound — Status: Belegt (Bound), Auftrag (Wert).**
+Belegt: Drift muss begrenzt werden; Schwellen sollen **kalibriert**, nicht
+willkürlich gesetzt werden:
+- arXiv:2603.06333 (Goal Drift Index; gelernte Drift-Thresholds)
+- arXiv:2609.08175 (Safe Harness Self-Evolution: Zertifizierungs-/Risikogrenzen)
+- Spectral-Paper (ρ(J_T) < 1 ⇒ kontraktiv ⇒ bounded drift)
+- projektintern: SEAA-HMM-Trägheit — arXiv:2609.17331
+Auftrag (Default): max. **10 %** Änderung pro Iteration; darüber → Human-Gate (ask).
+Der Default ist NICHT forschungsbelegt, sondern vorläufige Projekt-Vorgabe; bei
+Kalibrierungsdaten durch den gelernten Schwellwert ersetzen.
+
+**d) Evidenz-Pflicht — Status: Belegt.**
+Jeder Proposal enthält **Score-Änderung, Diff und Drift (Δ zur Baseline)**.
+Quellen: arXiv:2607.26722 (DREvo: function-level evidence anchoring, line-level
+diff, Einzelkomponenten-Änderungen); projektintern Consistency Gap (arXiv:2609.08832).
+Template: `ergebnisse/proposal-template.md`.
 
 ## 10. Fast Write Routing (Dual-Layer Agentic Memory)
 
