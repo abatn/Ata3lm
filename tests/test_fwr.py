@@ -96,3 +96,57 @@ def test_refusal_marker_und_matches():
     assert fwr.is_refusal("The answer is Paris.") is False
     assert fwr._matches("The Sahara is the largest desert.", "sahara") is True
     assert fwr._matches("The Sahara...", "Antarctic Desert") is False
+
+
+# ------------------------------------------------- _ask (ohne Netz: Fake-Client)
+from types import SimpleNamespace
+
+
+def _fake_client(msg, calls):
+    class Completions:
+        def create(self, **kw):
+            calls.append(kw)
+            return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
+
+    return SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+
+
+def test_ask_ohne_memory_und_mit_memory(monkeypatch):
+    calls = []
+    monkeypatch.setattr(fwr, "_client",
+                        _fake_client(SimpleNamespace(content=" Paris "), calls))
+    assert fwr._ask(SMALL, "Capital?") == "Paris"
+    assert "Use this knowledge:" not in calls[0]["messages"][0]["content"]
+    assert fwr._ask(LARGE, "Capital?", memory="Paris ist es.") == "Paris"
+    assert "Use this knowledge:" in calls[1]["messages"][0]["content"]
+    assert calls[1]["model"] == LARGE and calls[1]["temperature"] == 0.0
+
+
+def test_ask_faellt_auf_reasoning_content_zurueck(monkeypatch):
+    msg = SimpleNamespace(content=None, reasoning_content="  Denk-Antwort  ")
+    monkeypatch.setattr(fwr, "_client", _fake_client(msg, []))
+    assert fwr._ask(SMALL, "Frage?") == "Denk-Antwort"
+
+
+# ------------------------------------------------------------- MemRouter (Paper)
+def test_memrouter_forward_only_und_parametrizahl():
+    mr = fwr.MemRouter()
+    r = mr.classify("What is the capital of France?",
+                    "Paris is the capital.", "Paris")
+    assert r["class"] in ["non-write", "write-new", "write-update"]
+    assert r["method"] == "memrouter" and r["forward_only"] is True
+    assert r["params"] == 384 * 31250 + 31250 * 3
+
+
+def test_embed_router_normalisiert_und_leerer_text():
+    v = fwr._embed_router("Paris paris TOKYO")
+    assert abs(float((v ** 2).sum()) - 1.0) < 1e-9
+    assert float((fwr._embed_router("") ** 2).sum()) == 0.0
+
+
+def test_compare_router_10_liefert_10_laeufe():
+    out = fwr.compare_router_10()
+    assert len(out["runs"]) == 10
+    assert out["memrouter_p50_ms"] < out["llm_p50_ms"]
+    assert out["speedup"] == round(out["llm_p50_ms"] / out["memrouter_p50_ms"], 1)
+    assert out["memrouter_params"] == fwr.MemRouter().params

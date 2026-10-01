@@ -68,3 +68,19 @@ def test_router_unsicherheit_fuehrt_zu_human_gate():
     """§10.4: Unsicherheit des Routers -> Human-Gate (ask)."""
     assert "Bei Unsicherheit des Routers" in AGENTS
     assert "Human-Gate (ask)" in AGENTS
+
+
+def test_approve_nach_approved_wird_abgelehnt():
+    a = approval.TwoPersonApproval(subject="CI-Test")
+    a.approve("Batnini")
+    a.approve("Pruefer2")
+    a.finalize()
+    r = a.approve("Dritte")
+    assert r["ok"] is False and "bereits approved" in r["reason"]
+
+
+def test_approval_demo_laeuft(capsys):
+    approval._demo()
+    out = capsys.readouterr().out
+    assert "Zwei-Personen-Verifikation" in out
+    assert "approved" in out

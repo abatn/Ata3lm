@@ -80,3 +80,26 @@ def test_drift_monitor_flagt_nur_ueber_tau():
     assert bad["flagged"] is True and bad["gate"] == "ask"
     rep = m.report()
     assert rep["steps"] == 2 and rep["flagged_steps"] == [2]
+
+
+def test_entropy_und_grenzfaelle():
+    assert bm.entropy({"a": 1.0}) == 0.0
+    assert abs(bm.entropy({"a": 0.5, "b": 0.5}) - 1.0) < 1e-9
+    assert bm.capped_simplex({}) == {}
+
+
+def test_capped_simplex_mehrere_iterationen_und_obergrenze():
+    v = bm.capped_simplex({"a": 1.0, "b": 1.0, "c": 1.0}, w_max=0.1)
+    assert max(v.values()) <= 0.1 + 1e-9
+
+
+def test_trust_demo_laeuft(capsys):
+    trust._demo()
+    out = capsys.readouterr().out
+    assert "Privacy" in out and "Poisoning-Guard" in out and "Bias" in out
+
+
+def test_bias_monitor_demo_laeuft(capsys):
+    bm._demo()
+    out = capsys.readouterr().out
+    assert "Drift" in out

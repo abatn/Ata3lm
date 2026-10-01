@@ -1,0 +1,14 @@
+# Coverage-Konfiguration (coverage.py; gelesen von pytest-cov).
+# Quelle: https://coverage.readthedocs.io/en/latest/config.html
+[run]
+# Statement-Coverage (kein Branch-Coverage) – bewusst und dokumentiert:
+# ergebnisse/ci-setup.md §2.
+branch = False
+
+[report]
+# Ausgenommen wird NUR der __main__-Guard (Standard-Ausschluss laut
+# coverage-Doku „excluding code"): diese Zeile kann ein Import nie erreichen.
+# Es wird KEINE weitere Zeile versteckt.
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
