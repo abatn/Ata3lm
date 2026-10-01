@@ -46,7 +46,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 019 | `019-trust-governance.md` | System-Iteration (Governance) | approved: Batnini, 2026-10-01 | siehe File |
 | 020 | `020-l4-procedural.md` | System-Iteration (Skills/L4) | approved: Batnini, 2026-10-01 | siehe File |
 | 021 | `021-shared-konflikt.md` | System-Iteration (Shared Memory) | approved: Batnini, 2026-10-01 | siehe File |
-| 022 | `022-pii-minimierung.md` | System-Iteration (Trust/Privacy) | pending: menschliche Freigabe ausstehend | siehe File |
+| 022 | `022-pii-minimierung.md` | System-Iteration (Trust/Privacy) | approved: Batnini, 2026-10-01 | siehe File |
 
 ## Guardrail
 
