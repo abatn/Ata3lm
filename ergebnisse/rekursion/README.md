@@ -38,6 +38,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 011 | `011-t4-rekursion.md` | `t=3 → t=4` | approved: Batnini, 2026-10-01 (π₁ Score 3/3) | siehe File |
 | 012 | `012-t5-rekursion.md` | `t=4 → t=5` | approved: Batnini, 2026-10-01 | siehe File |
 | 013 | `013-t6-rekursion.md` | `t=5 → t=6` | approved: Batnini, 2026-10-01 | siehe File |
+| 014 | `014-ingestion-hook-v2.md` | System-Iteration (Memory) | pending: menschliche Freigabe ausstehend | siehe File |
 
 ## Guardrail
 
