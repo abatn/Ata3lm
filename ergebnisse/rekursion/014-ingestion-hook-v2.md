@@ -60,4 +60,13 @@ min_trust=0.5, Dedup-Fenster=300 s. (τ=60, η=0.02, λ=0.995 = **belegt** aus H
 ## 7. Freigabe
 
 **Freigabe-Status für π₁:** `approved: Batnini, 2026-10-01`
-(Auslöser: menschlicher Auftrag vom 2026-10-01; freigegeben).
+— **Vermerk:** Quellen verifiziert, Selbsttests real, Einschränkung dokumentiert.
+
+## 8. Nächste Iteration (Ausblick)
+
+Der Ingestion-Hook ist damit auf Forschungsniveau. Offene, **klar markierte**
+Einschränkung: `resolve_entities` ist regel-/wörterbuchbasiert (kein GLiNER-Modell
+installiert) und der Graph ist **in-memory** (keine echte Graph-DB). Nächste
+Schritte (Quellen vorhanden):
+- **GLiNER-Integration:** echtes `gliner-relex` statt Regeln (GraphRAG-SDK, GLiNER-Relex, arXiv:2605.10108).
+- **Echte Graph-DB:** Neo4j/FalkorDB statt In-Memory (Neo4j MKG, GraphRAG-SDK).
