@@ -34,16 +34,25 @@ PII_PATTERNS = {
 
 
 class PIIFilter:
-    """Erkennt PII und anonymisiert vor dem Speichern (kein LLM)."""
+    """Erkennt PII und LÖSCHT sie vor dem Speichern (Datenminimierung, kein LLM).
+
+    Statt `[PII:<typ>]` (Markierung) wird der PII-Span **entfernt**:
+    - DSGVO Art. 5(1)(c): Datenminimierung („limited to what is necessary").
+    - EU-KI-VO Art. 10(5): personenbezogene Daten minimieren/löschen.
+    „Sparse": nur die sensiblen Spans werden entfernt, der übrige Text bleibt.
+    """
 
     def detect(self, text: str) -> list[str]:
         return [kind for kind, pat in PII_PATTERNS.items() if pat.search(text or "")]
 
-    def anonymize(self, text: str) -> str:
+    def minimize(self, text: str) -> str:
         out = text or ""
-        for kind, pat in PII_PATTERNS.items():
-            out = pat.sub(f"[PII:{kind}]", out)
-        return out
+        for _kind, pat in PII_PATTERNS.items():
+            out = pat.sub("", out)
+        return re.sub(r"\s{2,}", " ", out).strip()
+
+    # Abwärtskompatibler Alias – löscht ebenfalls (keine Markierung):
+    anonymize = minimize
 
 
 # =====================================================================
@@ -94,11 +103,16 @@ class BiasCheck:
 # Demo / Selbsttest
 # =====================================================================
 def _demo() -> None:
-    print("=== [1] Privacy: PII-Erkennung + Anonymisierung (SP-Mem) ===")
+    print("=== [1] Privacy: PII-Minimierung – PII wird GELÖSCHT (DSGVO Art. 5(1)(c)) ===")
     pii = PIIFilter()
-    text = "Kontakt: max.mustermann@example.com, Tel +49 30 1234567, IBAN DE89370400440532013000"
-    print("  erkannt:", pii.detect(text))
-    print("  anonymisiert:", pii.anonymize(text))
+    cases = [
+        "Kontakt: max.mustermann@example.com bitte melden",
+        "Ruf mich an: +49 30 1234567",
+        "IBAN DE89370400440532013000 überweisen",
+    ]
+    for c in cases:
+        print(f"  vorher : {c}")
+        print(f"  erkannt: {pii.detect(c)}  -> nachher: '{pii.minimize(c)}'")
 
     print("\n=== [2] Adversarial: Poisoning-Guard (MPBench/A-MemGuard/TMA-NM) ===")
     guard = PoisoningGuard()
