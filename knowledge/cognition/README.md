@@ -62,7 +62,10 @@ Status:       belegt | rejected
 ## Status
 
 - Angelegt, wartet auf t=1. (Auftrag)
-- Noch keine Inferenzen dokumentiert; erste Iteration schreibt hierher.
 - Inferenz-Schicht (SHACL-SPARQL) + Format `inference-<id>.md` definiert
   (2026-10-01); Beleg: `ergebnisse/inferenz-shacl.md`,
   Test: `ergebnisse/inferenz-shacl-test.md`.
+- Erste Inferenzen dokumentiert (cognize-Test, 2026-10-01):
+  `inference-001.md` (belegt), `inference-002.md` (rejected: unbelegt),
+  `inference-003.md` (rejected: Negativtest ohne Quellen-Link);
+  Bericht: `ergebnisse/cognize-test.md`.
