@@ -10,6 +10,11 @@ Skills sind die **Prozeduren** des Agenten (Workflows, Decision Rules). Sie
 werden als eigenständiges, versioniertes Artefakt behandelt — nicht als
 Prompt-Text.
 
+- **Memory Survey** (arXiv:2603.07670): „memory as a **first-class system
+  component**"; „**temporal versioning** (prefer the newest record)".
+- **TEA-Protokoll** (arXiv:2506.12508): Prompts/Ressourcen als „**first-class,
+  versioned resources**"; Version-Manager mit „access to historical records for
+  analysis and **rollback**".
 - **Mem^p** (arXiv:2508.06433, ACL Findings 2026): „treats procedural memory as a
   **first-class optimization object**"; Build/Retrieval/**Update**; dynamische
   Update-Strategien (addition, validation filtering, reflection, **dynamic
@@ -47,10 +52,12 @@ skills/
 | **Versionierung** | `skills/<name>/versions/vN/SKILL.md` (Snapshot vor jeder Änderung) | Auftrag |
 | **Audit** | `skills/AUDIT.md` (Zeit, Skill, Aktion, Begründung) + `audit-diffs/*.diff` | Auftrag |
 | **Selektives Update** | Nur Skills mit `approved` werden geschrieben (Human-Gate) | **Belegt** (Mem^p Update; ProcMEM Gate) |
+| **Versionsrollback** | `rollback(skill, version)` → frühere Version wiederherstellen (aktueller Stand vorher gesichert) | **Belegt** (TEA Version-Manager) |
 
 **Mechanismus:** `skills/procedural_memory.py`
 - `snapshot(skill, version, reason)` — versionierte Kopie
 - `propose_update(skill, new_text, reason, approved)` — schreibt **nur** bei `approved`
+- `rollback(skill, version, reason)` — frühere Version wiederherstellen
 - `audit(...)` — Audit-Zeile + Diff-Datei
 
 ## 4. Workflow einer Skill-Änderung
@@ -58,6 +65,8 @@ skills/
 1. Vorschlag erzeugen: `propose_update(..., approved=False)` → **pending** (kein Write).
 2. Menschliches Gate: `approved` (vgl. `AGENTS.md` §9).
 3. Bei `approved`: Vorher-Stand wird als `vN` gesnapshottet, dann geschrieben; Audit + Diff.
+4. **Rollback:** `rollback(skill, "vN")` stellt eine frühere Version wieder her
+   (aktueller Stand wird vorher als neue Version gesichert — kein Verlust).
 
 ## 5. Status-Trennung
 
@@ -70,6 +79,8 @@ skills/
 
 ## 6. Quellen (alle HTTP 200, 2026-10-01)
 
+- https://arxiv.org/abs/2603.07670 (Memory Survey – first-class, temporal versioning)
+- https://arxiv.org/abs/2506.12508 (TEA-Protokoll – first-class, versioned resources + rollback)
 - https://arxiv.org/abs/2508.06433 (Mem^p)
 - https://aclanthology.org/2026.findings-acl.866.pdf (Mem^p, ACL Findings 2026)
 - https://arxiv.org/abs/2606.23127 (AFTER)

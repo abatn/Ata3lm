@@ -104,6 +104,25 @@ def propose_update(skill_file: Path, new_text: str, reason: str, approved: bool)
     return {"applied": True, "status": "approved", "version": nxt}
 
 
+def rollback(skill_file: Path, version: str, reason: str) -> dict:
+    """Stellt eine frühere Skill-Version wieder her (versions/<version>/SKILL.md).
+
+    Quelle: Memory Survey (temporal versioning); TEA-Protokoll (arXiv:2506.12508:
+    version manager, „access to historical records for analysis and rollback").
+    Der aktuelle Stand wird vorher als neue Version gesichert (kein Verlust).
+    """
+    src = skill_file.parent / "versions" / version / "SKILL.md"
+    if not src.exists():
+        return {"ok": False, "reason": f"Version '{version}' nicht gefunden"}
+    vdir = skill_file.parent / "versions"
+    existing = sorted(d.name for d in vdir.glob("v*")) if vdir.exists() else []
+    nxt = f"v{len(existing) + 1}"
+    snapshot(skill_file, nxt, reason=f"Vorher-Stand vor Rollback auf {version}")
+    skill_file.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    audit(skill_file, f"rollback -> {version}", reason)
+    return {"ok": True, "restored": version, "saved_current_as": nxt}
+
+
 def _demo() -> None:
     global AUDIT, DIFF_DIR
     print("=== [1] Versionierung: v1-Snapshot aller aktiven Skills ===")
@@ -129,6 +148,11 @@ def _demo() -> None:
     r2 = propose_update(demo_skill, new_text, reason="Verbesserung", approved=True)
     print(f"  mit approved  -> applied={r2['applied']} status={r2['status']} version={r2['version']}")
     print(f"  Inhalt geändert?  {demo_skill.read_text(encoding='utf-8').strip().endswith('Neu.')}")
+
+    print("\n=== [4] Rollback (versions/vN) ===")
+    rb = rollback(demo_skill, "v1", reason="Rollback-Test")
+    print(f"  rollback -> {rb}")
+    print(f"  Inhalt wieder v1? {demo_skill.read_text(encoding='utf-8').strip().endswith('Alt.')}")
 
 
 if __name__ == "__main__":
