@@ -45,6 +45,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 018 | `018-multi-agent-sharing.md` | System-Iteration (Memory) | approved: Batnini, 2026-10-01 | siehe File |
 | 019 | `019-trust-governance.md` | System-Iteration (Governance) | pending: menschliche Freigabe ausstehend | siehe File |
 | 020 | `020-l4-procedural.md` | System-Iteration (Skills/L4) | pending: menschliche Freigabe ausstehend | siehe File |
+| 021 | `021-shared-konflikt.md` | System-Iteration (Shared Memory) | pending: menschliche Freigabe ausstehend | siehe File |
 
 ## Guardrail
 

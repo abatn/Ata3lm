@@ -33,16 +33,20 @@ data/memory/shared/
 | **Private vs. Shared** | Zugriffskontrolle (ACL) je Agent/Key | Belegt (Survey §6.5; Collaborative Memory) |
 | **Versionierung** | jeder Write erzeugt Version `v1, v2, …` | Auftrag |
 | **Konflikt-Erkennung** | gleicher Key, verschiedene Werte (versch. Agenten) | Belegt (Survey §6.5 „concurrent writes") |
-| **Konfliktlösung** | **prefer newest**; alter Eintrag **superseded** (nicht gelöscht) | Belegt (Survey: prefer newest; Graphiti bi-temporal) |
+| **Kollisionsvalidierung** | **vor jedem Write**: ACL · nicht-leer · Schema | Auftrag |
+| **Konfliktlösung** | Versionierung + Supersede-Marker + **Trust-Score** (niedrigerer Trust verliert; sonst neuer Wert) | Belegt (Survey: source attribution; Graphiti bi-temporal) |
 | **Sync** | erkennt Konflikte über die Historie | Auftrag |
 
 ## 4. API
 
-- `SharedTier(acl)` — ACL: `agent -> {"read": set, "write": set}` (`"*"` = alle).
-- `write(agent, key, value)` → `{ok, version, conflict, superseded}`
-- `read(agent, key)` → `{ok, value, version, writer}` (oder Grund bei fehlendem Recht)
+- `SharedTier(acl, trust, schema)` — `acl: agent -> {"read","write"}`; `trust: agent -> float`; `schema: key -> set(erlaubte Werte)`.
+- `validate_write(agent, key, value)` → Konsistenzprüfung (ACL/nicht-leer/Schema)
+- `write(agent, key, value)` → `{ok, phase(commit|validation|resolution), version, conflict, superseded, trust}`
+- `read(agent, key)` → `{ok, value, version, writer, trust}`
 - `sync()` → `{conflicts: [...], keys}`
 - `dump(path)` → JSONL-Historie
+
+Details: `ergebnisse/shared-konflikt.md`.
 
 ## 5. Grenze / Ehrlichkeit
 
