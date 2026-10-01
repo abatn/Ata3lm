@@ -24,4 +24,5 @@ os.environ.pop("FWR_SMALL_MODEL", None)
 os.environ.pop("FWR_LARGE_MODEL", None)
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "data" / "memory"))
+for _p in ["data/memory", "data/memory/shared", "data/memory/tier3-working", "skills"]:
+    sys.path.insert(0, str(ROOT / _p))

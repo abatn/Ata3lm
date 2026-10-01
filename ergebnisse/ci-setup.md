@@ -1,39 +1,62 @@
-# CI-Setup: pytest für den Knowledge-Agenten
+# CI-Setup: pytest für den gesamten Knowledge-Agenten
 
-> Datum: 2026-10-01 · Auftrag: minimales CI/pytest-Setup, „Quelle = Python-Standard
-> (pytest)" · Lab-Prinzip §6: nur Behauptungen, die in der pytest-Doku stehen
-> (URL-Tabelle unten, HTTP 200 am 2026-10-01 geprüft) bzw. lokal nachlauffähig sind.
+> Datum: 2026-10-01 · Aufträge: „minimales CI/pytest-Setup" → „der ci muss auf
+> 100 % geprüft" → „für die gesamte knowledge-agent gebaut für alles".
+> Lab-Prinzip §6: nur Behauptungen, die in der Doku stehen (URL-Tabelle unten,
+> HTTP 200 am 2026-10-01 geprüft) bzw. lokal nachlauffähig sind.
 
-## 1. Gelieferte Dateien (neu, kein bestehendes Modul verändert)
+## 1. Gelieferte Dateien
 
 | Datei | Zweck |
 |---|---|
-| `tests/conftest.py` | `sys.path` (data/memory ist kein Package) + Netzwerk-Sperre |
-| `tests/test_fwr.py` | 12 Tests: Kaskade + Gate (`AGENTS.md:306-307`, §10.1, §10.4), `_ask` (Fake-Client), MemRouter, `compare_router_10` |
-| `tests/test_governance.py` | 10 Tests: Zwei-Personen-Flow (§9.3) + Gesetzestext §9/§9.1 |
-| `tests/test_memory.py` | 13 Tests: 3 Tiers, v1–v4, PII/Poisoning/Bias-Guards, JSD/Drift, `_demo`s |
+| `tests/conftest.py` | `sys.path` (data/memory, shared/, tier3-working/, skills) + Netzwerk-Sperre |
+| `tests/test_fwr.py` (12) | FWR-Kaskade + Gate, `_ask` (Fake-Client), MemRouter, `compare_router_10` |
+| `tests/test_governance.py` (10) | Zwei-Personen-Flow (§9.3) + Gesetzestext §9/§9.1 |
+| `tests/test_memory.py` (13) | 3 Tiers, v1–v4, PII/Poisoning/Bias-Guards, JSD/Drift |
+| `tests/test_bi_temporal.py` (5) | valid time × transaction time, Supersede statt Löschen |
+| `tests/test_shared_memory.py` (7) | ACL, Trust-Konflikt, Schema, Sync, Dump |
+| `tests/test_lru_cache.py` (9) | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung |
+| `tests/test_ingestion.py` (16) | Privacy/Secrets, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, async Enrichment, Lifecycle |
+| `tests/test_reflective.py` (15) | HMM-Trägheit, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov |
+| `tests/test_procedural_memory.py` (7) | Skill-Snapshots, Human-Gate-Update, Rollback |
+| `tests/test_solvers.py` (20) | 9 historische Solver-Snapshots (Ist-Verhalten) |
 | `pytest.ini` | Konfiguration + **Mindest-Score** (`--cov-fail-under=100`) + Marker |
 | `.coveragerc` | Coverage-Konfiguration; nimmt **nur** den `__main__`-Guard aus |
 | `Makefile` | `make test` → `python3 -m pytest` (+ `make clean`) |
-| `tests/README.md` | Bedienung, Netzwerk-Policy, Abdeckung |
-| `.gitignore` | +4 Zeilen: `.pytest_cache/`, `.coverage`, `coverage.xml`, `htmlcov/` |
-| `ergebnisse/systemtest-gesamt.md` | offener Punkt 6 („Kein CI/pytest") als erledigt markiert |
+| `.gitignore` | `.pytest_cache/`, `.coverage`, `coverage.xml`, `htmlcov/` |
 
 ## 2. Zwei Scores – nicht verwechseln
 
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
-| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test → `make test` schlägt fehl; ein „Score von 100 %" ist die einzige grüne Variante |
-| **Mindest-Score (Coverage)** | abgedeckte Statements / alle Statements der 4 gemessenen Module | pytest-cov `--cov-fail-under` (pytest-cov-Doku) | `pytest.ini`: **100 %** (gemessen: 100,00 %, 245/245 Statements) |
+| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 114/114 = 100 % |
+| **Mindest-Score (Coverage)** | abgedeckte Statements / alle Statements **des gesamten Repo-Codes** | pytest-cov `--cov-fail-under` | `pytest.ini`: **100 %** (gemessen: 100,00 %, 1198/1198) |
 
-Beide Gates sind **gemessen** (Rohtexte unten): ein fehlgeschlagenes Test
-liefert `rc=1`; ein unterschrittener Coverage-Wert liefert `rc=1` trotz
-„33 passed".
+**Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
+bi_temporal, bias_monitor, fast_write_router, ingestion_hook, reflective_agent,
+shared/shared_memory, tier3-working/lru_cache, trust), `skills/procedural_memory.py`
+und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1198 Statements, 0 nicht
+abgedeckt**.
 
-**100 ist das Maximum:** `--cov-fail-under=101` wird von pytest-cov abgelehnt
+**100 ist das Maximum:** `--cov-fail-under=101` wird abgelehnt
 (`error: argument --cov-fail-under: … The maximum value is 100.`, `rc=4`).
-Nachweis der 100-%-Schwelle daher über *weniger* Tests:
-`pytest -k "not memrouter and not compare_router"` → **91,43 % → FAIL, `rc=1`**.
+Nachweis der 100-%-Schwelle daher über *weniger* Tests (nach `coverage erase`):
+
+```text
+$ python3 -m pytest -q -k "not reflective and not ingestion"
+data/memory/ingestion_hook.py                         278    203    27%  ...
+data/memory/reflective_agent.py                       245    197    20%  ...
+TOTAL                                                1198    400    67%
+FAIL Required test coverage of 100% not reached. Total coverage: 66.61%
+83 passed, 31 deselected in 1.48s
+rc=1 (erwartet 1)
+```
+
+**Warnung (selbst beobachtet):** Zwei Läufe parallel im selben Verzeichnis
+verfälschen das Ergebnis, weil beide dieselbe `.coverage` schreiben – ein
+solcher Parallel-Lauf zeigte fälschlich „100 %". Der Wert oben stammt aus
+einem Lauf nach `coverage erase`; vor jedem Messen `python3 -m pytest` einzeln
+ausführen.
 
 ## 3. Rohtext `make test` (2026-10-01, 100 %)
 
@@ -45,62 +68,61 @@ rootdir: /home/opc/knowledge-agent
 configfile: pytest.ini
 testpaths: tests
 plugins: cov-7.1.0, asyncio-1.2.0, langsmith-0.4.37, anyio-4.12.1
-collected 35 items
+asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 114 items
 
-tests/test_fwr.py ............                                           [ 34%]
-tests/test_governance.py ..........                                      [ 62%]
-tests/test_memory.py .............                                       [100%]
+tests/test_bi_temporal.py .....                                          [  4%]
+tests/test_fwr.py ............                                           [ 14%]
+tests/test_governance.py ..........                                      [ 23%]
+tests/test_ingestion.py ................                                 [ 37%]
+tests/test_lru_cache.py .........                                        [ 45%]
+tests/test_memory.py .............                                       [ 57%]
+tests/test_procedural_memory.py .......                                  [ 63%]
+tests/test_reflective.py ...............                                 [ 76%]
+tests/test_shared_memory.py .......                                      [ 82%]
+tests/test_solvers.py ....................                               [100%]
 
 ================================ tests coverage ================================
-Name                               Stmts   Miss  Cover   Missing
-----------------------------------------------------------------
-data/memory/approval.py               42      0   100%
-data/memory/bias_monitor.py           84      0   100%
-data/memory/fast_write_router.py      71      0   100%
-data/memory/trust.py                  48      0   100%
-----------------------------------------------------------------
-TOTAL                                245      0   100%
+_______________ coverage: platform linux, python 3.9.25-final-0 ________________
+
+Name                                                Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------
+data/memory/approval.py                                42      0   100%
+data/memory/bi_temporal.py                             51      0   100%
+data/memory/bias_monitor.py                            84      0   100%
+data/memory/fast_write_router.py                       71      0   100%
+data/memory/ingestion_hook.py                         278      0   100%
+data/memory/reflective_agent.py                       245      0   100%
+data/memory/shared/shared_memory.py                   115      0   100%
+data/memory/tier3-working/lru_cache.py                132      0   100%
+data/memory/trust.py                                   48      0   100%
+ergebnisse/rekursion/solver/solver.py                   2      0   100%
+ergebnisse/rekursion/solver/solver_improved.py          2      0   100%
+ergebnisse/rekursion/solver/solver_v3.py                4      0   100%
+ergebnisse/rekursion/solver/solver_v3_improved.py       4      0   100%
+ergebnisse/rekursion/solver/solver_v4.py                4      0   100%
+ergebnisse/rekursion/solver/solver_v4_improved.py       4      0   100%
+ergebnisse/rekursion/solver/solver_v5.py                4      0   100%
+ergebnisse/rekursion/solver/solver_v5_improved.py       4      0   100%
+ergebnisse/rekursion/solver/solver_v6.py                4      0   100%
+ergebnisse/rekursion/solver/solver_v6_improved.py       8      0   100%
+skills/procedural_memory.py                            92      0   100%
+---------------------------------------------------------------------------------
+TOTAL                                                1198      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================== 35 passed in 0.94s ==============================
+============================= 114 passed in 1.53s ==============================
 ```
 
-### Stand vor der 100-%-Anhebung (65 %, nur zur Einordnung)
+### Stand vorher (65 %, nur 4 Module) – zur Einordnung
 
 ```text
 TOTAL                                263     86    67%
 Required test coverage of 65% reached. Total coverage: 67.30%
 24 passed in 0.86s
-data/memory/fast_write_router.py      83     43    48%   37-45, 120-121, 125-134, 139-144, 149-171, 181-199
 ```
 
-Damit ist nachvollziehbar, welche Tests die 100 % erbracht haben: `_ask`
-(Fake-Client statt Netz), `MemRouter`/`compare_router_10`, `_embed_router`,
-die drei `_demo()`-Funktionen und die `bereits approved`-Verzweigung.
-
-
-**Warum FWR nur 48 %:** nicht getestet sind `_ask` (37–45, Netzwerk),
-`MemRouter` (120–171) und `_demo` (181–199) – bewusst, weil sie Live-Aufrufe
-bzw. Ausgaben sind.
-
-### Gates nachgewiesen (Rohtexte)
-
-```text
---- Nachweis der 100-%-Schwelle: zwei Tests weggelassen ---
-$ python3 -m pytest -q -k "not memrouter and not compare_router"
-TOTAL                                245     21    91%
-FAIL Required test coverage of 100% not reached. Total coverage: 91.43%
-33 passed, 2 deselected in 0.91s
-rc=1 (erwartet 1)
-
---- 101 % ist nicht konfigurierbar (Maximum der Schwelle) ---
-$ python3 -m pytest -q --cov-fail-under=101
-error: argument --cov-fail-under: Your desire for over-achievement is admirable
-but misplaced. The maximum value is 100. Perhaps write more integration tests?
-rc=4 (erwartet 4)
-
---- absichtlich fehlgeschlagener Test ---
-rc=1 (erwartet 1)
-```
+Von 4 Modulen/24 Tests (67 %) über 4 Module/35 Tests (100 %) zum **gesamten
+Repo-Code**: +10 Module, +90 Tests, +935 Statements.
 
 ## 4. Designentscheidungen (jede mit Quelle)
 
@@ -108,76 +130,90 @@ rc=1 (erwartet 1)
 |---|---|
 | `pytest.ini` mit `minversion`, `testpaths`, `addopts`, `markers` | https://docs.pytest.org/en/stable/reference/customize.html |
 | `--strict-markers`, Marker-Definition `network` | https://docs.pytest.org/en/stable/example/markers.html |
-| LLM-Aufrufe über `monkeypatch` skripten (kein Netz) | https://docs.pytest.org/en/stable/how-to/monkeypatch.html |
+| LLM-Aufrufe über `monkeypatch` ersetzen (kein Netz) | https://docs.pytest.org/en/stable/how-to/monkeypatch.html |
 | Ausgaben der `_demo()`-Funktionen prüfen (`capsys`) | https://docs.pytest.org/en/stable/how-to/capture-stdout-stderr.html |
 | Exit-Code ≠ 0 bei fehlendem/fehlgeschlagenem Test | https://docs.pytest.org/en/stable/reference/exit-codes.html |
 | Mindest-Coverage über `--cov-fail-under` (pytest-cov) | https://pytest-cov.readthedocs.io/en/latest/config.html |
 | `.coveragerc`: `branch = False`, `exclude_lines` für den `__main__`-Guard | https://coverage.readthedocs.io/en/latest/config.html |
+| `tmp_path`-Fixture für alle Schreibpfade | https://docs.pytest.org/en/stable/how-to/tmp_path.html |
 | `Makefile` als dünner Wrapper um den pytest-CLI | https://www.gnu.org/software/make/manual/make.html |
 | pytest selbst | https://docs.pytest.org/en/stable/ |
 
-**Nicht verwendet, weil es so nicht belegt ist:** pytest kennt **keinen**
-eingebauten „Bestehens-Score" (kein Prozentsatz bestandener Tests als
-ini-Option). Die Mindest-Coverage kommt deshalb von pytest-cov, einem separaten
-Plugin – das ist in `pytest.ini` als solches benannt, nicht als pytest-Kernfunktion.
+**Nicht verwendet, weil so nicht belegt:** pytest kennt **keinen** eingebauten
+„Bestehens-Score" (kein Prozentsatz bestandener Tests als ini-Option). Die
+Mindest-Coverage kommt von pytest-cov, einem separaten Plugin – in `pytest.ini`
+als solches benannt, nicht als pytest-Kernfunktion.
 
-**Was 100 % hier bedeuten:** Statement-Coverage der vier Module
-(`branch = False`, in `.coveragerc` ausdrücklich gesetzt) – **kein**
-Branch-Coverage. Ausgenommen ist ausschließlich der `__main__`-Guard
-(4 Zeilen), weil ein Import ihn nie erreicht; die Ausnahme steht sichtbar in
-`.coveragerc`, es wird keine weitere Zeile versteckt.
+**Was 100 % hier bedeuten:** Statement-Coverage (`branch = False` in
+`.coveragerc`) – **kein** Branch-Coverage. Ausgenommen sind ausschließlich die
+`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1198 Statements,
+mit `--cov-config=/dev/null` 1304 → **106 Statements** in `__main__`-Blöcken,
+die ein Import nie erreicht). Die Ausnahme steht sichtbar in `.coveragerc`, es
+wird keine weitere Zeile versteckt.
+
+**Fallstrick (dokumentiert):** `asyncio.Queue` bindet an den Loop bei der
+Erzeugung. `EnrichmentQueue`/`IngestionHook` müssen daher **innerhalb** der
+Coroutine erzeugt werden, sonst: „Future attached to a different loop".
 
 ## 5. Netzwerk-Policy (warum `make test` offline läuft)
 
-`fast_write_router.py` legt beim Import `OpenAI(...)` an und wirft ohne Key
-(`openai.OpenAIError: Missing credentials`). `tests/conftest.py` setzt daher
-**vor** dem Import eine Platzhalter-Key und `OPENAI_BASE_URL=http://127.0.0.1:9`
-– ein versehentlicher Live-Aufruf schlägt sofort fehl, statt das Endpoint zu
-treffen; zusätzlich werden `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL` entfernt, damit
-die Code-Defaults (AGENTS.md:252) getestet werden. Alle Modell-Antworten sind
-skriptet.
+- `fast_write_router.py` legt beim Import `OpenAI(...)` an und wirft ohne Key
+  (`openai.OpenAIError: Missing credentials`). `tests/conftest.py` setzt daher
+  **vor** dem Import eine Platzhalter-Key und `OPENAI_BASE_URL=http://127.0.0.1:9`
+  – ein versehentlicher Live-Aufruf schlägt sofort fehl; zusätzlich werden
+  `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL` entfernt, damit die Code-Defaults
+  (AGENTS.md:252) getestet werden.
+- Die optionalen LLM-Schritte in `ingestion_hook`/`reflective_agent` werden über
+  ein Fake-Modul `openai` in `sys.modules` geprüft (Erfolg, leere Antwort,
+  Fehlerfall) – inklusive `reasoning_content`-Fallback.
+- Der GLiNER-Pfad läuft gegen ein Fake-Modell; `gliner_available()` wird für
+  beide Ausgänge getestet (`sys.modules["gliner"]` gesetzt bzw. `None`).
+- Alle Schreibpfade (Ingestion-Log, Tier-2-Index, `knowledge/structured`,
+  Skill-Versionen, Audit-Log, Shared-Store) zeigen auf `tmp_path` bzw.
+  `/tmp/opencode`; **das Repo bleibt während der Tests unverändert**
+  (`git status` nach dem Lauf geprüft).
 
-## 6. Gate-Status / Drift (§9, §9.1c)
+## 6. Befunde aus dem Testaufbau (ehrlich)
 
-- **Verhaltensänderung:** NEIN – es wurden keine Produktionsfunktionen geändert;
-  `.gitignore` +4 Zeilen (Artefakte), `.coveragerc` (neu) und ein
-  Textzeilen-Nachtrag in `systemtest-gesamt.md` sind keine Interface-Änderung.
-- **Konfigurationsänderung (Mindest-Score 65 % → 100 %):** angeordnet durch den
-  Auftraggeber am 2026-10-01 („der ci muss auf 100% geprüft") → damit
-  freigegeben; die Anhebung ist eine CI-Schwelle, kein Produktionsverhalten.
-- **Neue Quelle:** NEIN – es kam kein Paper/URL-Neuzugang hinzu; alle
-  zitierten Doku-URLs sind Prüfnachweise (§6), keine Wissensquelle.
-- **Drift:** keine bestehende Python-Datei verändert (nur neue Dateien) →
-  Drift = 0 % gegenüber dem Stand vor diesem Auftrag.
-- **Abhängigkeit zum FWR-Gate:** `tests/test_fwr.py` prüft die **neue**
-  `classify()`-Logik (Write-Fix). Das Gate wurde am 2026-10-01 freigegeben
-  (§9 Human-Gate `approved`, `ergebnisse/fwr-code-korrektur.md` §0) – die drei
-  betroffenen Assertions (`write-update`, `write-new`, `uncertain`) sichern
-  dauerhaft, dass die Bedingungen `AGENTS.md:306-307` erfüllt bleiben.
+| Befund | Status |
+|---|---|
+| **`reflective_agent.py:99` IndexError** – liefert das LLM eine Matrix falscher Form (z. B. 2×2 bei k=4), läuft die Heuristik auf dem falschen Array weiter und wirft `IndexError` | **offen** – Fix = Verhaltensänderung → Human-Gate (§9); Ist-Verhalten im Test dokumentiert (`test_parse_transition_delta_falsche_form_crasht`) |
+| `lru_cache._evict_lru` bei ausschließlich gepinnten Items → `None` (kein Überlauf möglich) | getestet, kein Fehler |
+| Solver-Snapshots v1–v6 enthalten absichtliche Fehler (Duplikate, erstes Element, Integer-Division, unsortierter Median) | getestet als Ist-Verhalten + Korrektur der „improved"-Varianten |
+| `data/memory/README.md` sagt `versions/v1`,`v2`,`v3`,`v4`; Verzeichnisse vorhanden | getestet |
 
-## 7. Offene Punkte
+## 7. Gate-Status / Drift (§9, §9.1c)
 
-1. Kein GitHub-Actions-/CI-Runner-Workflow (`.github/` existiert nicht) –
+- **Produktionscode:** unverändert in diesem Auftrag (nur `tests/**`, `pytest.ini`,
+  `.coveragerc`, `Makefile`, `.gitignore`, Doku).
+- **Konfigurationsänderungen:** Mindest-Score 65 % → 100 % und Ausweitung des
+  Messumfangs auf den gesamten Repo-Code – angeordnet durch den Auftraggeber
+  am 2026-10-01 („der ci muss auf 100% geprüft", „für die gesamte
+  knowledge-agent gebaut für alles") → damit freigegeben; es ist eine
+  CI-Schwelle, kein Produktionsverhalten.
+- **Neue Quelle:** NEIN – alle zitierten URLs sind Doku-Prüfnachweise (§6),
+  keine Wissensquelle.
+- **Drift:** 0 % gegenüber dem Stand vor diesem Auftrag (keine bestehende
+  Python-Datei verändert).
+
+## 8. Offene Punkte
+
+1. **IndexError-Bug** in `reflective_agent.py:99` – Fix braucht Human-Gate (§9).
+2. **Branch-Coverage ist aus** (`branch = False`): 100 % heißt 100 % der
+   Statements, nicht aller Verzweigungen.
+3. Kein GitHub-Actions-/CI-Runner-Workflow (`.github/` existiert nicht) –
    Interface-/CI-Änderung → vorher Human-Gate (§9/§10.4).
-2. Kein Lint/Formatter (z. B. ruff/black) – nicht beauftragt.
-3. **Branch-Coverage ist aus** (`branch = False` in `.coveragerc`): 100 %
-   bedeutet 100 % der Statements, nicht aller Verzweigungen.
-4. Marker `network` ist deklariert, aber es existiert noch **kein** Live-Test
-   (kostenpflichtige/latenzabhängige LLM-Läufe).
-5. `make test` läuft nicht automatisch vor Commits (kein pre-commit-Hook).
-6. Ergebnis-Zeilen der Dateizählung in `systemtest-gesamt.md` (Zeile 21: 85,
-   Zeile 26: 237) sind Standaufnahmen vom 2026-10-01 und durch `ci-setup.md` +
-   `fwr-code-korrektur.md` inzwischen veraltet. Nachmessung 2026-10-01 mit
-   anderem Zählpfad (Zwecke klar benennen, wenn neu gezählt wird):
-   `find ergebnisse -name '*.md' | wc -l` → **136**, inklusive `rekursion/`;
-   `ls ergebnisse/*.md | wc -l` → **79**; gesamt
-   `find . -name '*.md' -not -path './.git/*' | wc -l` → **241**.
+4. Kein Lint/Formatter (z. B. ruff/black) – nicht beauftragt.
+5. Marker `network` ist deklariert, aber es existiert noch **kein** Live-Test.
+6. `make test` läuft nicht automatisch vor Commits (kein pre-commit-Hook).
+7. Dateizählungen in `systemtest-gesamt.md` (85/237) sind Standaufnahmen und
+   durch die neuen Doku-Dateien veraltet.
 
-## 8. Reproduktion
+## 9. Reproduktion
 
 ```bash
 python3 -m pip install --user pytest pytest-cov   # einmalig
 make test
-python3 -m pytest tests/test_fwr.py -v
-python3 -m pytest -q -k "not memrouter and not compare_router"   # erwartet: rc=1 (91 %)
+python3 -m pytest tests/test_reflective.py -v
+python3 -m pytest -q -k "not reflective and not ingestion"   # erwartet: rc=1
 ```
