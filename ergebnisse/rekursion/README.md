@@ -49,6 +49,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 022 | `022-pii-minimierung.md` | System-Iteration (Trust/Privacy) | approved: Batnini, 2026-10-01 | siehe File |
 | 023 | `023-zwei-personen.md` | System-Iteration (Governance/Approval) | approved: Batnini, 2026-10-01 | siehe File |
 | 024 | `024-bias-drift.md` | System-Iteration (Governance/Monitoring) | approved: Batnini, 2026-10-01 | siehe File |
+| 025 | `025-l4-operational.md` | System-Iteration (Skills/L4) | pending: menschliche Freigabe ausstehend | siehe File |
 
 ## Guardrail
 
