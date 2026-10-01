@@ -43,8 +43,9 @@ class Entry:
     writer: str
     ts: str
     trust: float = 0.0
-    status: str = "valid"        # valid | superseded
-    supersedes: int = 0
+    status: str = "confirmed"    # confirmed | superseded | contested  (LatticeMind-Status)
+    supersedes: int = 0          # Version, die dieser Eintrag ablöst
+    superseded_by: int = 0       # Version, die DIESEN Eintrag ablöst (unterlegen; nicht gelöscht)
     invalid_at: str = ""
 
 
@@ -88,30 +89,38 @@ class SharedTier:
         if not chk["ok"]:
             return {"ok": False, "phase": "validation", "reason": chk["reason"]}
 
-        cur = self.entries.get(key)
+        cur = self.entries.get(key)                 # aktuell CONFIRMED (LatticeMind)
         new_trust = float(self.trust.get(agent, 0.0))
-        # Trigger: zwei Agenten, gleicher Key, verschiedene Werte
-        conflict = cur is not None and cur.value != value
-
-        # Auflösung: Trust-Score – niedrigerer Trust überschreibt NICHT
-        if conflict and new_trust < cur.trust:
-            return {"ok": False, "phase": "resolution", "conflict": True,
-                    "reason": f"niedrigerer Trust {new_trust} < {cur.trust}; aktueller Wert bleibt",
-                    "current": cur.value, "current_writer": cur.writer}
-
         v = self.versions.get(key, 0) + 1
         self.versions[key] = v
         e = Entry(key=key, value=value, version=v, writer=agent, ts=_now(), trust=new_trust)
-        superseded = None
-        if conflict:
-            cur.status = "superseded"                          # Supersede-Marker (kein Löschen)
-            cur.invalid_at = e.ts
-            e.supersedes = cur.version
-            superseded = cur.version
-        self.entries[key] = e
+
+        # Write-Time-Konfliktlösung (LatticeMind): Trust-Score entscheidet.
+        if cur is None or cur.value == value:
+            e.status = "confirmed"                  # neu oder Evidence-Accumulation
+            self.entries[key] = e
+            outcome, conflict = "confirmed", False
+        else:
+            conflict = True
+            if new_trust > cur.trust:               # stärkerer Trust gewinnt
+                cur.status = "superseded"
+                cur.invalid_at = e.ts
+                cur.superseded_by = v               # unterlegen: superseded_by (nicht gelöscht)
+                e.supersedes = cur.version
+                e.status = "confirmed"
+                self.entries[key] = e
+                outcome = "superseded_old"
+            elif new_trust < cur.trust:             # schwächerer Trust → unterlegen, behalten
+                e.status = "superseded"
+                e.superseded_by = cur.version
+                outcome = "superseded_new"
+            else:                                   # Gleichstand → contested (LatticeMind)
+                e.status = "contested"
+                outcome = "contested"
         self.history.append(e)
         return {"ok": True, "phase": "commit", "version": v, "conflict": conflict,
-                "superseded": superseded, "trust": new_trust}
+                "outcome": outcome, "status": e.status,
+                "current": self.entries[key].value, "current_version": self.entries[key].version}
 
     # --- Lesen ---
     def read(self, agent: str, key: str) -> dict:
@@ -133,7 +142,7 @@ class SharedTier:
             if len(vals) > 1:
                 conflicts.append({"key": k, "values": vals,
                                   "resolved_to": self.entries[k].value,
-                                  "rule": "versioning + supersede + trust (Memory Survey)"})
+                                  "rule": "versioning + trust-supersession (LatticeMind; Memory Survey)"})
         return {"conflicts": conflicts, "keys": len(self.entries)}
 
     def dump(self, path: Path) -> Path:
@@ -148,28 +157,29 @@ def _demo() -> None:
     acl = {
         "agentA": {"read": {"*"}, "write": {"*"}},
         "agentB": {"read": {"*"}, "write": {"*"}},
-        "agentC": {"read": {"public.*"}, "write": set()},
+        "agentC": {"read": {"*"}, "write": {"*"}},
     }
-    trust = {"agentA": 0.9, "agentB": 0.5, "agentC": 0.0}
+    trust = {"agentA": 0.5, "agentB": 0.9, "agentC": 0.3}
     schema = {"config.mode": {"fast", "safe"}}
     tier = SharedTier(acl, trust, schema)
 
-    print("=== [1] Trigger: zwei Agenten, gleicher Key, verschiedene Werte ===")
-    print("  agentA (trust 0.9) write ->", tier.write("agentA", "solver.current_version", "berechne_durchschnitt"))
+    print("=== [1] Write-Time-Konfliktlösung (Trust-Score entscheidet) ===")
+    print("  agentA(0.5) ->", tier.write("agentA", "solver.current_version", "berechne_durchschnitt"))
+    print("  agentB(0.9) ->", tier.write("agentB", "solver.current_version", "berechne_median"))
+    print("  agentC(0.3) ->", tier.write("agentC", "solver.current_version", "berechne_summe"))
 
-    print("\n=== [2] Auflösung: Trust-Score (niedrigerer Trust verliert) ===")
-    print("  agentB (trust 0.5) write ->", tier.write("agentB", "solver.current_version", "berechne_median"))
-    print("  agentA (trust 0.9) write ->", tier.write("agentA", "solver.current_version", "berechne_median"))
-
-    print("\n=== [3] Kollisionsvalidierung VOR dem Write ===")
+    print("\n=== [2] Kollisionsvalidierung VOR dem Write ===")
     print("  Schema-Verstoß (config.mode=turbo) ->", tier.write("agentA", "config.mode", "turbo"))
-    print("  leerer Wert ->", tier.write("agentA", "solver.current_version", "  "))
+    print("  leerer Wert                        ->", tier.write("agentA", "solver.current_version", "  "))
 
-    print("\n=== [4] Sync + Historie ===")
-    print(" ", tier.sync())
+    print("\n=== [3] Historie: Supersession (kein Löschen) ===")
     for e in tier.history:
-        print(f"  v{e.version} {e.key} = {e.value} | {e.writer} (trust {e.trust}) | {e.status}"
-              + (f" | supersedes v{e.supersedes}" if e.supersedes else ""))
+        sb = f" | superseded_by v{e.superseded_by}" if e.superseded_by else ""
+        ss = f" | supersedes v{e.supersedes}" if e.supersedes else ""
+        print(f"  v{e.version} {e.value} | {e.writer}(trust {e.trust}) | {e.status}{sb}{ss}")
+
+    print("\n=== [4] Sync (aktueller CONFIRMED-Wert) ===")
+    print(" ", tier.sync())
 
     tier.dump(Path("/tmp/opencode/shared_store.jsonl"))
     print("\n  Store (Demo): /tmp/opencode/shared_store.jsonl")
