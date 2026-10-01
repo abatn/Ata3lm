@@ -1,6 +1,6 @@
 ---
 name: akt
-description: Akt-Unterphase des Rekursions-Loops (Konstrukt→Akt→Observe). Der Agent führt Aktionen aus im Loop DEFINE→EXPERIMENT→OBSERVE→RELATE (ReAct: Thought/Action/Observation interleaved) und schreibt Traces plus Artefakte nach Working Memory – das Signal für Observe/Compare im nächsten Durchlauf. Nutze diesen Skill, wenn ein definiertes Modell in einer Umgebung ausgeführt werden soll.
+description: "Akt-Unterphase des Rekursions-Loops (Konstrukt→Akt→Observe). Der Agent führt Aktionen aus im Loop DEFINE→EXPERIMENT→OBSERVE→RELATE (ReAct: Thought/Action/Observation interleaved) und schreibt Traces plus Artefakte nach Working Memory – das Signal für Observe/Compare im nächsten Durchlauf. Nutze diesen Skill, wenn ein definiertes Modell in einer Umgebung ausgeführt werden soll."
 ---
 
 # Skill: akt

@@ -1,6 +1,6 @@
 ---
 name: cognize
-description: Kognition (Stufe 4 des 8-Stufen-Zyklus): Ontologie lesen, Kandidaten-Verknüpfungen vorschlagen, symbolisch gegen die Ontologie validieren (Konsistenz/Constraints via OWL/SHACL) und nur belegte Verknüpfungen nach Working Memory schreiben. Nutze diesen Skill, wenn aus gespeichertem Wissen neue Verknüpfungen abgeleitet werden sollen – ohne Erfindungen, jede Inferenz mit Prämissen-Beleg und Quellen-Link.
+description: "Kognition (Stufe 4 des 8-Stufen-Zyklus): Ontologie lesen, Kandidaten-Verknüpfungen vorschlagen, symbolisch gegen die Ontologie validieren (Konsistenz/Constraints via OWL/SHACL) und nur belegte Verknüpfungen nach Working Memory schreiben. Nutze diesen Skill, wenn aus gespeichertem Wissen neue Verknüpfungen abgeleitet werden sollen – ohne Erfindungen, jede Inferenz mit Prämissen-Beleg und Quellen-Link."
 ---
 
 # Skill: cognize

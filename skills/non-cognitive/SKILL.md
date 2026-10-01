@@ -1,6 +1,6 @@
 ---
 name: non-cognitive
-description: Stufe-6-Skill für Nicht-Kognition (Prinzip 8): Kontextfaktoren erheben, Einflussfaktoren-Log schreiben, Dämpfungsempfehlung für Handeln geben.
+description: "Stufe-6-Skill für Nicht-Kognition (Prinzip 8): Kontextfaktoren erheben, Einflussfaktoren-Log schreiben, Dämpfungsempfehlung für Handeln geben."
 ---
 
 # Skill: Non-Cognitive (Stufe 6, Prinzip 8)

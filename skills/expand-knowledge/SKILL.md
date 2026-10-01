@@ -1,6 +1,6 @@
 ---
 name: expand-knowledge
-description: Erweitert die Wissensbasis in Stufe 8 (WISSEN+): prueft Kandidaten-Erweiterungen gegen Compare-Beleg, erkennt veraltete Regeln via Veraltet-Test und Reversal-Logik, invalidiert statt zu loeschen, dokumentiert alles in knowledge/expansion/ — nur mit Quelle und Freigabe.
+description: "Erweitert die Wissensbasis in Stufe 8 (WISSEN+): prueft Kandidaten-Erweiterungen gegen Compare-Beleg, erkennt veraltete Regeln via Veraltet-Test und Reversal-Logik, invalidiert statt zu loeschen, dokumentiert alles in knowledge/expansion/ — nur mit Quelle und Freigabe."
 ---
 
 # Skill: expand-knowledge (Stufe 8: WISSEN+)

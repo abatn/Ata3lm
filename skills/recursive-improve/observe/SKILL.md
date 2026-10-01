@@ -1,6 +1,6 @@
 ---
 name: observe
-description: Observe-Unterphase des Rekursions-Loops (Akt→Observe→Compare). Der Agent beobachtet Experten-Traces und rekonstruiert hierarchische Strukturen (teleoreaktive Logikprogramme: Skill Chaining vs. Concept Chaining) ohne die Policy zu ändern. Nutze diesen Skill, wenn aus Akt-Traces Skill-Kandidaten plus Erklärungsstruktur für Compare extrahiert werden sollen.
+description: "Observe-Unterphase des Rekursions-Loops (Akt→Observe→Compare). Der Agent beobachtet Experten-Traces und rekonstruiert hierarchische Strukturen (teleoreaktive Logikprogramme: Skill Chaining vs. Concept Chaining) ohne die Policy zu ändern. Nutze diesen Skill, wenn aus Akt-Traces Skill-Kandidaten plus Erklärungsstruktur für Compare extrahiert werden sollen."
 ---
 
 # Skill: observe
