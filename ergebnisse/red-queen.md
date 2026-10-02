@@ -122,7 +122,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 179 passed · Coverage 1589/1589 Statements · 352/352 Branches = 100,00 %
+make test  → 184 passed · Coverage 1624/1624 Statements · 356/356 Branches = 100,00 %
 ```
 
 Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
@@ -268,7 +268,7 @@ https://huggingface.co/datasets/Hwilner/imo-gradingbench
 - `.github/workflows/ci.yml` (ersetzt `lint.yml`): Job **`lint`** (`ruff check` +
   `ruff format --check`) **und Job `test`** (`make test`, Matrix Python 3.9 + 3.12,
   installiert `requirements-dev.txt`). Damit prüft die CI den **kompletten**
-  Knowledge-Agenten: Lint + 179 Tests + 100 % Line/Branch-Coverage.
+  Knowledge-Agenten: Lint + 184 Tests + 100 % Line/Branch-Coverage.
   Ergänzend `tests/test_agents_law.py` (AGENTS.md §1–§11, Guardrails, Provenienz
   jeder Rekursion, Versionierung, Tiers/Connectors, RQGM-Verdrahtung, CI-Inhalt).
   **CI-Lauf `lint` war grün** (Run 37018230627); Test-Job neu hinzugefügt.
@@ -450,3 +450,59 @@ Bootstrap. Für eine stabile Bootstrap-KI braucht es deutlich mehr Items.
 | Wilson (1927), JASA — DOI 10.1080/01621459.1927.10502953 | nur Gegenbeispiel (Proportion) | DOI **403** (Bots) → bibliografisch |
 | Fleiss, Cohen & Everitt (1969) | Begründung κ-Varianz (nicht KI-Grundlage) | DOI 403 → bibliografisch |
 | **„Clearway"** (`degenerate_share`, `bootstrap_resamples`) | vom Auftraggeber genannt | **NICHT verifizierbar**: PyPI-JSON `{"message":"Not Found"}` → **nicht zitiert** |
+
+### 10.9 Stabile κ-Statistik mit n≥50 (4-Klassen, 2026-10-02)
+
+**Gewählte n = 50** (Standard ≥ 50). Die **n=30-Ausnahme wurde NICHT genutzt**
+– sie wäre nur mit `prec_kappa`-Nachweis zulässig.
+
+**Sample-Size-Validierung** (`kappa_required_n`, Methode analog
+`presize::prec_kappa`/`kappaSize`; **R war nicht installiert** → simplified-SE
+algebraisch portiert, Abweichung dokumentiert). Human-Klassen der ersten 50:
+Incorrect 14 · Partial 8 · Almost 4 · Correct 24.
+
+```text
+benötigte n für 95%-KI-Breite < 0.30 (simplified-SE):
+  kappa=0.4 -> n=94     kappa=0.5 -> n=87     kappa=0.6 -> n=77
+```
+
+→ **n=50 reicht NICHT** (Aufgabe: „Wenn nein → n erhöhen"). Erforderlich wären
+~77–94 Items; die presize/kappaSize-Warnung (Large-Sample unsicher für N<50) ist
+damit ernst genommen, aber 50 ist noch unter der nötigen Breite.
+
+**Realer Lauf** (`stable_kappa_run`, 4-Klassen-LLM-Grader vs. humanes `Reward`,
+50 Items, 773 s):
+
+```text
+kappa = 0.027      BCa-95%-KI = [-0.110, 0.160]
+seed = 0   B = 10.000   method = BCa
+degenerate_share = 0.0000   -> Interpretation: ok   (KEINE willkürliche Schwelle)
+LLM-Klassen: {Incorrect: 40, Correct: 7, Partial: 3}
+Fallbacks: 34 / 50
+```
+
+**Bootstrap vs. asymptotisch** explizit: hier nur **Bootstrap BCa** (Seed 0, B
+10.000). `degenerate_share = 0.0` → keine degenerierte Verteilung, keine NaN.
+
+**Ehrliche Einordnung:** κ = 0.027 ist **praktisch Zufall**, und das Ergebnis ist
+**fallback-dominiert**: 34/50 LLM-Aufrufe lieferten kein gültiges JSON → der
+Regel-Fallback („Incorrect") prägte 40 der 50 Urteile. Die **bindende Grenze ist
+nicht die Stichprobe, sondern die JSON-Zuverlässigkeit des Endpoints**. Eine
+belastbare κ-Aussage braucht (a) mehr Items (≥ 87) **und** (b) einen zuverlässig
+strukturierten Grader. Die **+9 % des Papers werden weiterhin nicht reproduziert**.
+
+**Provenienz:** Seed 0 · B 10.000 · BCa · Modell `nvidia/nemotron-3-super-120b-a12b`
+· 50 Items der HF-Dataset-Splits (imo-gradingbench, train).
+
+**Quellen (HTTP 200, 2026-10-02):**
+
+| Quelle | Verwendung | Status |
+|---|---|---|
+| https://search.r-project.org/CRAN/refmans/presize/html/prec_kappa.html | Sample-Size/Präzision (Methode) | HTTP 200 |
+| https://cran.r-project.org/web/packages/kappaSize/index.html (+ PDF) | kappaSize (Rotondi & Donner 2012) | HTTP 200 |
+| https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.bootstrap.html | BCa-Bootstrap | HTTP 200 |
+| https://huggingface.co/datasets/Hwilner/imo-gradingbench | 1.000 humane IMO-Bewertungen (4 Klassen) | HTTP 200 |
+
+Abweichung: `prec_kappa`/`kappaSize` nutzen die volle kappaSize-Varianz; hier ist
+die **simplified-SE** algebraisch invertiert (R fehlte). Die n-Schätzung ist daher
+eine **Näherung**, keine exakte presize-Ausgabe.

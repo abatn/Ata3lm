@@ -383,6 +383,7 @@ def load_anchor(
                 "feature": float(len(r["Response"] or "")),
                 "text": f"{r['Problem']}\n\n{r['Response']}",
                 "rubric": r["Grading guidelines"],
+                "label": str(r["Reward"]),
             }
             for r in list(ds)[:limit]
         ]
@@ -395,6 +396,7 @@ def load_anchor(
             "feature": float(len(r["patch"] or "")),
             "text": f"{r.get('description', '')}\n\n{r.get('patch', '')}",
             "rubric": "",
+            "label": str(r["label"]),
         }
         for r in list(ds)[:limit]
     ]
@@ -660,7 +662,6 @@ def kappa_ci(kappa: float, se: float, z: float = 1.96) -> tuple:
 
 BOOTSTRAP_RESAMPLES = 10_000  # Efron & Tibshirani: B≥1000 für KI (Auftrag: 10.000)
 BOOTSTRAP_SEED = 0  # reproduzierbar (Auftrag)
-DEGENERATE_WARN_THRESHOLD = 0.05  # Auftrag: Warnung ab 5 % degenerierten Resamples
 
 
 def bootstrap_kappa_ci(
@@ -676,7 +677,9 @@ def bootstrap_kappa_ci(
     - B = 10.000 Resamples mit Zurücklegen, seed-fixiert → bit-reproduzierbar.
     - BCa (Default), Percentile als Fallback bei degenerierter Verteilung (NaN).
     - `degenerate_share` = Anteil Resamples, in denen ein Stream konstant war
-      (κ undefiniert → 0.0); Warnung oberhalb `DEGENERATE_WARN_THRESHOLD`.
+      (κ undefiniert → 0.0). KEINE willkürliche Schwelle: die Interpretation ist
+      datenabgeleitet (`degenerate_interpretation`): 0 → ok; >0 → auf NaN prüfen;
+      1.0 → Stream konstant, κ nicht interpretierbar.
     Quellen: scipy.stats.bootstrap (method='BCa') ·
     Efron & Tibshirani 1993 (An Introduction to the Bootstrap, S. 184–188).
     """
@@ -735,7 +738,13 @@ def bootstrap_kappa_ci(
         "n_resamples": n_resamples,
         "seed": seed,
         "degenerate_share": degenerate_share,
-        "degenerate_warning": degenerate_share > DEGENERATE_WARN_THRESHOLD,
+        "degenerate_interpretation": (
+            "Stream konstant - kappa nicht interpretierbar"
+            if degenerate_share == 1.0
+            else "degenerierte Resamples vorhanden - auf NaN pruefen"
+            if degenerate_share > 0.0
+            else "ok"
+        ),
     }
 
 
@@ -861,3 +870,107 @@ if __name__ == "__main__":
     import json
 
     print(json.dumps(simulate_real_anchor("grading"), ensure_ascii=False, indent=2))
+
+
+# ---------------------------------------------------------------------------
+# 11. Stabile κ-Statistik (n≥50): Sample-Size, 4-Klassen-Grader, stabiler Lauf
+#     Quellen (HTTP 200, 2026-10-02): presize::prec_kappa
+#     (https://search.r-project.org/CRAN/refmans/presize/html/prec_kappa.html) ·
+#     kappaSize (https://cran.r-project.org/web/packages/kappaSize/index.html,
+#     Rotondi & Donner 2012) · scipy.stats.bootstrap · HF Hwilner/imo-gradingbench.
+#     R war NICHT installiert -> prec-Methode algebraisch portiert (Abweichung
+#     dokumentiert: simplified-SE statt voller kappaSize-Varianz).
+# ---------------------------------------------------------------------------
+CLASS_GRADES = ("Correct", "Almost", "Partial", "Incorrect")
+
+
+def kappa_required_n(kappa: float, props: list, target_width: float = 0.30, conf: float = 0.95) -> int:
+    """Benötigte n für eine 95%-KI-Breite < target_width (simplified-SE-basiert).
+
+    Methode analog presize::prec_kappa / kappaSize (Large-Sample); R fehlte, daher
+    algebraische Umstellung der vereinfachten Fleiss-SE (NICHT die volle
+    kappaSize-Varianz). Unter N < 50 unsicher (presize/kappaSize-Warnung).
+    """
+    from scipy import stats as _st
+
+    z = _st.norm.ppf(1.0 - (1.0 - conf) / 2.0)
+    pe = sum(p * p for p in props)
+    po = pe + kappa * (1.0 - pe)
+    return int(math.ceil((2.0 * z) ** 2 * po * (1.0 - po) / (target_width**2 * (1.0 - pe) ** 2)))
+
+
+def _class_prompt(item: dict) -> str:
+    return (
+        "You are a strict IMO proof grader. Grade the RESPONSE for the PROBLEM as "
+        'exactly one of {"Correct", "Almost", "Partial", "Incorrect"}. '
+        'Output ONLY the JSON object {"grade": "<class>"} - no prose.\n'
+        f"PROBLEM:\n{item.get('text', '')}\nGUIDELINES:\n{item.get('rubric', '')}"
+    )
+
+
+def make_llm_class_grader(
+    *, client=None, model: str = GRADER_MODEL, max_tokens: int = GRADER_MAX_TOKENS, log: Optional[list] = None
+) -> Callable:
+    """4-Klassen-LLM-Grader (Correct/Almost/Partial/Incorrect), Pydantic-validiert,
+    fail-soft → `"Incorrect"` + Log-Eintrag."""
+    from pydantic import BaseModel
+
+    class ClassVerdict(BaseModel):
+        grade: str
+
+    def grade(item: dict) -> str:
+        try:
+            c = client or _default_client()
+            resp = c.chat.completions.create(
+                model=model,
+                temperature=GRADER_TEMPERATURE,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+                messages=[{"role": "user", "content": _class_prompt(item)}],
+            )
+            msg = resp.choices[0].message
+            raw = msg.content or getattr(msg, "reasoning_content", None) or ""
+            g = ClassVerdict.model_validate_json(_extract_json(raw)).grade.strip()
+            if g not in CLASS_GRADES:
+                raise ValueError(f"ungueltige Klasse: {g}")
+            return g
+        except Exception as e:  # fail-soft
+            if log is not None:
+                log.append({"fallback": "rule_incorrect", "item": item.get("id"), "error": str(e)[:160]})
+            return "Incorrect"
+
+    return grade
+
+
+def stable_kappa_run(
+    kind: str = "grading",
+    n: int = 50,
+    *,
+    load_dataset_fn: Optional[Callable] = None,
+    client=None,
+    grader_log: Optional[list] = None,
+) -> dict:
+    """Stabiler κ-Lauf: n ≥ 50 Items, 4-Klassen-LLM-Grader vs. humanes Label,
+    Bootstrap-KI (BCa, B=10.000, seed=0)."""
+    from collections import Counter
+
+    anchor = load_anchor(kind, load_dataset_fn=load_dataset_fn, limit=n)
+    grader = make_llm_class_grader(client=client, log=grader_log)
+    verdicts = [grader(it) for it in anchor.items]
+    labels = [it["label"] for it in anchor.items]
+    boot = bootstrap_kappa_ci(verdicts, labels)
+    return {
+        "anchor": anchor.source,
+        "n": anchor.n(),
+        "grader": "llm-4class+fallback",
+        "kappa": boot["kappa"],
+        "ci": boot["ci"],
+        "method": boot["method"],
+        "degenerate_share": boot["degenerate_share"],
+        "degenerate_interpretation": boot["degenerate_interpretation"],
+        "seed": boot["seed"],
+        "n_resamples": boot["n_resamples"],
+        "class_counts_llm": dict(Counter(verdicts)),
+        "class_counts_human": dict(Counter(labels)),
+        "fallbacks": len(grader_log) if grader_log is not None else None,
+    }

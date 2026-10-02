@@ -161,6 +161,7 @@ def _fake_loader_grading(ds_id, split):
                 "Response": "x" * 100,
                 "Problem": "P1",
                 "Grading guidelines": "full credit",
+                "Reward": "Correct",
             },
             {
                 "Grading ID": "GB-2",
@@ -168,6 +169,7 @@ def _fake_loader_grading(ds_id, split):
                 "Response": "x" * 10,
                 "Problem": "P2",
                 "Grading guidelines": "no credit",
+                "Reward": "Incorrect",
             },
         ]
     )
@@ -483,6 +485,7 @@ def test_bootstrap_kappa_ci_standard_und_reproduzierbar():
     assert r1["n_resamples"] == 200 and r1["seed"] == 0
     assert -1.0 <= r1["ci"][0] <= r1["ci"][1] <= 1.0
     assert 0.0 <= r1["degenerate_share"] < 1.0
+    assert r1["degenerate_interpretation"] in ("ok", "degenerierte Resamples vorhanden - auf NaN pruefen")
     assert r1["kappa"] == ev.cohens_kappa(a, b)
 
 
@@ -491,13 +494,61 @@ def test_bootstrap_kappa_ci_degeneriert_und_fallback():
     r = ev.bootstrap_kappa_ci(konstant, konstant, n_resamples=100, seed=0)
     assert r["method"] == "percentile"  # BCa NaN -> Fallback
     assert r["degenerate_share"] == 1.0
-    assert r["degenerate_warning"] is True
+    assert r["degenerate_interpretation"].startswith("Stream konstant")
     assert r["ci"] == (1.0, 1.0)
 
 
 def test_bootstrap_konstanten_und_kein_wilson():
     assert ev.BOOTSTRAP_RESAMPLES == 10_000
     assert ev.BOOTSTRAP_SEED == 0
+    assert not hasattr(ev, "DEGENERATE_WARN_THRESHOLD")  # keine willkürliche Schwelle
     src = (pathlib.Path(ev.__file__)).read_text(encoding="utf-8").lower()
     assert "def wilson" not in src and "wilson_ci" not in src  # κ NIE über Wilson routen
     assert "from scipy import stats" in src
+
+
+# ------------------------------------- Stabile κ-Statistik (§11, n≥50)
+def test_kappa_required_n_monoton_und_konkret():
+    n = ev.kappa_required_n(0.5, [0.25, 0.25, 0.25, 0.25], target_width=0.30)
+    assert n > 50  # width<0.3 braucht mehr als 50
+    assert ev.kappa_required_n(0.5, [0.25] * 4, target_width=0.20) > n
+    assert ev.kappa_required_n(0.5, [0.25] * 4, conf=0.90) < n
+
+
+def test_bootstrap_interpretation_ok_bei_nicht_degeneriert():
+    a = [0, 1, 0, 1, 0, 1, 0, 1]
+    r = ev.bootstrap_kappa_ci(a, a, n_resamples=1, seed=0)
+    assert r["degenerate_share"] == 0.0
+    assert r["degenerate_interpretation"] == "ok"
+
+
+def test_llm_class_grader_und_fail_soft():
+    item = {"id": "GB-1", "text": "t", "rubric": "r"}
+    g = ev.make_llm_class_grader(client=_FakeJudge(content='{"grade": "Almost"}'))
+    assert g(item) == "Almost"
+    log = []
+    g = ev.make_llm_class_grader(client=_FakeJudge(content='{"grade": "Superb"}'), log=log)
+    assert g(item) == "Incorrect" and log[0]["fallback"] == "rule_incorrect"
+    g = ev.make_llm_class_grader(client=_FakeJudge(raises=True), log=None)
+    assert g(item) == "Incorrect"
+
+
+def test_llm_class_grader_default_client(monkeypatch):
+    monkeypatch.setattr(ev, "_default_client", lambda: _FakeJudge(content='{"grade": "Partial"}'))
+    assert ev.make_llm_class_grader()({"id": "x", "text": "t", "rubric": "r"}) == "Partial"
+
+
+def test_stable_kappa_run():
+    log = []
+    out = ev.stable_kappa_run(
+        "grading",
+        n=2,
+        load_dataset_fn=_fake_loader_grading,
+        client=_FakeJudge(content='{"grade": "Correct"}'),
+        grader_log=log,
+    )
+    assert out["n"] == 2 and out["grader"] == "llm-4class+fallback"
+    assert out["seed"] == 0 and out["n_resamples"] == 10_000
+    assert "degenerate_share" in out and "degenerate_interpretation" in out
+    assert out["class_counts_llm"] == {"Correct": 2}
+    assert out["fallbacks"] == 0
