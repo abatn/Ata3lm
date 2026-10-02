@@ -16,7 +16,7 @@ Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
 Installation: `python3 -m pip install --user pytest pytest-cov`.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-01: **100,00 %** – 1290/1290 Statements **und 278/278 Branches**
+Gemessen 2026-10-02: **100,00 %** – 1294/1294 Statements **und 278/278 Branches**
 über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
 `ergebnisse/rekursion/solver/**`).
 

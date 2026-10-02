@@ -40,21 +40,30 @@ from typing import Callable, Optional
 # (arXiv:2606.26294). Kennzahl des Papers – NICHT hier gemessen.
 CAMBRIDGE_GRADER_GAIN = 0.09
 
-# --- Konkrete Paper-Parameter (Paper Tab. 3) -------------------------------
-# ACHTUNG (ehrlich): Cambridge hat NOCH KEIN Code-Release ("The underlying
-# method will be open sourced"). Die folgenden Werte stammen aus unabhängigen
-# Reproduktionen, die sich ausdrücklich auf Paper Tab. 3 berufen – NICHT
-# offiziell bestätigt:
-#   ianyac/red-queen-godel-machine  (config.yaml: "paper Tab. 3")
-#   DreamFallenFlowers/OpenRQGM     (12.288 Validation-Outcomes, 166er Holdout)
-EPS_BEST_BELIEF = 0.05        # ε-Best-Belief-Quantil (paper Tab. 3)
-MIN_ANCHOR = 5                # "five-outcome anchor minimum" (paper Tab. 3)
-CHECKPOINT_RHO = 2            # exponentielles Checkpoint-Spacing ρ=2 (paper Tab. 3)
-PAPER_TOTAL_EVALS = 12_288    # paper: 12.288 (Demo-Repro: 64)
-PAPER_SPLITS = (10, 49, 166)  # paper: 10/49/166 (Demo-Repro: 2/3/5)
-PAPER_BUDGET_USD = {"expand": 25, "train": 8, "val": 25}   # paper Tab. 3
-ANCHOR_CODING = "CRAVE"                 # Coding-Anker (Polyglot-Repro)
-ANCHOR_GRADING = "IMO-GradingBench"     # Proof-Grading (HF: Hwilner/imo-gradingbench)
+# --- Konkrete Paper-Parameter — PRIMÄRQUELLE: offizielles PDF, geprüft 2026-10-02
+# "The Red Queen Gödel Machine" (arXiv:2606.26294). Wörtlich aus dem PDF:
+#   Tab. 3: "Total budget per run 12,288 evaluations · Train samples per node 3 ·
+#            Best-belief quantile ε = 0.05, five-outcome anchor minimum ·
+#            Checkpoint schedule power-of-two (ρ = 2) ·
+#            UCB-Air expansion exponent α = 0.6"
+#   Tab. 4: "Polyglot train split 10 items · validation split 49 items ·
+#            test split 166 items · Expand cap $25, 1,200 s · Train cap $8, 900 s ·
+#            Validation cap $25, 1,200 s"
+#   Anker: Polyglot-Exec-Tests (Coding-Agent) + CRAVE (Reviewer) +
+#          IMO-GradingBench (Grading). CRAVE = https://huggingface.co/datasets/TuringEnterprises/CRAVE
+# Zusätzlich gegengeprüft in unabhängigen Repros (ianyac/…, kingkillery/…).
+EPS_BEST_BELIEF = 0.05        # Paper Tab. 3
+MIN_ANCHOR = 5                # Paper Tab. 3: "five-outcome anchor minimum"
+CHECKPOINT_RHO = 2            # Paper Tab. 3: power-of-two (ρ = 2)
+UCB_AIR_ALPHA = 0.6           # Paper Tab. 3 (inherited)
+PAPER_TOTAL_EVALS = 12_288    # Paper Tab. 3
+PAPER_TRAIN_SAMPLES_PER_NODE = 3   # Paper Tab. 3
+PAPER_SPLITS = (10, 49, 166)  # Paper Tab. 4 (Polyglot train/val/test)
+PAPER_BUDGET_USD = {"expand": 25, "train": 8, "val": 25}          # Paper Tab. 4
+PAPER_BUDGET_TIME_S = {"expand": 1200, "train": 900, "val": 1200}  # Paper Tab. 4
+ANCHOR_CODING = "Polyglot-Exec-Tests"   # Coding-Agent (Paper C.4)
+ANCHOR_CRAVE = "CRAVE"                  # Reviewer-Anker (HF: TuringEnterprises/CRAVE)
+ANCHOR_GRADING = "IMO-GradingBench"     # Proof-Grading (Paper C.4)
 
 
 def power_of_two_checkpoints(total: int, start: int = 16,
@@ -240,9 +249,13 @@ def simulate_3_evaluators() -> dict:
         "checkpoints": power_of_two_checkpoints(PAPER_TOTAL_EVALS),
         "paper_params": {"eps_best_belief": EPS_BEST_BELIEF,
                          "min_anchor": MIN_ANCHOR, "checkpoint_rho": CHECKPOINT_RHO,
+                         "ucb_air_alpha": UCB_AIR_ALPHA,
+                         "total_evals": PAPER_TOTAL_EVALS,
+                         "train_samples_per_node": PAPER_TRAIN_SAMPLES_PER_NODE,
                          "splits": list(PAPER_SPLITS),
                          "budget_usd": dict(PAPER_BUDGET_USD),
-                         "anchors": [ANCHOR_CODING, ANCHOR_GRADING]},
+                         "budget_time_s": dict(PAPER_BUDGET_TIME_S),
+                         "anchors": [ANCHOR_CODING, ANCHOR_CRAVE, ANCHOR_GRADING]},
     }
 
 

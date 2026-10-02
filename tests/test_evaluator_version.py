@@ -119,11 +119,15 @@ def test_checkpoint_verweigert_zu_kleinen_anker():
 
 
 def test_paper_parameter_dokumentiert():
+    """Primärquelle (PDF Tab. 3+4), geprüft 2026-10-02."""
     assert ev.EPS_BEST_BELIEF == 0.05 and ev.MIN_ANCHOR == 5
-    assert ev.CHECKPOINT_RHO == 2 and ev.PAPER_TOTAL_EVALS == 12288
+    assert ev.CHECKPOINT_RHO == 2 and ev.UCB_AIR_ALPHA == 0.6
+    assert ev.PAPER_TOTAL_EVALS == 12288
+    assert ev.PAPER_TRAIN_SAMPLES_PER_NODE == 3
     assert ev.PAPER_SPLITS == (10, 49, 166)
     assert ev.PAPER_BUDGET_USD == {"expand": 25, "train": 8, "val": 25}
+    assert ev.PAPER_BUDGET_TIME_S == {"expand": 1200, "train": 900, "val": 1200}
     out = ev.simulate_3_evaluators()
     assert out["checkpoints"][:3] == [16, 32, 64]
     assert out["paper_params"]["min_anchor"] == 5
-    assert out["paper_params"]["anchors"] == ["CRAVE", "IMO-GradingBench"]
+    assert out["paper_params"]["anchors"] == ["Polyglot-Exec-Tests", "CRAVE", "IMO-GradingBench"]

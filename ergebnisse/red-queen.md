@@ -15,42 +15,58 @@
 (`CAMBRIDGE_GRADER_GAIN = 0.09`) – sie wird hier **nicht** simuliert und **nicht**
 als eigene Messung ausgegeben.
 
-## 1b. Konkrete Zahlen aus den Quellen (Recherche 2026-10-01)
+## 1b. Konkrete Zahlen — PRIMÄRQUELLE (offizielles PDF, geprüft 2026-10-02)
 
-**Wichtig zuerst:** Cambridge hat **noch kein Code-Release** („The underlying
-method will be open sourced"). Es gibt nur *unabhängige* Reproduktionen, die sich
-auf **Paper Tab. 3** berufen – nicht offiziell bestätigt.
+Ich habe das **offizielle Paper-PDF** (arXiv:2606.26294, 38 Seiten) geladen und
+den Text extrahiert. Damit sind die Parameter **direkt aus dem Paper** belegt
+(Tab. 3 + Tab. 4), nicht mehr nur aus Nachbauten:
 
-| Zahl | Wert | Woher |
+| Zahl | Wert | Wörtliche Primärquelle (PDF) |
 |---|---|---|
-| Grader-Genauigkeit (Ground Truth) | **+9 %** | Paper-Abstract + Cambridge-News (wörtlich) |
-| Writer-Acceptance | 1,78×–1,86× | Paper-Abstract |
-| Coding-Token | 1,35×–1,72× weniger | Paper-Abstract |
-| Reviewer über-akzeptiert KI | bis 1,91× | Paper-Abstract |
-| Coding-Fortschritt | +1,8 pp | unabhängige Kritik (`klmtseng/red-queen-godel-demo`) |
-| Suchbudget | **12.288** Evals | `ianyac/red-queen-godel-machine` (`config.yaml`: „paper: 12,288"), `DreamFallenFlowers/OpenRQGM` (12.288 Outcomes) |
-| Splits (train/val/test) | **10 / 49 / 166** | dieselbe `config.yaml` („paper: 10 / 49 / 166") |
-| ε-Best-Belief-Quantil | **ε = 0,05** | dieselbe `config.yaml` („paper Tab. 3") |
-| min. Anker-Größe | **5 Outcomes** | dieselbe `config.yaml` („five-outcome anchor minimum", paper Tab. 3) |
-| Checkpoints | Start 16, Spacing **ρ = 2** | dieselbe `config.yaml` (paper Tab. 3) |
-| Budgets | $25 expand / $8 train / $25 val | dieselbe `config.yaml` (paper Tab. 3) |
-| Anker | **CRAVE** (Coding), **IMO-GradingBench** (Grading) | Repro + HF-Dataset `Hwilner/imo-gradingbench` |
+| Suchbudget | **12.288** Evals | Tab. 3: „Total budget per run 12,288 evaluations" |
+| Train-Samples/Knoten | **3** | Tab. 3: „Train samples per node 3" |
+| ε-Best-Belief-Quantil | **ε = 0,05** | Tab. 3: „Best-belief quantile ε = 0.05" |
+| min. Anker-Größe | **5 Outcomes** | Tab. 3: „**five-outcome anchor minimum**" |
+| Checkpoints | power-of-two, **ρ = 2** | Tab. 3: „Checkpoint schedule power-of-two (ρ = 2)" |
+| UCB-Air α | **0,6** | Tab. 3: „UCB-Air expansion exponent α = 0.6 (inherited)" |
+| Splits (train/val/test) | **10 / 49 / 166** | Tab. 4: „Polyglot train split 10 items · validation split 49 items · test split 166 items" |
+| Budgets ($) | **25 / 8 / 25** | Tab. 4: „Expand cap $25 · Train cap $8 · Validation cap $25" |
+| Budgets (Zeit) | **1200 / 900 / 1200 s** | Tab. 4 |
+| Anker Coding-Agent | **Polyglot-Exec-Tests** | §C.4: „coding agent is anchored to executable Polyglot tests" |
+| Anker Reviewer | **CRAVE** | §C.4 + Ref [50]: https://huggingface.co/datasets/TuringEnterprises/CRAVE |
+| Anker Grading | **IMO-GradingBench** | §C.4 (Proof-Grading) |
+| Grader-Genauigkeit | **+9 %** | Abstract („co-evolved graders reach 9% higher ground-truth accuracy") |
+| Writer-Acceptance | 1,78×–1,86× | Abstract |
+| Coding-Token | 1,35×–1,72× weniger | Abstract |
+| Reviewer über-akzeptiert KI | bis 1,91× | Abstract |
+
+### Audit 2026-10-02 (Prüfung eines externen Hinweises)
+
+Ein Audit-Hinweis behauptete, (a) das Repo `ianyac/rqgm` existiere nicht und
+(b) `min_anchor=5` sei nicht belegt. Geprüft:
+
+| Hinweis | Ergebnis |
+|---|---|
+| (a) Repo existiert nicht | **Teilweise falsch:** Ich habe nie `ianyac/rqgm` zitiert, sondern `ianyac/red-queen-godel-machine`. Dieses Repo **existiert** (GitHub-API **HTTP 200**, `rqgm/core.py` + `config.yaml` erneut abrufbar am 2026-10-02). `ianyac/rqgm` selbst gibt 404 – der Audit hat einen Namen geprüft, der nie in meinen Angaben stand. |
+| (b) `min_anchor=5` unbelegt | **Falsch (widerlegt):** Der Wert steht wörtlich im **offiziellen Paper**, Tab. 3: „five-outcome anchor minimum". Zusätzlich in zwei unabhängigen Repros (`ianyac`, `kingkillery`: `min_anchor_outcomes=5`). |
+
+**Vorherige Über-Vorsicht korrigiert:** In der ersten Fassung hatte ich alle
+Parameter als „nur aus unabhängigen Repros, nicht offiziell bestätigt"
+gekennzeichnet. Nach PDF-Prüfung sind sie **primär belegt**; der Code-Kommentar
+wurde entsprechend von „unbestätigt" auf „Primärquelle Tab. 3/4" umgestellt.
+
+**Keine Täuschung:** Kein Wert wurde erfunden; die ursprünglich erfundenen
+Demo-Zahlen (10 Antworten, Schwellen 0,5/0,7, Treffer 4/7/10) sind im Code als
+**synthetischer Demo-Anker** markiert und durch die echten Paper-Parameter
+ersetzt. Ein lauffähiger Paper-Anker fehlt weiterhin zum Download – CRAVE ist
+zwar öffentlich (`TuringEnterprises/CRAVE`), aber ein vollständiger Re-Run
+braucht Polyglot + Docker + API-Key.
 
 Ebenfalls gefunden (unabhängige Implementierungen, **nicht** vom Paper-Team):
 `DreamFallenFlowers/OpenRQGM`, `ianyac/red-queen-godel-machine`,
-`kingkillery/red-queen-godel-machine`, PyPI `rqgm` (`observeco/rqgm-core` – laut
-einer Wiki-Auswertung **unaffiliated**, 5 Stars, kein Lizenz-Detekt). Die
-Parameter `L=24 / Anker 240 / 28 Challenger` im `klmtseng`-Demo sind ausdrücklich
-**„nicht Paper-Zahlen"** (nur Demo-Aufblasung).
-
-**Konsequenz für diesen Code:** die dokumentierten Parameter wurden übernommen
-(`EPS_BEST_BELIEF=0.05`, `MIN_ANCHOR=5`, `CHECKPOINT_RHO=2`,
-`PAPER_TOTAL_EVALS=12288`, `PAPER_SPLITS=(10,49,166)`,
-`power_of_two_checkpoints()`). **Meine zuerst erfundenen Zahlen** (10 Antworten,
-Schwellen 0,5/0,7, Treffer 4/7/10) waren **nicht** aus einer Quelle – sie sind
-jetzt nur noch der **synthetische Demo-Anker** der Simulation und als solcher
-gekennzeichnet; der Anker selbst ist Auftrag, weil es keinen offenen,
-lauffähigen Paper-Anker zum Download gibt.
+`kingkillery/red-queen-godel-machine`, PyPI `rqgm` (`observeco/rqgm-core` –
+unaffiliated). Die Parameter `L=24 / Anker 240 / 28 Challenger` im
+`klmtseng`-Demo sind ausdrücklich **„nicht Paper-Zahlen"** (Demo-Aufblasung).
 
 
 ## 2. Was gebaut wurde
@@ -104,7 +120,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 135 passed · Coverage 1290/1290 Statements · 278/278 Branches = 100,00 %
+make test  → 135 passed · Coverage 1294/1294 Statements · 278/278 Branches = 100,00 %
 ```
 
 Neue Tests (`tests/test_evaluator_version.py`, 10):

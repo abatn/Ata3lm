@@ -31,12 +31,12 @@
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
 | **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 135/135 = 100 % |
-| **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1290/1290 Statements, 278/278 Branches) |
+| **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1294/1294 Statements, 278/278 Branches) |
 
 **Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
 bi_temporal, bias_monitor, fast_write_router, ingestion_hook, reflective_agent,
 shared/shared_memory, tier3-working/lru_cache, trust), `skills/procedural_memory.py`
-und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1290 Statements / 278 Branches, 0 nicht abgedeckt**
+und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1294 Statements / 278 Branches, 0 nicht abgedeckt**
 (Line + Branch, `branch = True`).
 
 **100 ist das Maximum:** `--cov-fail-under=101` wird abgelehnt
@@ -47,9 +47,9 @@ Nachweis der 100-%-Schwelle daher über *weniger* Tests (nach `coverage erase`):
 $ python3 -m pytest -q --cov-branch -k "not reflective and not ingestion"
 data/memory/ingestion_hook.py                         278    203     58      0    22%  ...
 data/memory/reflective_agent.py                       242    193     48      0    17%  ...
-TOTAL                                                1290    396    278      0    68%
-FAIL Required test coverage of 100% not reached. Total coverage: 67.98%
-98 passed, 37 deselected in 1.56s
+TOTAL                                                1294    396    278      0    68%
+FAIL Required test coverage of 100% not reached. Total coverage: 68.07%
+98 passed, 37 deselected in 3.11s
 rc=1 (erwartet 1)
 ```
 
@@ -92,7 +92,7 @@ Name                                                Stmts   Miss Branch BrPart  
 data/memory/approval.py                                42      0      8      0   100%
 data/memory/bi_temporal.py                             51      0      8      0   100%
 data/memory/bias_monitor.py                            84      0     18      0   100%
-data/memory/evaluator_version.py                       95      0     14      0   100%
+data/memory/evaluator_version.py                       99      0     14      0   100%
 data/memory/fast_write_router.py                       71      0     10      0   100%
 data/memory/ingestion_hook.py                         278      0     58      0   100%
 data/memory/reflective_agent.py                       242      0     48      0   100%
@@ -111,9 +111,9 @@ ergebnisse/rekursion/solver/solver_v6.py                4      0      2      0  
 ergebnisse/rekursion/solver/solver_v6_improved.py       8      0      4      0   100%
 skills/procedural_memory.py                            92      0     12      0   100%
 -----------------------------------------------------------------------------------------------
-TOTAL                                                1290      0    278      0   100%
+TOTAL                                                1294      0    278      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================= 135 passed in 1.64s ==============================
+============================= 135 passed in 2.59s ==============================
 ```
 
 ### Stand vorher (65 %, nur 4 Module) – zur Einordnung
@@ -155,7 +155,7 @@ https://coverage.readthedocs.io/en/latest/branch.html). Eine strukturell
 unerreichbare Verzweigung ist mit der dokumentierten Direktive
 `# pragma: no branch` markiert (`lru_cache.py:175`, Begründung:
 `ergebnisse/branch-coverage.md` §4). Ausgenommen sind ausschließlich die
-`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1290 Statements,
+`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1294 Statements,
 mit `--cov-config=/dev/null` 1301 → **106 Statements** in `__main__`-Blöcken,
 die ein Import nie erreicht). Die Ausnahme steht sichtbar in `.coveragerc`, es
 wird keine weitere Zeile versteckt.
