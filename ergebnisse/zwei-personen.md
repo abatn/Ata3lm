@@ -107,3 +107,26 @@ https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-14
 - woertlich: "separately verified and confirmed by at least two natural persons".
 Scope-Kaveat unveraendert: Art. 14(5) gilt fuer Annex-III-1(a); die Anwendung auf alle
 Rekursionen ist **Auftrag** (Abschnitt 0).
+
+## 7. Freigabe-Record: Diff-Bindung (2026-10-02)
+
+Freigabe durch **zwei natürliche Personen**, an den **Diff** von Commit `bf5f4a8`
+gebunden (`diff_sha = sha256(git show bf5f4a8 --format=)[:16]`):
+
+```text
+approve(Batnini,  diff_sha=7bebe8430c046bf6) -> first_approved
+approve(taoufik,  diff_sha=7bebe8430c046bf6) -> second_approved
+finalize()                                   -> approved
+status: {state: approved, approvers: [Batnini, taoufik], count: 2, diff_sha: 7bebe8430c046bf6}
+```
+
+Beide bestätigten **denselben** Diff → die neue Diff-Bindung (§6) ist damit im
+Echtbetrieb angewandt.
+
+### Offener Punkt (ehrlich, §6)
+
+Frühere Records nannten die zweite Person **`taouefik`** (FWR-Fix, Loop-Einbau),
+dieser Record nennt **`taoufik`**. Das sind **unterschiedliche Schreibweisen** –
+welche korrekt ist, muss der Auftraggeber klären; sie werden hier **nicht**
+stillschweigend gleichgesetzt. Bei §9.3 zählen **distinkte** Personen, daher ist
+die Schreibweise zu vereinheitlichen.
