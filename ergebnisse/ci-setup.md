@@ -17,7 +17,7 @@
 | `tests/test_shared_memory.py` (7) | ACL, Trust-Konflikt, Schema, Sync, Dump |
 | `tests/test_lru_cache.py` (9) | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung |
 | `tests/test_ingestion.py` (16) | Privacy/Secrets, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, async Enrichment, Lifecycle |
-| `tests/test_reflective.py` (15) | HMM-Trägheit, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov |
+| `tests/test_reflective.py` (16) | HMM-Trägheit, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov |
 | `tests/test_procedural_memory.py` (7) | Skill-Snapshots, Human-Gate-Update, Rollback |
 | `tests/test_solvers.py` (20) | 9 historische Solver-Snapshots (Ist-Verhalten) |
 | `pytest.ini` | Konfiguration + **Mindest-Score** (`--cov-fail-under=100`) + Marker |
@@ -29,7 +29,7 @@
 
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
-| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 114/114 = 100 % |
+| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 115/115 = 100 % |
 | **Mindest-Score (Coverage)** | abgedeckte Statements / alle Statements **des gesamten Repo-Codes** | pytest-cov `--cov-fail-under` | `pytest.ini`: **100 %** (gemessen: 100,00 %, 1198/1198) |
 
 **Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
@@ -69,16 +69,16 @@ configfile: pytest.ini
 testpaths: tests
 plugins: cov-7.1.0, asyncio-1.2.0, langsmith-0.4.37, anyio-4.12.1
 asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 114 items
+collected 115 items
 
 tests/test_bi_temporal.py .....                                          [  4%]
 tests/test_fwr.py ............                                           [ 14%]
 tests/test_governance.py ..........                                      [ 23%]
 tests/test_ingestion.py ................                                 [ 37%]
 tests/test_lru_cache.py .........                                        [ 45%]
-tests/test_memory.py .............                                       [ 57%]
-tests/test_procedural_memory.py .......                                  [ 63%]
-tests/test_reflective.py ...............                                 [ 76%]
+tests/test_memory.py .............                                       [ 56%]
+tests/test_procedural_memory.py .......                                  [ 62%]
+tests/test_reflective.py ................                                [ 76%]
 tests/test_shared_memory.py .......                                      [ 82%]
 tests/test_solvers.py ....................                               [100%]
 
@@ -110,7 +110,7 @@ skills/procedural_memory.py                            92      0   100%
 ---------------------------------------------------------------------------------
 TOTAL                                                1198      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================= 114 passed in 1.53s ==============================
+============================= 115 passed in 1.56s ==============================
 ```
 
 ### Stand vorher (65 %, nur 4 Module) – zur Einordnung
@@ -177,7 +177,7 @@ Coroutine erzeugt werden, sonst: „Future attached to a different loop".
 
 | Befund | Status |
 |---|---|
-| **`reflective_agent.py:99` IndexError** – liefert das LLM eine Matrix falscher Form (z. B. 2×2 bei k=4), läuft die Heuristik auf dem falschen Array weiter und wirft `IndexError` | **offen** – Fix = Verhaltensänderung → Human-Gate (§9); Ist-Verhalten im Test dokumentiert (`test_parse_transition_delta_falsche_form_crasht`) |
+| **`reflective_agent.py:99` IndexError** – liefert das LLM eine Matrix falscher Form (z. B. 2×2 bei k=4), überschrieb `delta` die frische K×K-Matrix und die Heuristik warf `IndexError` | **behoben in Rekursion 032** (`candidate`-Prüfung, strenge K×K-Form): `ergebnisse/rekursion/032-fix-reflective-agent.md` |
 | `lru_cache._evict_lru` bei ausschließlich gepinnten Items → `None` (kein Überlauf möglich) | getestet, kein Fehler |
 | Solver-Snapshots v1–v6 enthalten absichtliche Fehler (Duplikate, erstes Element, Integer-Division, unsortierter Median) | getestet als Ist-Verhalten + Korrektur der „improved"-Varianten |
 | `data/memory/README.md` sagt `versions/v1`,`v2`,`v3`,`v4`; Verzeichnisse vorhanden | getestet |
@@ -198,7 +198,8 @@ Coroutine erzeugt werden, sonst: „Future attached to a different loop".
 
 ## 8. Offene Punkte
 
-1. **IndexError-Bug** in `reflective_agent.py:99` – Fix braucht Human-Gate (§9).
+1. ~~**IndexError-Bug** in `reflective_agent.py:99`~~ → **behoben in Rekursion 032**
+   (`ergebnisse/rekursion/032-fix-reflective-agent.md`); Tests angepasst.
 2. **Branch-Coverage ist aus** (`branch = False`): 100 % heißt 100 % der
    Statements, nicht aller Verzweigungen.
 3. Kein GitHub-Actions-/CI-Runner-Workflow (`.github/` existiert nicht) –

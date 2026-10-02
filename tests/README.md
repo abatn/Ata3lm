@@ -35,14 +35,14 @@ ist **nicht** aktiv. Details: `ergebnisse/ci-setup.md` §2/§4.
 | `test_shared_memory.py` | ACL, Trust-Konflikt (superseded/contested), Schema, Sync, Dump | 7 |
 | `test_lru_cache.py` | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung | 9 |
 | `test_ingestion.py` | Privacy/Secret-Filter, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, Konsolidierung, async Enrichment, Lifecycle | 16 |
-| `test_reflective.py` | HMM-Trägheit (SEAA), Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov | 15 |
+| `test_reflective.py` | HMM-Trägheit (SEAA), Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov | 16 |
 | `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
 | `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
 | `../pytest.ini` | Konfiguration + Mindest-Score + Marker | – |
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **114 Tests, alle grün, ~1,6 s, ohne Netzwerk.**
+Gesamt: **115 Tests, alle grün, ~1,6 s, ohne Netzwerk.**
 
 ## Netzwerk-Policy
 
@@ -62,13 +62,15 @@ Marker `network` ist in `pytest.ini` deklariert und für künftige Live-Tests
 reserviert; aktuell existiert kein Live-Test (`--strict-markers` verhindert
 unbenannte Marker).
 
-## Befunde (dokumentiert, nicht behoben)
+## Befunde
 
-- **`reflective_agent.py:99` (IndexError):** liefert das LLM eine Matrix
-  falscher Form (z. B. 2×2 bei k=4), läuft die Heuristik auf dem falschen Array
-  weiter und wirft `IndexError`. Test:
-  `test_reflective.py::test_parse_transition_delta_falsche_form_crasht`.
-  Ein Fix wäre eine Verhaltensänderung → Human-Gate (§9).
+- **`reflective_agent.py:99` (behoben in Rekursion 032):** lieferte das LLM eine
+  Matrix falscher Form (z. B. 2×2 bei k=4), überschrieb `delta` die frische
+  K×K-Matrix und die Heuristik warf `IndexError`. Fix: die LLM-Matrix wird erst
+  als `candidate` geprüft und nur bei K×K übernommen, sonst verworfen.
+  Tests: `test_parse_transition_delta_falsche_form_wird_verworfen` +
+  `test_parse_transition_delta_4x4_wird_uebernommen`; Beleg:
+  `ergebnisse/rekursion/032-fix-reflective-agent.md`.
 
 ## Was NICHT abgedeckt ist
 

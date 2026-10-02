@@ -56,6 +56,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 029 | `029-forschungsluecken-4.md` | System-Iteration (Konsolidierung) | approved: Batnini, 2026-10-01 | siehe File |
 | 030 | `030-governance-mcp.md` | System-Iteration (Governance/MCP) | approved: Batnini, 2026-10-01 (Score 8/8) | siehe File |
 | 031 | `031-fwr-modell.md` | System-Iteration (Governance/FWR) | approved: Batnini, 2026-10-01 (Score 8/8) | siehe File |
+| 032 | `032-fix-reflective-agent.md` | System-Iteration (Robustheit/HMM) | approved: Batnini, 2026-10-01 (Auftrag „Rekursion 032") | siehe File |
 
 ## Guardrail
 

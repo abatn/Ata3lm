@@ -55,6 +55,13 @@ def parse_transition_delta(text: str, k: int):
 
     SEAA parst Δ(R_t) per LLM aus dem Reflexionstext. Hier: LLM wenn verfügbar,
     sonst deterministische Heuristik (Vorzeichen der Reflexion).
+
+    Strenge Form-Prüfung (SEAA arXiv:2609.17331): die HMM-Übergangsmatrix ist
+    K×K (K = HMM_STATES, Default 4). Liefert das LLM eine Matrix anderer Form,
+    wird sie **verworfen** – es wird keine Ersatz-Matrix aus fehlerhaftem
+    LLM-Output gebaut. `delta` bleibt dann die frische K×K-Nullmatrix (Zeile 60)
+    für den deterministischen Pfad. (Entfernen dieses Pfads = eigene
+    Verhaltensänderung → Human-Gate §9.)
     """
     import numpy as np
     delta = np.zeros((k, k))
@@ -84,9 +91,11 @@ def parse_transition_delta(text: str, k: int):
             import re
             m = re.search(r"\[[\s\S]*\]", raw)
             if m:
-                delta = np.array(json.loads(m.group(0)), dtype=float)
-                if delta.shape == (k, k):
-                    return delta
+                # NICHT `delta` überschreiben: die LLM-Matrix erst prüfen.
+                candidate = np.array(json.loads(m.group(0)), dtype=float)
+                if candidate.shape == (k, k):          # strenge K×K-Prüfung (SEAA)
+                    return candidate
+                # andere Form -> verworfen; `delta` (K×K, Zeile 60) bleibt unberührt
         except Exception:
             pass
     # Heuristik (Auftrag): negative Reflexion -> Diagonale senken (weniger Trägheit)

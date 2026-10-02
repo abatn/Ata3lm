@@ -60,17 +60,21 @@ def test_parse_transition_delta_faellt_zurueck(monkeypatch):
     assert ra.parse_transition_delta("wrong", 4)[0][0] == -0.4
 
 
-def test_parse_transition_delta_falsche_form_crasht(monkeypatch):
-    """BEFUND (nicht behoben, Verhaltensänderung → Gate nötig):
-
-    Liefert das LLM eine Matrix falscher Form (hier 2×2 bei k=4), greift der
-    Form-Check `delta.shape == (k, k)` und die Heuristik läuft auf dem 2×2-Array
-    weiter → `IndexError` (reflective_agent.py:99). Der Test dokumentiert das
-    Ist-Verhalten; ein Fix wäre eine Verhaltensänderung (§9).
-    """
+def test_parse_transition_delta_falsche_form_wird_verworfen(monkeypatch):
+    """Rekursion 032: 2×2 statt 4×4 -> LLM-Matrix wird verworfen (keine
+    Ersatz-Matrix, kein Default aus dem LLM-Output). Der deterministische Pfad
+    rechnet auf der frischen 4×4-Matrix -> kein IndexError mehr."""
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(content="[[1,2],[3,4]]"))
-    with pytest.raises(IndexError):
-        ra.parse_transition_delta("wrong", 4)
+    delta = ra.parse_transition_delta("wrong", 4)
+    assert delta.shape == (4, 4)
+    assert delta[0][0] == -0.4          # Heuristik (negativ), NICHT die LLM-Werte 1/2
+
+
+def test_parse_transition_delta_4x4_wird_uebernommen(monkeypatch):
+    """Strenge Form-Prüfung: korrekte K×K-Matrix kommt unverändert durch."""
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=json.dumps([[3, 0, 0, 0]] * 4)))
+    delta = ra.parse_transition_delta("beliebig", 4)
+    assert delta.shape == (4, 4) and delta[0][0] == 3 and delta[1][1] == 0
 
 
 def test_parse_transition_delta_reasoning_fallback(monkeypatch):
