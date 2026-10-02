@@ -453,8 +453,9 @@ Bootstrap. Für eine stabile Bootstrap-KI braucht es deutlich mehr Items.
 
 ### 10.9 Stabile κ-Statistik mit n≥50 (4-Klassen, 2026-10-02)
 
-**Gewählte n = 50** (Standard ≥ 50). Die **n=30-Ausnahme wurde NICHT genutzt**
-– sie wäre nur mit `prec_kappa`-Nachweis zulässig.
+**Erster Lauf n=50** (unten) → Präzision reichte nicht. **Finaler Lauf n=90**
+(§10.9.1): benötigte n = 79 → **90 reicht**. Die **n=30-Ausnahme wurde NICHT
+genutzt** – sie wäre nur mit `prec_kappa`-Nachweis zulässig.
 
 **Sample-Size-Validierung** (`kappa_required_n`, Methode analog
 `presize::prec_kappa`/`kappaSize`; **R war nicht installiert** → simplified-SE
@@ -506,3 +507,30 @@ strukturierten Grader. Die **+9 % des Papers werden weiterhin nicht reproduziert
 Abweichung: `prec_kappa`/`kappaSize` nutzen die volle kappaSize-Varianz; hier ist
 die **simplified-SE** algebraisch invertiert (R fehlte). Die n-Schätzung ist daher
 eine **Näherung**, keine exakte presize-Ausgabe.
+
+#### 10.9.1 Finaler Lauf n = 90 (Präzision erfüllt)
+
+Human-Klassen der ersten 90 Items: **Incorrect 21 · Partial 35 · Almost 9 · Correct 25**.
+Sample-Size-Validierung (`kappa_required_n`, simplified-SE): **benötigte n = 79**
+(für κ=0.5, 95%-KI-Breite < 0.30) → **n=90 reicht** (Präzisionsziel erfüllt).
+
+```text
+STABILER Lauf n=90 (4-Klassen-LLM-Grader vs. Reward, 1516 s)
+  kappa = 0.028      BCa-95%-KI = [-0.055, 0.110]
+  seed = 0   B = 10.000   method = BCa
+  degenerate_share = 0.0000   -> Interpretation: ok   (keine willkürliche Schwelle)
+  LLM-Klassen: {Incorrect: 79, Correct: 3, Partial: 7, Almost: 1}
+  Fallbacks: 70 / 90
+```
+
+**Ehrliche Einordnung:** Die **Stichprobengröße ist jetzt ausreichend** (90 ≥ 79),
+aber das Ergebnis ist **stark fallback-dominiert**: **70 von 90** LLM-Aufrufen
+lieferten kein gültiges JSON → der Regel-Fallback („Incorrect") prägte 79 der 90
+Urteile. κ = 0.028 (praktisch Zufall) ist daher **nicht als Grader-Genauigkeit
+interpretierbar**. Die bindende Grenze ist die **JSON-Zuverlässigkeit des
+Endpoints**, nicht mehr n. Die **+9 % des Papers bleiben NICHT reproduziert**.
+`degenerate_share = 0.0` zeigt: das Problem ist **nicht** die Bootstrap-Verteilung,
+sondern der Grader-Output.
+
+**Provenienz n=90:** Seed 0 · B 10.000 · BCa · `nvidia/nemotron-3-super-120b-a12b`
+· 90 Items (imo-gradingbench, train) · Dauer 1516 s.
