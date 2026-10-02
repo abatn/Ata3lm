@@ -16,7 +16,7 @@ Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
 Installation: `python3 -m pip install --user pytest pytest-cov`.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-02: **100,00 %** – 1294/1294 Statements **und 278/278 Branches**
+Gemessen 2026-10-02: **100,00 %** – 1405/1405 Statements **und 314/314 Branches**
 über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
 `ergebnisse/rekursion/solver/**`).
 
@@ -41,13 +41,13 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 | `test_ingestion.py` | Privacy/Secret-Filter, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, Konsolidierung, async Enrichment, Lifecycle | 17 |
 | `test_reflective.py` | HMM-Trägheit (SEAA) inkl. NOOP, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov | 20 |
 | `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
-| `test_evaluator_version.py` | Red-Queen: Evaluator-Versionierung, Ground-Truth-Anker, Selective Erasure, Paper-Parameter | 13 |
+| `test_evaluator_version.py` | Red-Queen: ε-Best-Belief-Gate, echte HF-Anker (CRAVE/IMO-GradingBench), Selective Erasure | 23 |
 | `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
 | `../pytest.ini` | Konfiguration + Mindest-Score + Marker | – |
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **135 Tests, alle grün, ~1,7 s, ohne Netzwerk.**
+Gesamt: **146 Tests, alle grün, ~5,6 s, ohne Netzwerk.**
 
 ## Netzwerk-Policy
 
@@ -79,7 +79,7 @@ unbenannte Marker).
 
 ## Branch-Abdeckung (neu 2026-10-01)
 
-`--cov-branch` + `branch = True`: 278/278 Branches abgedeckt. Fünf partielle
+`--cov-branch` + `branch = True`: 314/314 Branches abgedeckt. Fünf partielle
 Zweige gab es anfangs – vier wurden mit echten Pfaden getestet, einer ist
 strukturell unerreichbar:
 

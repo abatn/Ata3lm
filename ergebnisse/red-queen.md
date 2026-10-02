@@ -76,8 +76,10 @@ unaffiliated). Die Parameter `L=24 / Anker 240 / 28 Challenger` im
 | Baustein | Quelle (RQGM) |
 |---|---|
 | `EvaluatorVersion(version, verdict_fn)` – Versionen `evaluator_v1`, `v2`, … | „Evaluator slot"; Versionierung ist Projekt-Umsetzung der Epochen |
-| `GroundTruthAnchor.accuracy()` – vertrauenswürdige, menschlich geprüfte Checkpoints | „trusted ground-truth examples" / „Ground-Truth Anchor" |
-| `RedQueen.checkpoint(candidate, approved)` – Ersatz **nur** wenn Kandidat auf dem Anker besser | „a stronger evaluator can replace the old one if it performs better on trusted ground-truth examples" |
+| `GroundTruthAnchor.outcomes()/accuracy()` – Anker liefert (S, F) je Evaluator | „trusted ground-truth examples" / „Ground-Truth Anchor" |
+| `best_belief(S, F, ε)` – BB_ε = I⁻¹_ε(1+S, 1+F), portiert aus `kingkillery/src/rqgm/beta.py` | Paper §3.1/§4; Tab. 3: ε = 0,05 |
+| `load_anchor(kind)` – echte HF-Anker (CRAVE, IMO-GradingBench) | Paper §C.4 + HF-Datasets |
+| `RedQueen.checkpoint(candidate, approved)` – Ersatz **nur** wenn BB_ε strikt größer (Gleichstand → Incumbent) | Paper §3.5: „the ε-best-belief evaluator is frozen … ties favour the incumbent" |
 | `RedQueen.selective_erasure(old)` – löscht Records des alten Evaluators, behält evaluator-unabhängige | „all utility records … produced by the old evaluator are deleted … evaluator-independent sources … retained" |
 | `RedQueen.report()['evaluator_ceiling_avoided']` | Ziel des Auftrags: „Verhindert das Evaluator-Ceiling" (RQGM-Motivation: fixer Evaluator = Decke) |
 
@@ -120,10 +122,10 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 135 passed · Coverage 1294/1294 Statements · 278/278 Branches = 100,00 %
+make test  → 146 passed · Coverage 1405/1405 Statements · 314/314 Branches = 100,00 %
 ```
 
-Neue Tests (`tests/test_evaluator_version.py`, 10):
+Tests (`tests/test_evaluator_version.py`, 23) – u. a.:
 
 | Test | Prüft |
 |---|---|
@@ -165,3 +167,69 @@ python3 data/memory/evaluator_version.py
 python3 -m pytest tests/test_evaluator_version.py -v
 make test
 ```
+
+## 8. Offen 1–3 abgeschlossen (2026-10-02)
+
+### Offen 1 — ε-Best-Belief-Gate portiert
+
+`best_belief(S, F, ε) = beta_ppf(ε, 1+S, 1+F)` (BB_ε, Paper §3.1/§4) wurde aus
+**`kingkillery/red-queen-godel-machine`, `src/rqgm/beta.py`** portiert (pure
+stdlib: `regularized_incomplete_beta` via Lentz-Kettenbruch + Bisektions-`beta_ppf`).
+Der Ersatz-Vergleich nutzt **nicht mehr die Anker-Trefferquote**, sondern **BB_ε**:
+Challenger nur bei **strikt größerem** BB_ε; Gleichstand → Incumbent (Paper §3.5).
+Standard **ε = 0,05** (Tab. 3). Gegenprobe im Test gegen `scipy.special.betaincinv`
+(Abweichung ≤ 1e-6).
+
+### Offen 2 — Echte Anker geladen und gemessen
+
+`load_anchor(kind)` lädt die echten HuggingFace-Anker (`datasets 4.5.0`, **kein**
+Skript-Blocker → kein Fallback nötig):
+
+| Anker | HF-ID | Rows | Ground Truth | Feature (Demo-Grader) |
+|---|---|---|---|---|
+| Grading | `Hwilner/imo-gradingbench` | 1000 | `Points == 7` („full credit 7 of 7", §C.4) | Länge der Antwort |
+| Coding/Reviewer | `TuringEnterprises/CRAVE` | 908/132/134 | `label == APPROVE` | Patch-Länge |
+
+**Reale Messung** (200 Grading-Items, 134 CRAVE-Test-Items; Grader = deterministische
+Schwellwert-Regeln an a-priori-Quantilen — NICHT die LLM-Grader des Papers):
+
+```text
+ANKER: HF:Hwilner/imo-gradingbench | n: 200
+  Baseline (alle akzeptieren): 0.31
+  Checkpoint thr=4390: promoted=True  version=evaluator_v1 acc=0.395 BB=0.3402 gate=allow
+  Checkpoint thr=5014: promoted=True  version=evaluator_v2 acc=0.515 BB=0.4570 gate=ask
+  Checkpoint thr=6546: promoted=True  version=evaluator_v3 acc=0.585 BB=0.5268 gate=ask
+  Final: evaluator_v3 acc 0.585 | gemessener Gewinn: 0.275 | Paper: 0.09
+
+ANKER: HF:TuringEnterprises/CRAVE | n: 134
+  Baseline (alle akzeptieren): 0.5
+  Checkpoint thr=1603: promoted=True  version=evaluator_v1 acc=0.5373 BB=0.4663 gate=allow
+  Checkpoint thr=3216: promoted=True  version=evaluator_v2 acc=0.5597 BB=0.4885 gate=ask
+  Checkpoint thr=6731: promoted=False version=evaluator_v2 BB=0.4516 gate=deny
+  Final: evaluator_v2 acc 0.5597 | gemessener Gewinn: 0.0597 | Paper: 0.09
+```
+
+**Ehrlich:** Das sind **eigene** Zahlen auf echten Ground-Truth-Daten
+(+27,5 pp Grading, +6,0 pp CRAVE) – **nicht** die +9 % des Papers (die mit
+LLM-Gradern entstanden). Das Gate verhält sich korrekt: es befördert v1→v2→v3
+beim Grading und **lehnt** beim Coding den dritten Kandidaten ab (BB 0,4516 <
+0,4885), weil schlechter.
+
+### Offen 3 — Wiring-Status (§9 / §9.3)
+
+- **§9.3 bestätigt:** Zwei-Personen-Freigabe `approved` (Batnini + taouefik,
+  2026-10-02; Record `ergebnisse/fwr-code-korrektur.md` §0).
+- **Evaluator-Replacement-Pfad:** Das ε-BB-Gate ist im Replacement-Pfad
+  (`RedQueen.checkpoint`) eingebaut – strikt besser, ties keep incumbent,
+  Selective Erasure.
+- **Kein Loop-Eingriff:** Das Modul wird von **keinem** bestehenden Prozess
+  importiert (additiv). Ein Einbau in `reflective_agent`/den Rekursions-Loop
+  wäre eine Verhaltensänderung des Agenten und bräuchte ein **eigenes** §9-Go –
+  daher bewusst nicht erfolgt; hier dokumentiert.
+
+### Quellen (HTTP 200, 2026-10-02)
+
+https://arxiv.org/abs/2606.26294 · https://github.com/kingkillery/red-queen-godel-machine
+(src/rqgm/beta.py, src/rqgm/search.py) · https://github.com/ianyac/red-queen-godel-machine ·
+https://huggingface.co/datasets/TuringEnterprises/CRAVE ·
+https://huggingface.co/datasets/Hwilner/imo-gradingbench
