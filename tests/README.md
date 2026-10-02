@@ -16,7 +16,7 @@ Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
 Installation: `python3 -m pip install --user pytest pytest-cov`.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-02: **100,00 %** – 1651/1651 Statements **und 360/360 Branches**
+Gemessen 2026-10-02: **100,00 %** – 1747/1747 Statements **und 392/392 Branches**
 über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
 `ergebnisse/rekursion/solver/**`).
 
@@ -43,12 +43,13 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 | `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
 | `test_evaluator_version.py` | Red-Queen: ε-Best-Belief-Gate, HF-Anker, Selective Erasure, Loop, LLM-Grader (json-repair/Retry/Schema), Statistik, Bootstrap-KI, κ-Statistik | 56 |
 | `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
+| `test_mandate.py` | Mandat: attenuate-nie-expand, ALLOW/REVIEW/DENY, Grant, Evidence | 9 |
 | `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI-Verdrahtung) | 8 |
 | `../pytest.ini` | Konfiguration + Mindest-Score + Marker | – |
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **189 Tests, alle grün, ~6,6 s, ohne Netzwerk.**
+Gesamt: **198 Tests, alle grün, ~6,7 s, ohne Netzwerk.**
 
 ## Netzwerk-Policy
 
@@ -80,7 +81,7 @@ unbenannte Marker).
 
 ## Branch-Abdeckung (neu 2026-10-01)
 
-`--cov-branch` + `branch = True`: 360/360 Branches abgedeckt. Fünf partielle
+`--cov-branch` + `branch = True`: 392/392 Branches abgedeckt. Fünf partielle
 Zweige gab es anfangs – vier wurden mit echten Pfaden getestet, einer ist
 strukturell unerreichbar:
 

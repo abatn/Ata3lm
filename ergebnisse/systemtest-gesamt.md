@@ -413,8 +413,8 @@ zyphra/zamba2-7b-instruct
    wörtlich (inkl. `uncertain`-Fall), Tests in `tests/test_fwr.py` –
    `ergebnisse/fwr-code-korrektur.md`.
 6. ~~**Kein CI/pytest/lint** im Repo – Verifikation bleibt „Skript ausführen“.~~
-   **Erledigt 2026-10-01:** `tests/` (14 Dateien, **189 Tests**), `pytest.ini`
-   (**Mindest-Score 100 %**, gesamter Repo-Code: 1651 Statements / 360 Branches),
+   **Erledigt 2026-10-01:** `tests/` (15 Dateien, **198 Tests**), `pytest.ini`
+   (**Mindest-Score 100 %**, gesamter Repo-Code: 1747 Statements / 392 Branches),
    `make test` – siehe `ergebnisse/ci-setup.md`.
    Lint/Formatting fehlt weiterhin.
 
