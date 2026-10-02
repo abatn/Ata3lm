@@ -40,6 +40,37 @@ from typing import Callable, Optional
 # (arXiv:2606.26294). Kennzahl des Papers – NICHT hier gemessen.
 CAMBRIDGE_GRADER_GAIN = 0.09
 
+# --- Konkrete Paper-Parameter (Paper Tab. 3) -------------------------------
+# ACHTUNG (ehrlich): Cambridge hat NOCH KEIN Code-Release ("The underlying
+# method will be open sourced"). Die folgenden Werte stammen aus unabhängigen
+# Reproduktionen, die sich ausdrücklich auf Paper Tab. 3 berufen – NICHT
+# offiziell bestätigt:
+#   ianyac/red-queen-godel-machine  (config.yaml: "paper Tab. 3")
+#   DreamFallenFlowers/OpenRQGM     (12.288 Validation-Outcomes, 166er Holdout)
+EPS_BEST_BELIEF = 0.05        # ε-Best-Belief-Quantil (paper Tab. 3)
+MIN_ANCHOR = 5                # "five-outcome anchor minimum" (paper Tab. 3)
+CHECKPOINT_RHO = 2            # exponentielles Checkpoint-Spacing ρ=2 (paper Tab. 3)
+PAPER_TOTAL_EVALS = 12_288    # paper: 12.288 (Demo-Repro: 64)
+PAPER_SPLITS = (10, 49, 166)  # paper: 10/49/166 (Demo-Repro: 2/3/5)
+PAPER_BUDGET_USD = {"expand": 25, "train": 8, "val": 25}   # paper Tab. 3
+ANCHOR_CODING = "CRAVE"                 # Coding-Anker (Polyglot-Repro)
+ANCHOR_GRADING = "IMO-GradingBench"     # Proof-Grading (HF: Hwilner/imo-gradingbench)
+
+
+def power_of_two_checkpoints(total: int, start: int = 16,
+                             rho: int = CHECKPOINT_RHO) -> list[int]:
+    """Checkpoint-Zeitpunkte mit exponentiell wachsendem Abstand (paper Tab. 3).
+
+    Reproduktionen: erster Checkpoint bei 16, danach ×ρ (=2) → 16, 32, 64, …
+    Innerhalb einer Epoche bleibt der Evaluator fix.
+    """
+    out: list[int] = []
+    t = start
+    while t <= total:
+        out.append(t)
+        t *= rho
+    return out
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -83,8 +114,9 @@ class RedQueen:
     - Projekt-Gesetz §9: Der Wechsel ist ein `self_update` → nur mit `approved`.
     """
 
-    def __init__(self, anchor: GroundTruthAnchor):
+    def __init__(self, anchor: GroundTruthAnchor, min_anchor: int = MIN_ANCHOR):
         self.anchor = anchor
+        self.min_anchor = min_anchor
         self.current: Optional[EvaluatorVersion] = None
         self.versions: list[EvaluatorVersion] = []
         self.archive: list[dict] = []
@@ -124,6 +156,11 @@ class RedQueen:
                     "accuracy": candidate.anchor_accuracy,
                     "reason": "initialer Evaluator (Ground-Truth-Anker)",
                     "gate": "allow"}
+        if len(self.anchor.items) < self.min_anchor:   # paper Tab. 3: min_anchor
+            return {"promoted": False, "version": self.current.version,
+                    "reason": f"Anker zu klein ({len(self.anchor.items)} < "
+                              f"{self.min_anchor}) – nicht verifizierbar",
+                    "gate": "ask"}
         if candidate.anchor_accuracy <= self.current.anchor_accuracy:
             return {"promoted": False, "version": self.current.version,
                     "candidate_accuracy": candidate.anchor_accuracy,
@@ -200,6 +237,12 @@ def simulate_3_evaluators() -> dict:
         "report": rq.report(),
         "archive": rq.archive,
         "paper_gain_ground_truth": CAMBRIDGE_GRADER_GAIN,
+        "checkpoints": power_of_two_checkpoints(PAPER_TOTAL_EVALS),
+        "paper_params": {"eps_best_belief": EPS_BEST_BELIEF,
+                         "min_anchor": MIN_ANCHOR, "checkpoint_rho": CHECKPOINT_RHO,
+                         "splits": list(PAPER_SPLITS),
+                         "budget_usd": dict(PAPER_BUDGET_USD),
+                         "anchors": [ANCHOR_CODING, ANCHOR_GRADING]},
     }
 
 

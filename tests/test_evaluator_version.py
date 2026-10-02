@@ -4,20 +4,24 @@ Quelle: arXiv:2606.26294 (Cambridge/NVIDIA) – Epochen mit fixem Evaluator,
 Checkpoint-Ersatz nur bei besserer Ground-Truth-Anker-Genauigkeit, Selective
 Erasure; AGENTS.md §9: Wechsel = self_update → nur mit `approved`.
 """
+import pytest
+
 import evaluator_version as ev
 
 
 def _anchor():
+    """6 Items (>= min_anchor 5): truth = quality >= 0.7."""
     return ev.GroundTruthAnchor(items=[
-        {"id": "a", "quality": 0.2, "truth": False},
-        {"id": "b", "quality": 0.8, "truth": True},
+        {"id": f"p{i}", "quality": q, "truth": q >= 0.7}
+        for i, q in enumerate([0.2, 0.4, 0.6, 0.7, 0.8, 0.95])
     ])
 
 
 def test_accuracy_und_leerer_anker():
     a = _anchor()
-    assert a.accuracy(lambda it: it["quality"] >= 0.5) == 1.0
-    assert a.accuracy(lambda it: False) == 0.5          # "b" wird falsch beurteilt
+    assert a.accuracy(lambda it: it["quality"] >= 0.7) == 1.0
+    assert a.accuracy(lambda it: it["quality"] >= 0.5) == pytest.approx(5 / 6)
+    assert a.accuracy(lambda it: False) == 0.5
     assert ev.GroundTruthAnchor().accuracy(lambda it: True) == 0.0
 
 
@@ -30,7 +34,7 @@ def test_checkpoint_initial_setzt_evaluator_v1():
 
 def test_checkpoint_schwaecheren_kandidat_ablehnen():
     rq = ev.RedQueen(_anchor())
-    rq.checkpoint(ev.EvaluatorVersion("", lambda it: it["quality"] >= 0.5))      # 1.0
+    rq.checkpoint(ev.EvaluatorVersion("", lambda it: it["quality"] >= 0.5))      # 5/6
     r = rq.checkpoint(ev.EvaluatorVersion("", lambda it: True), approved=True)   # 0.5
     assert r["promoted"] is False and r["gate"] == "deny"
     assert r["candidate_accuracy"] < r["incumbent_accuracy"]
@@ -40,7 +44,7 @@ def test_checkpoint_schwaecheren_kandidat_ablehnen():
 def test_checkpoint_besser_ohne_approved_ist_pending():
     rq = ev.RedQueen(_anchor())
     rq.checkpoint(ev.EvaluatorVersion("", lambda it: False))                     # 0.5
-    r = rq.checkpoint(ev.EvaluatorVersion("", lambda it: it["quality"] >= 0.5))  # 1.0
+    r = rq.checkpoint(ev.EvaluatorVersion("", lambda it: it["quality"] >= 0.5))  # 5/6
     assert r["promoted"] is False and r["pending"] is True and r["gate"] == "ask"
     assert rq.current.version == "evaluator_v1"          # §9: kein self_update
 
@@ -94,3 +98,32 @@ def test_report_ohne_evaluator():
     rep = ev.RedQueen(_anchor()).report()
     assert rep["current"] is None and rep["versions"] == []
     assert rep["evaluator_ceiling_avoided"] is False
+
+
+def test_power_of_two_checkpoints_rho2():
+    assert ev.power_of_two_checkpoints(64) == [16, 32, 64]
+    assert ev.power_of_two_checkpoints(16) == [16]
+    assert ev.power_of_two_checkpoints(8) == []          # start 16 > total
+    assert ev.power_of_two_checkpoints(20, start=2, rho=3) == [2, 6, 18]
+
+
+def test_checkpoint_verweigert_zu_kleinen_anker():
+    """paper Tab. 3: min_anchor=5 – kleiner Anker ist nicht verifizierbar (§9 ask)."""
+    klein = ev.GroundTruthAnchor(items=[{"id": "a", "quality": 0.2, "truth": False}])
+    rq = ev.RedQueen(klein)
+    rq.checkpoint(ev.EvaluatorVersion("", lambda it: True))
+    r = rq.checkpoint(ev.EvaluatorVersion("", lambda it: it["quality"] >= 0.7),
+                      approved=True)
+    assert r["promoted"] is False and r["gate"] == "ask"
+    assert "Anker zu klein" in r["reason"]
+
+
+def test_paper_parameter_dokumentiert():
+    assert ev.EPS_BEST_BELIEF == 0.05 and ev.MIN_ANCHOR == 5
+    assert ev.CHECKPOINT_RHO == 2 and ev.PAPER_TOTAL_EVALS == 12288
+    assert ev.PAPER_SPLITS == (10, 49, 166)
+    assert ev.PAPER_BUDGET_USD == {"expand": 25, "train": 8, "val": 25}
+    out = ev.simulate_3_evaluators()
+    assert out["checkpoints"][:3] == [16, 32, 64]
+    assert out["paper_params"]["min_anchor"] == 5
+    assert out["paper_params"]["anchors"] == ["CRAVE", "IMO-GradingBench"]

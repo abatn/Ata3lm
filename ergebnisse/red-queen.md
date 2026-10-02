@@ -15,6 +15,44 @@
 (`CAMBRIDGE_GRADER_GAIN = 0.09`) – sie wird hier **nicht** simuliert und **nicht**
 als eigene Messung ausgegeben.
 
+## 1b. Konkrete Zahlen aus den Quellen (Recherche 2026-10-01)
+
+**Wichtig zuerst:** Cambridge hat **noch kein Code-Release** („The underlying
+method will be open sourced"). Es gibt nur *unabhängige* Reproduktionen, die sich
+auf **Paper Tab. 3** berufen – nicht offiziell bestätigt.
+
+| Zahl | Wert | Woher |
+|---|---|---|
+| Grader-Genauigkeit (Ground Truth) | **+9 %** | Paper-Abstract + Cambridge-News (wörtlich) |
+| Writer-Acceptance | 1,78×–1,86× | Paper-Abstract |
+| Coding-Token | 1,35×–1,72× weniger | Paper-Abstract |
+| Reviewer über-akzeptiert KI | bis 1,91× | Paper-Abstract |
+| Coding-Fortschritt | +1,8 pp | unabhängige Kritik (`klmtseng/red-queen-godel-demo`) |
+| Suchbudget | **12.288** Evals | `ianyac/red-queen-godel-machine` (`config.yaml`: „paper: 12,288"), `DreamFallenFlowers/OpenRQGM` (12.288 Outcomes) |
+| Splits (train/val/test) | **10 / 49 / 166** | dieselbe `config.yaml` („paper: 10 / 49 / 166") |
+| ε-Best-Belief-Quantil | **ε = 0,05** | dieselbe `config.yaml` („paper Tab. 3") |
+| min. Anker-Größe | **5 Outcomes** | dieselbe `config.yaml` („five-outcome anchor minimum", paper Tab. 3) |
+| Checkpoints | Start 16, Spacing **ρ = 2** | dieselbe `config.yaml` (paper Tab. 3) |
+| Budgets | $25 expand / $8 train / $25 val | dieselbe `config.yaml` (paper Tab. 3) |
+| Anker | **CRAVE** (Coding), **IMO-GradingBench** (Grading) | Repro + HF-Dataset `Hwilner/imo-gradingbench` |
+
+Ebenfalls gefunden (unabhängige Implementierungen, **nicht** vom Paper-Team):
+`DreamFallenFlowers/OpenRQGM`, `ianyac/red-queen-godel-machine`,
+`kingkillery/red-queen-godel-machine`, PyPI `rqgm` (`observeco/rqgm-core` – laut
+einer Wiki-Auswertung **unaffiliated**, 5 Stars, kein Lizenz-Detekt). Die
+Parameter `L=24 / Anker 240 / 28 Challenger` im `klmtseng`-Demo sind ausdrücklich
+**„nicht Paper-Zahlen"** (nur Demo-Aufblasung).
+
+**Konsequenz für diesen Code:** die dokumentierten Parameter wurden übernommen
+(`EPS_BEST_BELIEF=0.05`, `MIN_ANCHOR=5`, `CHECKPOINT_RHO=2`,
+`PAPER_TOTAL_EVALS=12288`, `PAPER_SPLITS=(10,49,166)`,
+`power_of_two_checkpoints()`). **Meine zuerst erfundenen Zahlen** (10 Antworten,
+Schwellen 0,5/0,7, Treffer 4/7/10) waren **nicht** aus einer Quelle – sie sind
+jetzt nur noch der **synthetische Demo-Anker** der Simulation und als solcher
+gekennzeichnet; der Anker selbst ist Auftrag, weil es keinen offenen,
+lauffähigen Paper-Anker zum Download gibt.
+
+
 ## 2. Was gebaut wurde
 
 `data/memory/evaluator_version.py` (additiv, kein bestehender Prozess aufgerufen):
@@ -66,7 +104,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 132 passed · Coverage 1272/1272 Statements · 274/274 Branches = 100,00 %
+make test  → 135 passed · Coverage 1290/1290 Statements · 278/278 Branches = 100,00 %
 ```
 
 Neue Tests (`tests/test_evaluator_version.py`, 10):

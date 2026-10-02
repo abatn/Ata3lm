@@ -19,7 +19,7 @@
 | `tests/test_ingestion.py` (17) | Privacy/Secrets, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, async Enrichment, Lifecycle |
 | `tests/test_reflective.py` (20) | HMM-Trägheit, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov |
 | `tests/test_procedural_memory.py` (7) | Skill-Snapshots, Human-Gate-Update, Rollback |
-| `tests/test_evaluator_version.py` (10) | Red-Queen: Evaluator-Versionierung, Ground-Truth-Anker, Selective Erasure |
+| `tests/test_evaluator_version.py` (13) | Red-Queen: Evaluator-Versionierung, Ground-Truth-Anker, Selective Erasure |
 | `tests/test_solvers.py` (20) | 9 historische Solver-Snapshots (Ist-Verhalten) |
 | `pytest.ini` | Konfiguration + **Mindest-Score** (`--cov-fail-under=100`) + Marker |
 | `.coveragerc` | Coverage-Konfiguration; nimmt **nur** den `__main__`-Guard aus |
@@ -30,13 +30,13 @@
 
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
-| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 132/132 = 100 % |
-| **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1272/1272 Statements, 274/274 Branches) |
+| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 135/135 = 100 % |
+| **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1290/1290 Statements, 278/278 Branches) |
 
 **Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
 bi_temporal, bias_monitor, fast_write_router, ingestion_hook, reflective_agent,
 shared/shared_memory, tier3-working/lru_cache, trust), `skills/procedural_memory.py`
-und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1272 Statements / 274 Branches, 0 nicht abgedeckt**
+und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1290 Statements / 278 Branches, 0 nicht abgedeckt**
 (Line + Branch, `branch = True`).
 
 **100 ist das Maximum:** `--cov-fail-under=101` wird abgelehnt
@@ -47,9 +47,9 @@ Nachweis der 100-%-Schwelle daher über *weniger* Tests (nach `coverage erase`):
 $ python3 -m pytest -q --cov-branch -k "not reflective and not ingestion"
 data/memory/ingestion_hook.py                         278    203     58      0    22%  ...
 data/memory/reflective_agent.py                       242    193     48      0    17%  ...
-TOTAL                                                1272    396    274      0    68%
-FAIL Required test coverage of 100% not reached. Total coverage: 67.53%
-95 passed, 37 deselected in 1.56s
+TOTAL                                                1290    396    278      0    68%
+FAIL Required test coverage of 100% not reached. Total coverage: 67.98%
+98 passed, 37 deselected in 1.56s
 rc=1 (erwartet 1)
 ```
 
@@ -70,18 +70,18 @@ configfile: pytest.ini
 testpaths: tests
 plugins: cov-7.1.0, asyncio-1.2.0, langsmith-0.4.37, anyio-4.12.1
 asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 132 items
+collected 135 items
 
 tests/test_bi_temporal.py .....                                          [  3%]
-tests/test_evaluator_version.py .........                                [ 10%]
-tests/test_fwr.py ............                                           [ 19%]
-tests/test_governance.py ..........                                      [ 27%]
-tests/test_ingestion.py .................                                [ 40%]
-tests/test_lru_cache.py ..........                                       [ 47%]
-tests/test_memory.py ..............                                      [ 58%]
-tests/test_procedural_memory.py .......                                  [ 63%]
-tests/test_reflective.py ....................                            [ 78%]
-tests/test_shared_memory.py ........                                     [ 84%]
+tests/test_evaluator_version.py ............                             [ 12%]
+tests/test_fwr.py ............                                           [ 21%]
+tests/test_governance.py ..........                                      [ 28%]
+tests/test_ingestion.py .................                                [ 41%]
+tests/test_lru_cache.py ..........                                       [ 48%]
+tests/test_memory.py ..............                                      [ 59%]
+tests/test_procedural_memory.py .......                                  [ 64%]
+tests/test_reflective.py ....................                            [ 79%]
+tests/test_shared_memory.py ........                                     [ 85%]
 tests/test_solvers.py ....................                               [100%]
 
 ================================ tests coverage ================================
@@ -92,7 +92,7 @@ Name                                                Stmts   Miss Branch BrPart  
 data/memory/approval.py                                42      0      8      0   100%
 data/memory/bi_temporal.py                             51      0      8      0   100%
 data/memory/bias_monitor.py                            84      0     18      0   100%
-data/memory/evaluator_version.py                       77      0     10      0   100%
+data/memory/evaluator_version.py                       95      0     14      0   100%
 data/memory/fast_write_router.py                       71      0     10      0   100%
 data/memory/ingestion_hook.py                         278      0     58      0   100%
 data/memory/reflective_agent.py                       242      0     48      0   100%
@@ -111,9 +111,9 @@ ergebnisse/rekursion/solver/solver_v6.py                4      0      2      0  
 ergebnisse/rekursion/solver/solver_v6_improved.py       8      0      4      0   100%
 skills/procedural_memory.py                            92      0     12      0   100%
 -----------------------------------------------------------------------------------------------
-TOTAL                                                1272      0    274      0   100%
+TOTAL                                                1290      0    278      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================= 132 passed in 1.68s ==============================
+============================= 135 passed in 1.64s ==============================
 ```
 
 ### Stand vorher (65 %, nur 4 Module) – zur Einordnung
@@ -155,7 +155,7 @@ https://coverage.readthedocs.io/en/latest/branch.html). Eine strukturell
 unerreichbare Verzweigung ist mit der dokumentierten Direktive
 `# pragma: no branch` markiert (`lru_cache.py:175`, Begründung:
 `ergebnisse/branch-coverage.md` §4). Ausgenommen sind ausschließlich die
-`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1272 Statements,
+`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1290 Statements,
 mit `--cov-config=/dev/null` 1301 → **106 Statements** in `__main__`-Blöcken,
 die ein Import nie erreicht). Die Ausnahme steht sichtbar in `.coveragerc`, es
 wird keine weitere Zeile versteckt.
@@ -210,7 +210,7 @@ Coroutine erzeugt werden, sonst: „Future attached to a different loop".
 1. ~~**IndexError-Bug** in `reflective_agent.py:99`~~ → **behoben in Rekursion 032**
    (`ergebnisse/rekursion/032-fix-reflective-agent.md`); Tests angepasst.
 2. ~~**Branch-Coverage ist aus**~~ → **aktiviert 2026-10-01** (`--cov-branch`,
-   `branch = True`): 274/274 Branches abgedeckt, siehe `ergebnisse/branch-coverage.md`.
+   `branch = True`): 278/278 Branches abgedeckt, siehe `ergebnisse/branch-coverage.md`.
 3. Kein GitHub-Actions-/CI-Runner-Workflow (`.github/` existiert nicht) –
    Interface-/CI-Änderung → vorher Human-Gate (§9/§10.4).
 4. Kein Lint/Formatter (z. B. ruff/black) – nicht beauftragt.
