@@ -64,3 +64,25 @@ automatisch korrekt", Rubric explizit) änderte das **nicht** (weiter 5× „Cor
 - Stärkeres Modell laden: **Qwen3-30B-A3B-Instruct (AWQ, 2×T4)** oder **gpt-oss-20b**,
   via vLLM mit `--guided-decoding-backend xgrammar`.
 - Dann 5-Item-Smoke (Genauigkeit!) → bei ≥ ~0.5 Übereinstimmung n=90 → κ + BCa-KI.
+
+## 7. Nachtrag: gpt-oss:20b-Endpoint (2026-10-02)
+
+Weiterer Endpoint (vom Auftraggeber, Ollama): **`gpt-oss:20b`**.
+Erreichbar (`/v1/models` 200), trivialer Call 10 s, **aber** Grading-Calls sind
+**extrem langsam**:
+
+```text
+5 Items, use_schema=True, max_attempts=1: Fallbacks 3/5, Genauigkeit 0.4 (2/5)  (102 s)
+1 Item,  use_schema=True, max_attempts=1: 324 s (!), Ergebnis per Fallback
+```
+
+- **Genauigkeit besser** als die 14B-Modelle (0.4 vs 0.0 auf denselben 5 Items) →
+  gpt-oss ist der richtige Modelltyp.
+- **Latenz-Blocker:** ~5,4 min/Item → n=90 ≈ **8 h** → mit diesem Endpoint **nicht messbar**.
+- **Code-Fix (belegt, getestet):** Ollama legt das Reasoning in `reasoning`
+  (nicht `reasoning_content`); neuer Helper `_message_text()` liest
+  `content` → `reasoning_content` → `reasoning`. Ohne ihn waren 3/5 „Fallbacks" nur
+  leere `content`-Felder.
+
+**Fazit:** Infrastruktur-limitiert. Für n=90 nötig: **vLLM auf GPU** (Sekunden/Item)
+oder ein schnelleres instruct-Modell. Die **+9 % bleiben NICHT reproduziert**.

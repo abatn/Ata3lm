@@ -442,6 +442,16 @@ GRADER_MAX_TOKENS = int(os.environ.get("RQGM_GRADER_MAX_TOKENS", "1024"))  # fes
 GRADER_TEMPERATURE = 0.0  # deterministisch (Auftrag)
 
 
+def _message_text(msg) -> str:
+    """Antworttext aus `content`/`reasoning_content`/`reasoning` (Ollama-Kompatibilität)."""
+    return (
+        getattr(msg, "content", None)
+        or getattr(msg, "reasoning_content", None)
+        or getattr(msg, "reasoning", None)
+        or ""
+    )
+
+
 def _default_client():
     """OpenAI-kompatibler Client aus der Umgebung (Key/Base-URL)."""
     from openai import OpenAI
@@ -545,8 +555,7 @@ def make_llm_pairwise_judge(
                 response_format={"type": "json_object"},
                 messages=[{"role": "user", "content": _pair_prompt(item_a, item_b)}],
             )
-            msg = resp.choices[0].message
-            raw = msg.content or getattr(msg, "reasoning_content", None) or ""
+            raw = _message_text(resp.choices[0].message)
             winner = PairVerdict.model_validate_json(_extract_json(raw)).winner.strip().upper()
             return "A" if winner.startswith("A") else "B"
         except Exception as e:  # fail-soft
@@ -993,8 +1002,7 @@ def make_llm_class_grader(
                     response_format=_class_schema() if use_schema else {"type": "json_object"},
                     messages=[{"role": "user", "content": _class_prompt(item, strict=attempt > 1)}],
                 )
-                msg = resp.choices[0].message
-                raw = msg.content or getattr(msg, "reasoning_content", None) or ""
+                raw = _message_text(resp.choices[0].message)
                 grade_value = ClassVerdict.model_validate_json(_repair_json(raw)).grade.strip()
                 if grade_value not in CLASS_GRADES:
                     raise ValueError(f"ungueltige Klasse: {grade_value}")
