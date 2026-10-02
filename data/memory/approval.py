@@ -15,12 +15,17 @@ Lab-Prinzip: Mechanik = aus der Quelle; die Anwendung auf ALLE Rekursionen ist
 Projekt-Vorgabe (Auftrag) – die Quelle verlangt sie nur für Annex-III-1(a).
 
 Flow: pending → first_approved → second_approved → approved
+
+Zusatz (2026-10-02): Freigaben können an einen **Diff** gebunden werden
+(`approve(person, diff_sha=...)`); beide Verifizierer müssen denselben Diff
+bestätigen („separately verified and confirmed").
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Optional
 
 
 def _now() -> str:
@@ -35,8 +40,14 @@ class TwoPersonApproval:
     approvers: list = field(default_factory=list)
     state: str = "pending"
     history: list = field(default_factory=list)
+    diff_sha: Optional[str] = None  # an die Freigabe gebundener Diff (Evidence)
 
-    def approve(self, person: str) -> dict:
+    def approve(self, person: str, diff_sha: Optional[str] = None) -> dict:
+        """Freigabe einer natürlichen Person; optional an einen Diff gebunden.
+
+        Beide Verifizierer müssen denselben Diff bestätigen (Quelle: „separately
+        verified and confirmed"). Abweichender/fehlender Diff → abgelehnt.
+        """
         if not person or not person.strip():
             return {"ok": False, "state": self.state, "reason": "keine natürliche Person angegeben"}
         if self.state == "approved":
@@ -47,10 +58,20 @@ class TwoPersonApproval:
                 "state": self.state,
                 "reason": f"'{person}' hat bereits bestätigt – zwei DISTINKTE Personen nötig",
             }
+        if self.diff_sha is not None and diff_sha != self.diff_sha:
+            return {
+                "ok": False,
+                "state": self.state,
+                "reason": "Diff stimmt nicht mit der ersten Freigabe überein",
+                "expected": self.diff_sha,
+                "got": diff_sha,
+            }
+        if self.diff_sha is None and diff_sha is not None:
+            self.diff_sha = diff_sha
         self.approvers.append(person)
         self.state = "first_approved" if len(self.approvers) == 1 else "second_approved"
-        self.history.append({"person": person, "state": self.state, "ts": _now()})
-        return {"ok": True, "state": self.state, "approvers": list(self.approvers)}
+        self.history.append({"person": person, "state": self.state, "ts": _now(), "diff_sha": diff_sha})
+        return {"ok": True, "state": self.state, "approvers": list(self.approvers), "diff_sha": self.diff_sha}
 
     def finalize(self) -> dict:
         if len(self.approvers) < 2:
@@ -69,6 +90,7 @@ class TwoPersonApproval:
             "state": self.state,
             "approvers": list(self.approvers),
             "count": len(self.approvers),
+            "diff_sha": self.diff_sha,
         }
 
 

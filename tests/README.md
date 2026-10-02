@@ -16,7 +16,7 @@ Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
 Installation: `python3 -m pip install --user pytest pytest-cov`.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-02: **100,00 %** – 1747/1747 Statements **und 392/392 Branches**
+Gemessen 2026-10-02: **100,00 %** – 1753/1753 Statements **und 396/396 Branches**
 über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
 `ergebnisse/rekursion/solver/**`).
 
@@ -33,7 +33,7 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 |---|---|---|
 | `conftest.py` | `sys.path` für `data/memory`, `shared/`, `tier3-working/`, `skills`; Netzwerk-Sperre (Platzhalter-Key + Base-URL `127.0.0.1:9`), `FWR_*_MODEL` entfernt | – |
 | `test_fwr.py` | FWR-Kaskade + Gate, `_ask` (Fake-Client), `MemRouter`, `compare_router_10` | 12 |
-| `test_governance.py` | Zwei-Personen-Flow (§9.3) + Gesetzestext §9/§9.1 | 10 |
+| `test_governance.py` | Zwei-Personen-Flow (§9.3) inkl. Diff-Bindung + Gesetzestext §9/§9.1 | 13 |
 | `test_memory.py` | 3 Tiers, v1–v4, PII/Poisoning/Bias-Guards, JSD/Drift | 14 |
 | `test_bi_temporal.py` | valid time × transaction time, Supersede statt Löschen | 5 |
 | `test_shared_memory.py` | ACL, Trust-Konflikt (superseded/contested), Schema, Sync, Dump | 8 |
@@ -49,7 +49,7 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **198 Tests, alle grün, ~6,7 s, ohne Netzwerk.**
+Gesamt: **201 Tests, alle grün, ~6,7 s, ohne Netzwerk.**
 
 ## Netzwerk-Policy
 
@@ -81,7 +81,7 @@ unbenannte Marker).
 
 ## Branch-Abdeckung (neu 2026-10-01)
 
-`--cov-branch` + `branch = True`: 392/392 Branches abgedeckt. Fünf partielle
+`--cov-branch` + `branch = True`: 396/396 Branches abgedeckt. Fünf partielle
 Zweige gab es anfangs – vier wurden mit echten Pfaden getestet, einer ist
 strukturell unerreichbar:
 

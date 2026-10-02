@@ -73,3 +73,37 @@ dieselbe Person kann nicht zweimal zählen; `approved` erst mit 2 Distinkten.
 
 - https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-14
 - https://eur-lex.europa.eu/eli/reg/2024/1689/oj
+
+## 6. Nachtrag: Diff-Bindung fuer Verifier2 (2026-10-02)
+
+Der Auftrag verlangt, dass **Verifier2 den Diff prueft und bestaetigt**. `approve()`
+nimmt daher optional `diff_sha`:
+
+```python
+a.approve("Batnini",  diff_sha="abc123")   # first_approved
+a.approve("Verifier2", diff_sha="abc123")  # second_approved (gleicher Diff)
+a.finalize()                                # approved
+```
+
+- **Abweichender Diff** -> abgelehnt: "Diff stimmt nicht mit der ersten Freigabe ueberein".
+- **Fehlender Diff** beim zweiten Verifizierer (erster hat einen) -> abgelehnt.
+- `status()` liefert `diff_sha`; `history` protokolliert den Diff je Person (Evidence).
+
+### Selbsttest (roh)
+
+```text
+make test -> 201 passed - 1753/1753 Statements - 396/396 Branches = 100,00 %
+
+test_flow_zwei_verifizierer_mit_diff      : Batnini + Verifier2 (diff abc123) -> approved
+test_diff_konflikt_wird_abgelehnt         : Verifier2 mit xyz999 -> ok=False, count=1
+test_diff_fehlt_beim_zweiten_verifizierer : Verifier2 ohne Diff -> ok=False, count=1
+```
+
+### Quelle (HTTP 200, 2026-10-02)
+
+https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689 -
+https://artificialintelligenceact.eu/article/14/ -
+https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-14
+- woertlich: "separately verified and confirmed by at least two natural persons".
+Scope-Kaveat unveraendert: Art. 14(5) gilt fuer Annex-III-1(a); die Anwendung auf alle
+Rekursionen ist **Auftrag** (Abschnitt 0).
