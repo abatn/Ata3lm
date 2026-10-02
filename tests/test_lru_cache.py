@@ -104,3 +104,15 @@ def test_simulate_20_router_runs(tmp_path, monkeypatch):
     wm = lc.simulate_20_router_runs()
     assert len(wm.items) <= lc.CAPACITY
     assert wm.evicted and len(wm.log) > 0
+
+
+def test_fill_from_structured_ohne_aufnahme_bei_vollem_cache(tmp_path, monkeypatch):
+    """Branch 152->144: Item wird sofort verdrängt -> nicht als geladen gezählt."""
+    wm = _wm(tmp_path, monkeypatch, capacity=1, policy="lru")
+    wm.store("full", "x", pinned=True)
+    structured = tmp_path / "structured"
+    structured.mkdir(parents=True)
+    (structured / "relation-b.md").write_text("x", encoding="utf-8")
+    loaded = wm.fill_from_structured()
+    assert loaded == []                       # store() lief, Item ist sofort raus
+    assert list(wm.items) == ["full"]

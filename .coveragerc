@@ -1,9 +1,9 @@
 # Coverage-Konfiguration (coverage.py; gelesen von pytest-cov).
 # Quelle: https://coverage.readthedocs.io/en/latest/config.html
 [run]
-# Statement-Coverage (kein Branch-Coverage) – bewusst und dokumentiert:
-# ergebnisse/ci-setup.md §2.
-branch = False
+# Line- UND Branch-Coverage (coverage-Doku: https://coverage.readthedocs.io/en/latest/branch.html).
+# Aktiviert zusätzlich per `--cov-branch` in pytest.ini.
+branch = True
 
 [report]
 # Ausgenommen wird NUR der __main__-Guard (Standard-Ausschluss laut

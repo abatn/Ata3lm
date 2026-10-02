@@ -68,3 +68,12 @@ def test_demo_laeuft(capsys):
     sm._demo()
     out = capsys.readouterr().out
     assert "Trust-Score entscheidet" in out and "Sync" in out
+
+
+def test_sync_ohne_konflikt_bei_gleichem_wert():
+    """Branch 142->140: gleicher Wert -> nur eine Ausprägung, kein Konflikt."""
+    t = _tier()
+    t.write("agentA", "k", "v1")
+    t.write("agentA", "k", "v1")              # Historie wächst, Werte bleiben gleich
+    s = t.sync()
+    assert s["conflicts"] == [] and s["keys"] == 1

@@ -103,3 +103,9 @@ def test_bias_monitor_demo_laeuft(capsys):
     bm._demo()
     out = capsys.readouterr().out
     assert "Drift" in out
+
+
+def test_capped_simplex_ohne_iterationen():
+    """Branch 61->74: Schleife läuft nie (iters=0) -> keine Kappung."""
+    v = bm.capped_simplex({"a": 1.0}, w_max=0.6, iters=0)
+    assert v == {"a": 1.0}

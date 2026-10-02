@@ -172,7 +172,10 @@ class WorkingMemory:
             crit = order[cls]
             # erwartete Abrufhäufigkeit: Zugriffe, falls schon vorhanden, sonst 1
             freq = self.items.get(key, {}).get("hits", 0) + 1
-            if freq * crit >= 0.8:
+            # Strukturell partieller Zweig (coverage-Doku „no branch"): freq>=1 und
+            # crit aus order ist 1.0 oder 0.8 -> freq*crit ist IMMER >= 0.8; der
+            # False-Zweig ist damit unerreichbar (keine Erfindung, nur Ausnahme).
+            if freq * crit >= 0.8:  # pragma: no branch
                 # edge_weight: write-update stark vernetzt, write-new schwach
                 ew = 1.0 if cls == "write-update" else 0.3
                 self.store(key, f"router:{cls}", pinned=(cls == "write-update"),

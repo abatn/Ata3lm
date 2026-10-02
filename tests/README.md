@@ -16,12 +16,16 @@ Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
 Installation: `python3 -m pip install --user pytest pytest-cov`.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-01: **100,00 %** – 1195/1195 Statements über **den gesamten
-Repo-Code** (`data/memory/**`, `skills/**`, `ergebnisse/rekursion/solver/**`).
+Gemessen 2026-10-01: **100,00 %** – 1195/1195 Statements **und 264/264 Branches**
+über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
+`ergebnisse/rekursion/solver/**`).
 
-**Was „100 %" heißt:** Statement-Coverage (`branch = False` in `.coveragerc`),
-ausgenommen nur der `__main__`-Guard (erreicht ein Import nie). Branch-Coverage
-ist **nicht** aktiv. Details: `ergebnisse/ci-setup.md` §2/§4.
+**Was „100 %" heißt:** **Line + Branch**-Coverage (`branch = True` in
+`.coveragerc`, `--cov-branch` in `pytest.ini`). Ausgenommen sind nur die
+`__main__`-Blöcke (erreicht ein Import nie) und **eine** strukturell
+unerreichbare Verzweigung, markiert mit der coverage-Direktive
+`# pragma: no branch` (`lru_cache.py:175`; Begründung:
+`ergebnisse/branch-coverage.md` §4). Details: `ergebnisse/ci-setup.md` §2/§4.
 
 ## Dateien
 
@@ -30,11 +34,11 @@ ist **nicht** aktiv. Details: `ergebnisse/ci-setup.md` §2/§4.
 | `conftest.py` | `sys.path` für `data/memory`, `shared/`, `tier3-working/`, `skills`; Netzwerk-Sperre (Platzhalter-Key + Base-URL `127.0.0.1:9`), `FWR_*_MODEL` entfernt | – |
 | `test_fwr.py` | FWR-Kaskade + Gate, `_ask` (Fake-Client), `MemRouter`, `compare_router_10` | 12 |
 | `test_governance.py` | Zwei-Personen-Flow (§9.3) + Gesetzestext §9/§9.1 | 10 |
-| `test_memory.py` | 3 Tiers, v1–v4, PII/Poisoning/Bias-Guards, JSD/Drift | 13 |
+| `test_memory.py` | 3 Tiers, v1–v4, PII/Poisoning/Bias-Guards, JSD/Drift | 14 |
 | `test_bi_temporal.py` | valid time × transaction time, Supersede statt Löschen | 5 |
-| `test_shared_memory.py` | ACL, Trust-Konflikt (superseded/contested), Schema, Sync, Dump | 7 |
-| `test_lru_cache.py` | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung | 9 |
-| `test_ingestion.py` | Privacy/Secret-Filter, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, Konsolidierung, async Enrichment, Lifecycle | 16 |
+| `test_shared_memory.py` | ACL, Trust-Konflikt (superseded/contested), Schema, Sync, Dump | 8 |
+| `test_lru_cache.py` | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung | 10 |
+| `test_ingestion.py` | Privacy/Secret-Filter, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, Konsolidierung, async Enrichment, Lifecycle | 17 |
 | `test_reflective.py` | HMM-Trägheit (SEAA) inkl. NOOP, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov | 20 |
 | `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
 | `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
@@ -42,7 +46,7 @@ ist **nicht** aktiv. Details: `ergebnisse/ci-setup.md` §2/§4.
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **119 Tests, alle grün, ~2,8 s, ohne Netzwerk.**
+Gesamt: **123 Tests, alle grün, ~1,9 s, ohne Netzwerk.**
 
 ## Netzwerk-Policy
 
@@ -71,6 +75,22 @@ unbenannte Marker).
   Tests: `test_parse_transition_delta_falsche_form_wird_verworfen` +
   `test_parse_transition_delta_4x4_wird_uebernommen`; Beleg:
   `ergebnisse/rekursion/032-fix-reflective-agent.md`.
+
+## Branch-Abdeckung (neu 2026-10-01)
+
+`--cov-branch` + `branch = True`: 264/264 Branches abgedeckt. Fünf partielle
+Zweige gab es anfangs – vier wurden mit echten Pfaden getestet, einer ist
+strukturell unerreichbar:
+
+| Datei:Zeile | Bogen | Abdeckung |
+|---|---|---|
+| `bias_monitor.py:61` | `61->74` (Schleife läuft 0×) | `test_capped_simplex_ohne_iterationen` (`iters=0`) |
+| `ingestion_hook.py:246` | `246->244` (Entity schon im Graph) | `test_update_graph_knoten_bereits_vorhanden` |
+| `shared_memory.py:142` | `142->140` (Key ohne Konflikt) | `test_sync_ohne_konflikt_bei_gleichem_wert` |
+| `lru_cache.py:152` | `152->144` (Item sofort verdrängt) | `test_fill_from_structured_ohne_aufnahme_bei_vollem_cache` |
+| `lru_cache.py:175` | `175->167` (`freq*crit >= 0.8` immer wahr) | `# pragma: no branch` (unerreichbar, begründet) |
+
+Volle Analyse: `ergebnisse/branch-coverage.md`.
 
 ## Was NICHT abgedeckt ist
 

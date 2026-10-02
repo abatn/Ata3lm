@@ -220,3 +220,11 @@ def test_demo_laeuft_im_tmp(tmp_path, monkeypatch, capsys):
     assert "Enrichment (async) verarbeitet:" in out
     lines = (tmp_path / "demo.jsonl").read_text(encoding="utf-8").strip().splitlines()
     assert all(json.loads(l)["session_id"] == "sess-001" for l in lines)
+
+
+def test_update_graph_knoten_bereits_vorhanden():
+    """Branch 246->244: Entity ist schon im Graph -> if-Zweig nicht genommen."""
+    g = ih.MemoryGraph()
+    g.add_node("a")
+    d = ih.update_graph(g, [{"span": "a"}, "b"], [])
+    assert d["added_nodes"] == ["b"]          # "a" war bereits vorhanden
