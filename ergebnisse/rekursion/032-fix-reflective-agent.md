@@ -143,8 +143,8 @@ Kein Regressionsschaden: `reflective_agent.py` bleibt bei 100 % Coverage
   IndexError …" → Verhaltensänderung damit beauftragt/freigegeben.
 - Drift 2,93 % < 10 % (kein Drift-Flag) · keine neue Quelle (SEAA stand bereits
   im Code/docstring) · keine Interface-Änderung (Signatur/Klassen unverändert).
-- **§9.3:** zweite Freigabe-Person weiterhin offen (wie 031) – als offener Punkt
-  dokumentiert, keine Behauptung eines abgeschlossenen Zwei-Personen-Flows.
+- **§9.3:** Zwei-Personen-Freigabe **abgeschlossen** (Batnini + taouefik,
+  2026-10-02; Record in `ergebnisse/fwr-code-korrektur.md` §0).
 
 ## 7. Nachtrag: Heuristik entfernt → NOOP (Auftrag 2026-10-01)
 

@@ -158,7 +158,7 @@ Neue/angepasste Tests (`tests/test_reflective.py`, 20 Tests):
   über dem 10-%-Bound (§9.1c) → **Drift-Flag**, durch dieselbe Freigabe gedeckt.
 - **Neue Quellen:** Mem0 + „Honest Lying" (beide HTTP 200) – im Code als
   Kommentar verlinkt, in `AGENTS.md` nicht als neues Gesetz geführt.
-- **§9.3:** zweite Freigabe-Person weiterhin offen (wie 031/032).
+- **§9.3:** Zwei-Personen-Freigabe **abgeschlossen** (Batnini + taouefik, 2026-10-02; Record in `ergebnisse/fwr-code-korrektur.md` §0).
 
 ## 8. Nächstes Self-Feedback (t+1)
 

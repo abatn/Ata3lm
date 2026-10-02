@@ -129,7 +129,7 @@ Neue Tests (`tests/test_evaluator_version.py`, 10):
 - **Neue Quelle:** arXiv:2606.26294 ist neu (nicht in der Ontologie). §9 verlangt
   dafür ein menschliches Gate – der Auftrag selbst ist diese Entscheidung; das
   Modul hält die Quelle als Kommentar, `AGENTS.md` wird **nicht** geändert.
-- **§9.3:** zweite Freigabe-Person weiterhin offen (wie 031/032).
+- **§9.3:** Zwei-Personen-Freigabe **abgeschlossen** (Batnini + taouefik, 2026-10-02; Record in `ergebnisse/fwr-code-korrektur.md` §0).
 - **Drift:** nur neue Dateien (Modul + Test + Doku); keine bestehende
   Python-Datei geändert → Drift 0 %.
 

@@ -10,14 +10,18 @@
 (`Batnini`, 2026-10-01, Wortlaut „go freigegeben"), nachträglich dokumentiert
 (nach Abschluss von Diff + Tests, vor dem Commit).
 
-**Zwei-Personen-Record** (`data/memory/approval.py`, Flow §9.3), Rohtext:
+**Zwei-Personen-Record** (`data/memory/approval.py`, Flow §9.3), Rohtext
+(2026-10-02 mit zweiter Person **taouefik** abgeschlossen):
 
 ```text
-1) pending                     : {"subject": "Code-Korrektur FWR classify() (Verhaltensänderung, §9/§10.4)", "state": "pending", "approvers": [], "count": 0}
-2) approve(Batnini)            : {"ok": true, "state": "first_approved", "approvers": ["Batnini"]}
-3) finalize mit 1 Person       : {"ok": false, "state": "first_approved", "reason": "mind. 2 natürliche Personen erforderlich (aktuell 1)"}
-4) Endstatus                   : {"subject": "Code-Korrektur FWR classify() (Verhaltensänderung, §9/§10.4)", "state": "first_approved", "approvers": ["Batnini"], "count": 1}
-5) Verlauf                     : [{"person": "Batnini", "state": "first_approved", "ts": "2026-10-01T23:26:31.041859+00:00"}]
+1) pending                : {"subject": "Code-Korrektur FWR classify() (Verhaltensänderung, §9/§10.4)", "state": "pending", "approvers": [], "count": 0}
+2) approve(Batnini)       : {"ok": true, "state": "first_approved", "approvers": ["Batnini"]}
+3) approve(taouefik)      : {"ok": true, "state": "second_approved", "approvers": ["Batnini", "taouefik"]}
+4) finalize (2 Personen)  : {"ok": true, "state": "approved", "approvers": ["Batnini", "taouefik"]}
+5) Endstatus              : {"subject": "Code-Korrektur FWR classify() (Verhaltensänderung, §9/§10.4)", "state": "approved", "approvers": ["Batnini", "taouefik"], "count": 2}
+6) Verlauf                : [{"person": "Batnini", "state": "first_approved", "ts": "2026-10-02T11:57:30.376808+00:00"},
+                             {"person": "taouefik", "state": "second_approved", "ts": "2026-10-02T11:57:30.376829+00:00"},
+                             {"person": "(finalize)", "state": "approved", "ts": "2026-10-02T11:57:30.376840+00:00"}]
 ```
 
 | Gate-Bedingung (AGENTS.md) | Wert | Ergebnis |
@@ -26,12 +30,10 @@
 | Drift-Bound 10 % (§9.1c) | 21+6 = **27 von 199 Zeilen = 13,57 %** | > 10 % → Drift-Flag → `ask` → **durch dieselbe Freigabe abgedeckt** |
 | Neue Quelle | keine (Quelle unverändert) | – |
 | Auto-Gate (§9) Gesamtsystemtest | 22/22 = 100 % | `allow` (misst den Läufer, **ersetzt** das Human-Gate nicht) |
-| **§9.3 Zwei-Personen-Flow** | 1 von 2 distinkten Personen | **`first_approved` – zweite Person noch offen** (offener Punkt unten) |
+| **§9.3 Zwei-Personen-Flow** | **2 von 2 distinkten Personen** | **`approved` (Batnini + taouefik, 2026-10-02)** |
 
-**Offener Punkt:** §9.3 verlangt für `approved` **zwei distinkte Personen**;
-der Auftraggeber hat freigegeben (1 von 2). Eine zweite, kompetente Person
-muss die Korrektur nachträglich bestätigen (`approve(<2. Person>)` + `finalize()`
-in `data/memory/approval.py`), bis der Record `approved` zeigt.
+**Zwei-Personen-Flow abgeschlossen:** Auftraggeber `Batnini` und zweite Person
+`taouefik` haben bestätigt, `finalize()` → `approved` (2 von 2).
 
 ---
 
@@ -165,7 +167,7 @@ Fehlschläge: 0
 | `a_mem` berechnet, nie ausgewertet | **behoben** (`mem_ok` fließt in beide Klassen ein) |
 | Stille Fehl-Klassifikation `write-update` bei falschem Memory | **behoben** (`uncertain` statt `write-update`) |
 | Aussage „write-update ungeübt" | **bereits behoben** in `ergebnisse/doku-korrektur-fwr.md` |
-| Freigabe der Verhaltensänderung | **erledigt 2026-10-01** – Human-Gate `approved` (§0); §9.3-Zweite-Person noch offen |
+| Freigabe der Verhaltensänderung | **erledigt 2026-10-02** – Human-Gate `approved` (§0), §9.3 zwei Personen (Batnini + taouefik) |
 | Nachtrag zu `fwr-test.md` §5, `rekursion/031` §4.2, `systemtest-{gesamt,8-stufen}.md` („Doku/Code-Abweichung offen") | **erledigt 2026-10-01** (nach Freigabe aktualisiert) |
 
 ## 5. Reproduktion
