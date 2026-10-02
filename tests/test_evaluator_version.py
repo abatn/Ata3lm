@@ -381,3 +381,91 @@ def test_llm_grader_reasoning_content_fallback():
 def test_extract_json_mit_und_ohne_objekt():
     assert ev._extract_json('Vorrede {"passed": true, "score": 1} Nachrede') == '{"passed": true, "score": 1}'
     assert ev._extract_json("kein json hier") == "kein json hier"
+
+
+# ------------------------------------------------- Statistik/Methodik (§10)
+def test_hedges_correction_exakt_und_approximation():
+    assert ev.hedges_correction(7) == pytest.approx(0.8889, abs=1e-3)
+    assert ev.hedges_correction_approx(7) == pytest.approx(1 - 3 / 27)
+    assert ev.hedges_g(1.0, 7) == ev.hedges_correction(7)
+    assert ev.hedges_correction(30) > ev.hedges_correction(7)  # n größer → näher an 1
+
+
+def test_cohens_d_paired_und_sd_null():
+    assert ev.cohens_d_paired([1, 1, 1, 0, 1, 1, 0, 1]) > 0
+    assert ev.cohens_d_paired([0, 0, 0]) == 0.0  # sd = 0
+
+
+def test_power_und_required_n():
+    p8 = ev.power_paired_t(0.625, 8)
+    assert 0.0 < p8 < 1.0
+    assert ev.power_paired_t(0.625, 100) > p8  # Power steigt mit n
+    n80 = ev.required_n_paired_t(0.625)
+    assert n80 >= 8 and ev.power_paired_t(0.625, n80) >= 0.80
+    assert ev.required_n_paired_t(0.0, n_max=2) == 2  # nie erreicht → n_max
+
+
+def test_ki_hedges_g_nichtzentral():
+    g = 0.9
+    lo, hi = ev.ci_hedges_g_noncentral(g, 8)
+    assert lo < g < hi
+    assert ev.ci_hedges_g_noncentral(g, 8) == pytest.approx((lo, hi))
+
+
+def test_cohens_kappa_und_sonderfaelle():
+    a = [1, 0, 1, 1, 0, 1, 0, 0]
+    assert ev.cohens_kappa(a, a) == 1.0
+    assert ev.cohens_kappa(a, [1 - x for x in a]) < 0
+    assert ev.cohens_kappa([1, 1], [1, 1]) == 1.0  # pe == 1, po == 1
+    assert ev.cohens_kappa([1, 1], [2, 2]) == 0.0  # pe == 1, po < 1
+
+
+def test_kappa_se_ci_und_landis_koch():
+    a = [1, 0, 1, 1, 0, 1, 0, 0]
+    b = [1, 0, 1, 0, 0, 1, 0, 1]
+    se = ev.kappa_se_simplified(a, b)
+    assert se > 0.0
+    assert ev.kappa_se_simplified([1, 1], [1, 1]) == 0.0
+    k = ev.cohens_kappa(a, b)
+    lo, hi = ev.kappa_ci(k, se)
+    assert lo < k < hi
+    for val, label in [
+        (0.9, "almost perfect"),
+        (0.7, "substantial"),
+        (0.5, "moderate"),
+        (0.3, "fair"),
+        (0.1, "slight"),
+        (0.0, "poor"),
+    ]:
+        assert ev.landis_koch(val) == label
+
+
+def test_positions_und_repetitions_kennzahlen():
+    orders = [["A", "A", "A"], ["B", "B", "B"], ["A", "B", "A"]]
+    assert ev.flip_rate(orders) == pytest.approx(1 / 3)
+    assert ev.position_consistency(orders) == pytest.approx(2 / 3)
+    assert ev.repetition_stability([["x", "x"], ["y", "z"]]) == 0.5
+
+
+def test_llm_pairwise_judge_und_fail_soft():
+    class _Judge(_FakeJudge):
+        pass
+
+    a = {"id": "1", "text": "kurz", "rubric": "r"}
+    b = {"id": "2", "text": "viel laengerer text", "rubric": "r"}
+    j = ev.make_llm_pairwise_judge(client=_FakeJudge(content='{"winner": "A"}'))
+    assert j(a, b) == "A"
+    j = ev.make_llm_pairwise_judge(client=_FakeJudge(content='{"winner": "B"}'))
+    assert j(a, b) == "B"
+    # ungültiges Schema -> Regel: längerer Text gewinnt
+    log = []
+    j = ev.make_llm_pairwise_judge(client=_FakeJudge(content="nope"), log=log)
+    assert j(a, b) == "B" and log[0]["fallback"] == "rule_length"
+    # API-Fehler ohne Log -> Regel
+    j = ev.make_llm_pairwise_judge(client=_FakeJudge(raises=True), log=None)
+    assert j(b, a) == "A"
+
+
+def test_llm_pairwise_judge_default_client(monkeypatch):
+    monkeypatch.setattr(ev, "_default_client", lambda: _FakeJudge(content='{"winner": "B"}'))
+    assert ev.make_llm_pairwise_judge()({"text": "x"}, {"text": "y"}) == "B"

@@ -122,7 +122,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 167 passed · Coverage 1462/1462 Statements · 324/324 Branches = 100,00 %
+make test  → 176 passed · Coverage 1559/1559 Statements · 346/346 Branches = 100,00 %
 ```
 
 Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
@@ -268,7 +268,7 @@ https://huggingface.co/datasets/Hwilner/imo-gradingbench
 - `.github/workflows/ci.yml` (ersetzt `lint.yml`): Job **`lint`** (`ruff check` +
   `ruff format --check`) **und Job `test`** (`make test`, Matrix Python 3.9 + 3.12,
   installiert `requirements-dev.txt`). Damit prüft die CI den **kompletten**
-  Knowledge-Agenten: Lint + 167 Tests + 100 % Line/Branch-Coverage.
+  Knowledge-Agenten: Lint + 176 Tests + 100 % Line/Branch-Coverage.
   Ergänzend `tests/test_agents_law.py` (AGENTS.md §1–§11, Guardrails, Provenienz
   jeder Rekursion, Versionierung, Tiers/Connectors, RQGM-Verdrahtung, CI-Inhalt).
   **CI-Lauf `lint` war grün** (Run 37018230627); Test-Job neu hinzugefügt.
@@ -315,3 +315,85 @@ korrekt (Gleichstand hält den Incumbent).
 https://docs.astral.sh/ruff/ · https://docs.astral.sh/ruff/configuration/ ·
 https://pre-commit.com/ · https://platform.openai.com/docs/guides/structured-outputs ·
 https://arxiv.org/abs/2606.26294 · https://huggingface.co/datasets/Hwilner/imo-gradingbench
+
+## 10. Methodische Einordnung der „+50 pp" (Statistik, 2026-10-02)
+
+### 10.1 Ausgangsgröße — ehrliche Abgrenzung
+
+Die früher genannten **„+50 pp"** waren die **Accuracy-Differenz** von
+Baseline („alle akzeptieren", 0.125) zum Loop-Endergebnis (0.625) auf **8**
+IMO-Grading-Items. Fairer (gleiche Schwelle) ist der Vergleich
+**Regel-Grader vs. LLM-Grader**: 0.500 → 0.625 = **+12,5 pp**.
+
+**Wichtig:** Die im Auftrag angenommene „Hedges' g ≈ 0.625" ist **nicht** g,
+sondern die Accuracy-Differenz. Das aus den Rohdaten berechnete **g = 0.314**.
+
+### 10.2 Hedges' g (exakt + Näherung)
+
+- Gepaart, ν = n − 1 = **7** (nicht n₁+n₂−2).
+- `J(7)` exakt = Γ(ν/2)/(√(ν/2)·Γ((ν−1)/2)) = **0.8882**; Näherung
+  `1 − 3/(4ν−1)` = **0.8889** (metafor::cmicalc).
+- Cohen's d (gepaart) = mean(Δ)/sd(Δ) = **0.354** → **g = J(7)·d = 0.314**.
+
+### 10.3 Power-Analyse (G*Power-Analog, Faul et al. 2007)
+
+```text
+power_paired_t(g=0.314, n=8, alpha=0.05, zweiseitig) = 0.117
+benötigtes n für Power = 0.80                       = 82
+```
+
+→ n=8 ist **massiv unterpowert** (nur 11,7 % Chance, einen echten Effekt dieser
+Größe zu finden).
+
+### 10.4 95%-KI für g (nichtzentrales t, Steiger & Fouladi 1997)
+
+```text
+95%-KI g = [-0.333, 0.940]   (enthält 0 -> nicht signifikant bei n=8)
+```
+
+### 10.5 Cohen's κ (LLM-Grader vs. IMO-Ground-Truth, dieselben 8 Items)
+
+```text
+κ = 0.250   SE = 0.342 (vereinfachte Fleiss-Formel)   95%-KI = (-0.421, 0.921)
+Landis & Koch: "fair"
+```
+
+Ehrlich: die **volle Fleiss-Cohen-Everitt-Kovarianz** ist **nicht** modelliert;
+implementiert ist die vereinfachte asymptotische SE. Das KI ist bei n=8 extrem
+breit.
+
+### 10.6 Bias-Checks: Position tauschen (3×) + Repetition
+
+8 Items × 3 Ordnungen (A,B) → (B,A) → (A,B), paarweiser LLM-Judge
+(`make_llm_pairwise_judge`):
+
+```text
+Flip-Rate (Sieger-Identität wechselt):              0.000
+Position-Consistency (gleiche Identität in allen 3): 1.000
+Repetition-Stability (Position Ordnung 1 vs. 3):     1.000
+Pairwise-Fallbacks:                                  0/24
+```
+
+→ **Kein Positions-Bias** auf diesen 8 Items (der Judge bevorzugte in allen
+Ordnungen die vollständige Antwort), Output **repetierbar**. Die in der
+Literatur berichtete hohe Flip-Rate (bis 39 %) trat hier **nicht** auf –
+ehrlich als **Nicht-Befund** dokumentiert (kleines n, paarweise Aufgabe).
+
+### 10.7 Fazit
+
+Bei n=8 ist **keine belastbare Aussage** möglich: Power 0.117, g-KI enthält 0,
+κ-KI extrem breit. Die **+9 % des Papers** werden **nicht** reproduziert; die
+eigenen Zahlen sind mit dieser Stichprobe statistisch nicht unterscheidbar von
+Zufall. Nächster Schritt für eine belastbare Messung: n ≈ 82 Items.
+
+### Quellen (HTTP 200 am 2026-10-02)
+
+| Quelle | Verwendung | Link |
+|---|---|---|
+| Faul et al. 2007 (G*Power 3) | Post-hoc-Power, n für 0.80 | https://link.springer.com/article/10.3758/BF03193146 |
+| NIST Dataplot (Hedges' g) | g = J(ν)·d | https://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/hedgeg.htm |
+| metafor::cmicalc | J(ν) ≈ 1 − 3/(4ν−1) | https://wviechtb.github.io/metafor/reference/cmicalc.html |
+| Landis & Koch 1977 | κ-Interpretation | https://doi.org/10.2307/2529310 |
+| Steiger & Fouladi 1997 | KI via nichtzentrales t | Buchkapitel (What if There Were no Significance Tests?, 221–257) |
+| Fleiss, Cohen & Everitt 1969 | asymptotische κ-SE | Psychol. Bull. 72(5):323–327 (DOI 10.1037/h0028106 blockt Bots: 403) |
+| lechmazur/position_bias · sbezjak/llm-benchmark | Positions-Bias-Methodik | https://github.com/lechmazur/position_bias · https://github.com/sbezjak/llm-benchmark |

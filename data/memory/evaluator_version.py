@@ -507,8 +507,188 @@ def make_llm_grader(
     return verdict
 
 
+def _pair_prompt(item_a: dict, item_b: dict) -> str:
+    return (
+        "You are a strict grader. Two responses (A and B) answer the same problem. "
+        "Decide which one better earns FULL credit per the guidelines. "
+        'Output ONLY the JSON object {"winner": "A"|"B"} - no prose.\n'
+        f"PROBLEM:\n{item_a.get('problem', item_a.get('text', ''))}\n"
+        f"GUIDELINES:\n{item_a.get('rubric', '')}\n"
+        f"A:\n{item_a.get('text', '')}\nB:\n{item_b.get('text', '')}"
+    )
+
+
+def make_llm_pairwise_judge(*, client=None, model: str = GRADER_MODEL,
+                            max_tokens: int = GRADER_MAX_TOKENS,
+                            log: Optional[list] = None) -> Callable:
+    """Paarweiser LLM-Judge (A/B) für Positions-Bias-Tests (Quelle: lechmazur/position_bias).
+
+    Fail-soft: bei API-Fehler/ungültigem Schema gewinnt der **längere** Text
+    (Regel) + Log-Eintrag.
+    """
+    from pydantic import BaseModel
+
+    class PairVerdict(BaseModel):
+        winner: str
+
+    def judge(item_a: dict, item_b: dict) -> str:
+        try:
+            c = client or _default_client()
+            resp = c.chat.completions.create(
+                model=model, temperature=GRADER_TEMPERATURE, max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+                messages=[{"role": "user", "content": _pair_prompt(item_a, item_b)}],
+            )
+            msg = resp.choices[0].message
+            raw = msg.content or getattr(msg, "reasoning_content", None) or ""
+            winner = PairVerdict.model_validate_json(_extract_json(raw)).winner.strip().upper()
+            return "A" if winner.startswith("A") else "B"
+        except Exception as e:  # fail-soft
+            if log is not None:
+                log.append({"fallback": "rule_length", "error": str(e)[:160]})
+            return "A" if len(item_a.get("text", "")) >= len(item_b.get("text", "")) else "B"
+
+    return judge
+
+
 # ---------------------------------------------------------------------------
-# 9. Simulationen
+# 9. Statistik/Methodik: Hedges' g · Power · KI · Cohen's κ · Positions-Bias
+#    Quellen (HTTP 200, 2026-10-02): Faul et al. 2007 (G*Power 3,
+#    https://link.springer.com/article/10.3758/BF03193146) · NIST Hedges g
+#    (https://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/hedgeg.htm)
+#    · metafor::cmicalc (https://wviechtb.github.io/metafor/reference/cmicalc.html)
+#    · Landis & Koch 1977 (https://doi.org/10.2307/2529310) · Steiger & Fouladi 1997
+#    (Buchkapitel) · Fleiss, Cohen & Everitt 1969 (Psychol. Bull. 72(5):323–327;
+#    DOI 10.1037/h0028106 blockt Bots → bibliografisch zitiert).
+# ---------------------------------------------------------------------------
+def hedges_correction(nu: float) -> float:
+    """Exakter Korrekturfaktor J(ν) = Γ(ν/2) / (√(ν/2)·Γ((ν−1)/2))."""
+    return math.exp(math.lgamma(nu / 2.0) - math.lgamma((nu - 1.0) / 2.0)) / math.sqrt(nu / 2.0)
+
+
+def hedges_correction_approx(nu: float) -> float:
+    """Näherung J(ν) ≈ 1 − 3/(4ν−1) (akzeptiert für n>4; metafor::cmicalc)."""
+    return 1.0 - 3.0 / (4.0 * nu - 1.0)
+
+
+def hedges_g(d: float, nu: float) -> float:
+    """g = J(ν)·d (NIST: Hedges' g)."""
+    return hedges_correction(nu) * d
+
+
+def cohens_d_paired(diffs: list) -> float:
+    """d = mean(diff)/sd(diff) für gepaarte Stichproben (sd=0 → 0.0)."""
+    n = len(diffs)
+    m = sum(diffs) / n
+    sd = math.sqrt(sum((x - m) ** 2 for x in diffs) / (n - 1))
+    return m / sd if sd > 0 else 0.0
+
+
+def power_paired_t(effect_size: float, n: int, alpha: float = 0.05) -> float:
+    """Power des zweiseitigen gepaarten t-Tests (nichtzentrales t, G*Power-konform)."""
+    import numpy as np
+    from scipy import stats
+
+    df = n - 1
+    ncp = effect_size * math.sqrt(n)
+    tcrit = stats.t.ppf(1.0 - alpha / 2.0, df)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return float(1.0 - stats.nct.cdf(tcrit, df, ncp))
+
+
+def required_n_paired_t(effect_size: float, power: float = 0.80, alpha: float = 0.05,
+                        n_max: int = 100_000) -> int:
+    """Kleinste n mit Power ≥ Ziel (G*Power-Analog); n_max, wenn nie erreicht."""
+    for n in range(2, n_max + 1):
+        if power_paired_t(effect_size, n, alpha) >= power:
+            return n
+    return n_max
+
+
+def _solve_nct(t: float, df: int, target: float) -> float:
+    """δ mit nct.cdf(t; df, δ) = target (Bisektion; cdf sinkt monoton in δ)."""
+    import numpy as np
+    from scipy import stats
+
+    lo, hi = -50.0, 50.0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        for _ in range(200):
+            mid = 0.5 * (lo + hi)
+            if stats.nct.cdf(t, df, mid) > target:
+                lo = mid
+            else:
+                hi = mid
+    return 0.5 * (lo + hi)
+
+
+def ci_hedges_g_noncentral(g: float, n: int, conf: float = 0.95) -> tuple:
+    """KI für g über nichtzentrales t (Steiger & Fouladi 1997)."""
+    df = n - 1
+    j = hedges_correction(df)
+    t = (g / j) * math.sqrt(n)
+    alpha = 1.0 - conf
+    lo = _solve_nct(t, df, 1.0 - alpha / 2.0) / math.sqrt(n) * j
+    hi = _solve_nct(t, df, alpha / 2.0) / math.sqrt(n) * j
+    return (lo, hi)
+
+
+def cohens_kappa(a: list, b: list) -> float:
+    """Cohen's κ für zwei Rater (pe=1 → 1.0 bei perfekter Übereinstimmung, sonst 0.0)."""
+    n = len(a)
+    labels = sorted({*a, *b}, key=str)
+    po = sum(1 for x, y in zip(a, b) if x == y) / n
+    pe = sum((a.count(lab) / n) * (b.count(lab) / n) for lab in labels)
+    if pe == 1.0:
+        return 1.0 if po == 1.0 else 0.0
+    return (po - pe) / (1.0 - pe)
+
+
+def kappa_se_simplified(a: list, b: list) -> float:
+    """Vereinfachte asymptotische SE (Fleiss); volle FCE-Kovarianzterme NICHT modelliert."""
+    n = len(a)
+    labels = sorted({*a, *b}, key=str)
+    po = sum(1 for x, y in zip(a, b) if x == y) / n
+    pe = sum((a.count(lab) / n) * (b.count(lab) / n) for lab in labels)
+    return math.sqrt(po * (1.0 - po) / (n * (1.0 - pe) ** 2)) if pe != 1.0 else 0.0
+
+
+def kappa_ci(kappa: float, se: float, z: float = 1.96) -> tuple:
+    return (kappa - z * se, kappa + z * se)
+
+
+def landis_koch(kappa: float) -> str:
+    """Interpretation nach Landis & Koch (1977)."""
+    a = abs(kappa)
+    if a > 0.81:
+        return "almost perfect"
+    if a >= 0.61:
+        return "substantial"
+    if a >= 0.41:
+        return "moderate"
+    if a >= 0.21:
+        return "fair"
+    if a >= 0.01:
+        return "slight"
+    return "poor"
+
+
+def flip_rate(orders: list) -> float:
+    """Anteil Items mit wechselndem Gewinner zwischen Ordnungen."""
+    return sum(1 for item in orders if len(set(item)) > 1) / len(orders)
+
+
+def position_consistency(orders: list) -> float:
+    """Anteil Items mit demselben Gewinner in ALLEN Ordnungen."""
+    return sum(1 for item in orders if len(set(item)) == 1) / len(orders)
+
+
+def repetition_stability(runs: list) -> float:
+    """Anteil Items mit identischem Output über Wiederholungen."""
+    return sum(1 for item in runs if len(set(item)) == 1) / len(runs)
+
+
+# ---------------------------------------------------------------------------
+# 10. Simulationen
 # ---------------------------------------------------------------------------
 ANCHOR_ITEMS = [
     {"id": f"proof-{i:02d}", "feature": q, "truth": q >= 0.7}
