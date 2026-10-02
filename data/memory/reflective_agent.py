@@ -53,60 +53,58 @@ def _row_normalize(P):
 def parse_transition_delta(text: str, k: int):
     """Δ(R_t): Richtungsmatrix aus dem Reflexionstext (SEAA Eq. 2).
 
-    SEAA parst Δ(R_t) per LLM aus dem Reflexionstext. Hier: LLM wenn verfügbar,
-    sonst deterministische Heuristik (Vorzeichen der Reflexion).
+    Die Matrix kommt **ausschließlich vom LLM**. Gibt es keine gültige K×K-Matrix
+    (kein Key, kein JSON, falsche Form, Fehler), wird **NICHTS** geliefert
+    (`None`) – kein Update, keine Ersatz-Matrix, kein Crash (NOOP).
 
-    Strenge Form-Prüfung (SEAA arXiv:2609.17331): die HMM-Übergangsmatrix ist
-    K×K (K = HMM_STATES, Default 4). Liefert das LLM eine Matrix anderer Form,
-    wird sie **verworfen** – es wird keine Ersatz-Matrix aus fehlerhaftem
-    LLM-Output gebaut. `delta` bleibt dann die frische K×K-Nullmatrix (Zeile 60)
-    für den deterministischen Pfad. (Entfernen dieses Pfads = eigene
-    Verhaltensänderung → Human-Gate §9.)
+    Quellen (verifiziert 2026-10-01, HTTP 200):
+      - SEAA (arXiv:2609.17331): Δ(R_t) ist K×K (K=4, Paper §5.7.1).
+      - Mem0-Memory-Operationen: vier Aktionen ADD/UPDATE/DELETE/**NONE**;
+        NONE = „no change" (keine Änderung, wenn nichts Verwertbares vorliegt).
+        https://github.com/mem0ai/mem0/blob/v1.0.10/docs/open-source/features/custom-update-memory-prompt.mdx
+      - „Honest Lying" (arXiv:2605.29463, ICML-2026-Workshop): ungeprüfte
+        Selbst-Diagnosen im Schreibpfad sind schädlich – „a memory system that
+        stores confident, plausible-sounding but wrong beliefs is worse than no
+        memory at all" → hier: lieber NOOP als eine erfundene Matrix.
     """
     import numpy as np
-    delta = np.zeros((k, k))
     key = os.environ.get("OPENAI_API_KEY")
-    if key:
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key=key, base_url=os.environ.get("OPENAI_BASE_URL"))
-            # SEAA §4.2: Die Reflexion beantwortet 4 Fragen; (4) ist die
-            # "language-to-parameter mapping" = strukturierte Edit von P_t.
-            prompt = (
-                "Review this reflection; state was one of the agent's latent states.\n"
-                "(1) Did the action match my usual inertia?\n"
-                "(2) Which inertial tendency drove the decision, and was it biased?\n"
-                "(3) How should that tendency be adjusted?\n"
-                f"(4) What is the corresponding structured edit to P_t? "
-                f"Return ONLY a JSON array of {k} arrays of {k} numbers (the direction matrix delta), "
-                f"row-normalizable, where a negative diagonal entry means less inertia (more deviation).\n"
-                f"Reflection:\n{text}"
-            )
-            resp = client.chat.completions.create(
-                model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
-                messages=[{"role": "user", "content": prompt}], max_tokens=2000, temperature=0.0,
-            )
-            msg = resp.choices[0].message
-            raw = (msg.content or getattr(msg, "reasoning_content", None) or "")
-            import re
-            m = re.search(r"\[[\s\S]*\]", raw)
-            if m:
-                # NICHT `delta` überschreiben: die LLM-Matrix erst prüfen.
-                candidate = np.array(json.loads(m.group(0)), dtype=float)
-                if candidate.shape == (k, k):          # strenge K×K-Prüfung (SEAA)
-                    return candidate
-                # andere Form -> verworfen; `delta` (K×K, Zeile 60) bleibt unberührt
-        except Exception:
-            pass
-    # Heuristik (Auftrag): negative Reflexion -> Diagonale senken (weniger Trägheit)
-    neg = any(w in text.lower() for w in ["falsch", "wrong", "fehler", "error", "failed", "bug"])
-    sign = -1.0 if neg else 1.0
-    np.fill_diagonal(delta, sign * 0.4)
-    for i in range(k):
-        for j in range(k):
-            if i != j:
-                delta[i, j] = -sign * 0.4 / (k - 1)
-    return delta
+    if not key:
+        return None                                  # NOOP: ohne LLM keine Matrix
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=key, base_url=os.environ.get("OPENAI_BASE_URL"))
+        # SEAA §4.2: Die Reflexion beantwortet 4 Fragen; (4) ist die
+        # "language-to-parameter mapping" = strukturierte Edit von P_t.
+        prompt = (
+            "Review this reflection; state was one of the agent's latent states.\n"
+            "(1) Did the action match my usual inertia?\n"
+            "(2) Which inertial tendency drove the decision, and was it biased?\n"
+            "(3) How should that tendency be adjusted?\n"
+            f"(4) What is the corresponding structured edit to P_t? "
+            f"Return ONLY a JSON array of {k} arrays of {k} numbers (the direction matrix delta), "
+            f"row-normalizable, where a negative diagonal entry means less inertia (more deviation).\n"
+            f"Reflection:\n{text}"
+        )
+        resp = client.chat.completions.create(
+            model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+            messages=[{"role": "user", "content": prompt}], max_tokens=2000, temperature=0.0,
+        )
+        msg = resp.choices[0].message
+        raw = (msg.content or getattr(msg, "reasoning_content", None) or "")
+        import re
+        m = re.search(r"\[[\s\S]*\]", raw)
+        if not m:
+            return None                              # NOOP: kein JSON im Text
+        candidate = np.array(json.loads(m.group(0)), dtype=float)
+        if candidate.shape != (k, k):
+            return None                              # NOOP: falsche Form (SEAA: K×K)
+        return candidate
+    except Exception:
+        return None                                  # NOOP: Fehler -> überspringen
+
+
+HMM_NOOP_NOTE = "HMM-Update übersprungen (keine LLM-Matrix)"
 
 
 class HMMInertia:
@@ -119,6 +117,9 @@ class HMMInertia:
         r_t = cos(b_z, n_t) - 0.80 + eps
         V_{t+1}[z] = clip(V_t[z] + eta * tanh(2 r_t))
     Zustandsraum (Paper §5.7.1): K=4, S={calm, alert, impulsive, pessimistic}.
+
+    NOOP (Mem0 „NONE", Honest Lying arXiv:2605.29463): ohne gültige LLM-Matrix
+    bleibt P_t unverändert – kein Update, kein Crash, keine Ersatz-Matrix.
     """
 
     def __init__(self, states: int = HMM_STATES, lr: float = HMM_LR, beta: float = HMM_BETA):
@@ -141,12 +142,21 @@ class HMMInertia:
         ])
 
     def update_from_reflection(self, text: str):
-        """Eq. 2 (LLM): Reflexion ändert die Übergangswahrscheinlichkeiten."""
+        """Eq. 2 (LLM): Reflexion ändert die Übergangswahrscheinlichkeiten.
+
+        NOOP: liefert `parse_transition_delta` keine gültige K×K-Matrix, wird
+        NICHTS geändert (`P_t` bleibt), und das Ergebnis trägt
+        `skipped=True` + `note=HMM_NOOP_NOTE`.
+        """
         delta = parse_transition_delta(text, self.K)
+        if delta is None:
+            return {"before": self.P.tolist(), "after": self.P.tolist(),
+                    "delta": None, "lr": self.lr,
+                    "skipped": True, "note": HMM_NOOP_NOTE}
         before = self.P.copy()
         self.P = _row_normalize(self.P + self.lr * delta)
         return {"before": before.tolist(), "after": self.P.tolist(),
-                "delta": delta.tolist(), "lr": self.lr}
+                "delta": delta.tolist(), "lr": self.lr, "skipped": False}
 
     def step_free_prototype(self, n_t=None):
         """LLM-freier Kern (SEAA §5.7.1, Eq. 3/4). Kein LLM nötig."""
@@ -346,7 +356,8 @@ def run_once() -> dict:
         results.append({"hub": hub, "score": entry["hub_score"],
                         "semantic": str(sem), "index": str(idx),
                         "hmm_P_before": p_change["before"],
-                        "hmm_P_after": p_change["after"]})
+                        "hmm_P_after": p_change["after"],
+                        "hmm_skipped": p_change["skipped"]})
     return {"hubs": hubs, "forgotten": forgotten, "distilled": results,
             "hmm_states": hmm.K, "hmm_lr": hmm.lr}
 
@@ -471,7 +482,10 @@ def simulate_3_reflections():
             "text": text,
             "P_before_row0": [round(x, 4) for x in before[0].tolist()],
             "P_after_row0": [round(x, 4) for x in ch["after"][0]],
-            "delta_row0": [round(x, 4) for x in ch["delta"][0]],
+            "delta_row0": ([round(x, 4) for x in ch["delta"][0]]
+                           if ch["delta"] is not None else None),
+            "skipped": ch["skipped"],
+            "note": ch.get("note", ""),
             "lr": hmm.lr,
         })
     return out

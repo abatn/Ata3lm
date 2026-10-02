@@ -116,17 +116,17 @@ LLM liefert `[[3,0,0,0]]*4` → Ergebnis ist genau diese Matrix (`delta[0][0]==3
 
 `tests/test_reflective.py::test_parse_transition_delta_falsche_form_wird_verworfen`:
 2×2 → `shape == (4,4)`, `delta[0][0] == -0.4` (deterministischer Pfad), **kein
-IndexError**.
+IndexError**. *(Durch den NOOP-Nachtrag §7 überholt: 2×2 → `None`.)*
 
 ### 4.3 Gesamtläufe
 
 ```text
-make test  →  115 passed · Coverage 1198/1198 Statements = 100,00 % · rc=0
+make test  →  119 passed · Coverage 1195/1195 Statements = 100,00 % · rc=0
 Systemtest →  Score: 22/22 = 100.0% · Auto-Gate (§9): allow · 0 Fehlschläge
 ```
 
 Kein Regressionsschaden: `reflective_agent.py` bleibt bei 100 % Coverage
-(245/245 Statements), Systemtest unverändert 22/22.
+(242/242 Statements), Systemtest unverändert 22/22.
 
 ## 5. Geänderte Dateien
 
@@ -146,7 +146,27 @@ Kein Regressionsschaden: `reflective_agent.py` bleibt bei 100 % Coverage
 - **§9.3:** zweite Freigabe-Person weiterhin offen (wie 031) – als offener Punkt
   dokumentiert, keine Behauptung eines abgeschlossenen Zwei-Personen-Flows.
 
-## 7. Nächstes Self-Feedback (t+1)
+## 7. Nachtrag: Heuristik entfernt → NOOP (Auftrag 2026-10-01)
+
+Auf Folge-Auftrag wurde die Faustregel aus `parse_transition_delta` **ersatzlos
+entfernt** und durch NOOP ersetzt: die Matrix kommt ausschließlich vom LLM, sonst
+passiert **nichts**.
+
+```text
+HMM-Update übersprungen (keine LLM-Matrix)
+```
+
+- `parse_transition_delta` → `None` bei: kein Key, kein JSON, Form ≠ K×K, Fehler.
+- `update_from_reflection` → `skipped=True`, `P_t` unverändert (kein Crash).
+- Quellen: SEAA arXiv:2609.17331 · Mem0-Aktionen ADD/UPDATE/DELETE/**NONE**
+  („no change") · „Honest Lying" arXiv:2605.29463 (kein ungeprüfter Schreibpfad).
+- Beleg: `make test` 119 passed / 1195 Statements = 100,00 %; Systemtest 22/22.
+- Volle Doku: **`ergebnisse/heuristik-entfernt.md`**.
+
+Damit ist der in §7 zuvor genannte offene Punkt („Entfernen des deterministischen
+Pfads … eigenes Gate") **erledigt**: das Gate wurde durch den Auftrag erteilt.
+
+## 8. Nächstes Self-Feedback (t+1)
 
 - Offen bleibt die **Branch-Coverage** (CI misst Statements, nicht Verzweigungen).
 - Offen: Entfernen des deterministischen Pfads nur, falls der Auftraggeber

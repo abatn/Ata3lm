@@ -35,14 +35,13 @@ def no_key(monkeypatch):
 
 
 # --------------------------------------------------------------- HMM-Trägheit
-def test_row_normalize_und_parse_heuristik(no_key):
+def test_row_normalize_und_noop_ohne_llm(no_key):
+    """Heuristik entfernt (Rekursion 032/NOOP): ohne LLM-Key -> None, kein Default."""
     import numpy as np
     P = ra._row_normalize(np.array([[1.0, 3.0], [2.0, 2.0]]))
     assert np.allclose(P.sum(axis=1), 1.0)
-    neg = ra.parse_transition_delta("the action was wrong and failed", 4)
-    assert neg[0][0] == -0.4 and neg[0][1] == pytest.approx(0.4 / 3)
-    pos = ra.parse_transition_delta("everything matched my inertia", 4)
-    assert pos[0][0] == 0.4 and pos[0][1] == pytest.approx(-0.4 / 3)
+    assert ra.parse_transition_delta("the action was wrong and failed", 4) is None
+    assert ra.parse_transition_delta("everything matched my inertia", 4) is None
 
 
 def test_parse_transition_delta_mit_llm(monkeypatch):
@@ -52,22 +51,18 @@ def test_parse_transition_delta_mit_llm(monkeypatch):
     assert delta[0][0] == 1 and delta[3][3] == 1
 
 
-def test_parse_transition_delta_faellt_zurueck(monkeypatch):
-    # (a) kein JSON im Text, (c) LLM wirft -> deterministische Heuristik
+def test_parse_transition_delta_noop_bei_kein_json_und_fehler(monkeypatch):
+    """NOOP: kein JSON bzw. LLM-Fehler -> None (keine Faustregel, kein Crash)."""
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(content="kein json"))
-    assert ra.parse_transition_delta("wrong", 4)[0][0] == -0.4
+    assert ra.parse_transition_delta("wrong", 4) is None
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    assert ra.parse_transition_delta("wrong", 4)[0][0] == -0.4
+    assert ra.parse_transition_delta("wrong", 4) is None
 
 
-def test_parse_transition_delta_falsche_form_wird_verworfen(monkeypatch):
-    """Rekursion 032: 2×2 statt 4×4 -> LLM-Matrix wird verworfen (keine
-    Ersatz-Matrix, kein Default aus dem LLM-Output). Der deterministische Pfad
-    rechnet auf der frischen 4×4-Matrix -> kein IndexError mehr."""
+def test_parse_transition_delta_falsche_form_ist_noop(monkeypatch):
+    """2×2 statt 4×4 -> NOOP: None (verworfen), keine Ersatz-Matrix, kein Crash."""
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(content="[[1,2],[3,4]]"))
-    delta = ra.parse_transition_delta("wrong", 4)
-    assert delta.shape == (4, 4)
-    assert delta[0][0] == -0.4          # Heuristik (negativ), NICHT die LLM-Werte 1/2
+    assert ra.parse_transition_delta("wrong", 4) is None
 
 
 def test_parse_transition_delta_4x4_wird_uebernommen(monkeypatch):
@@ -83,13 +78,32 @@ def test_parse_transition_delta_reasoning_fallback(monkeypatch):
     assert ra.parse_transition_delta("text", 4)[0][0] == 2
 
 
-def test_hmm_update_und_step_free(no_key):
+def test_hmm_update_noop_ohne_matrix(no_key):
+    """NOOP: ohne gültige LLM-Matrix bleibt P_t unverändert (Mem0 NONE)."""
+    hmm = ra.HMMInertia()
+    before = [row[:] for row in hmm.P.tolist()]
+    ch = hmm.update_from_reflection("the action was wrong")
+    assert ch["skipped"] is True and ch["delta"] is None
+    assert ch["note"] == ra.HMM_NOOP_NOTE
+    assert hmm.P.tolist() == before            # kein Update, kein Crash
+    assert len(ch["after"]) == 4 and ch["lr"] == hmm.lr
+
+
+def test_hmm_update_mit_llm_matrix(monkeypatch):
+    import numpy as np
+    monkeypatch.setitem(sys.modules, "openai",
+                        _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
+    hmm = ra.HMMInertia()
+    ch = hmm.update_from_reflection("reflection")
+    assert ch["skipped"] is False and ch["delta"][0][0] == 1
+    assert np.allclose(np.array(ch["after"]).sum(axis=1), 1.0)
+    assert ch["after"] != ch["before"]         # P_t wurde geändert
+
+
+def test_step_free_prototype(no_key):
+    import numpy as np
     hmm = ra.HMMInertia()
     assert hmm.K == 4 and hmm.z == 0
-    ch = hmm.update_from_reflection("the action was wrong")
-    assert ch["lr"] == hmm.lr and len(ch["after"]) == 4
-    import numpy as np
-    assert np.allclose(np.array(ch["after"]).sum(axis=1), 1.0)
     out = hmm.step_free_prototype()
     assert out["state"] in ra.STATE_NAMES and out["next_state"] in ra.STATE_NAMES
     assert len(out["P_row0"]) == 4
@@ -179,6 +193,7 @@ def test_run_once(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
     out = ra.run_once()
     assert out["hubs"] == ["hub"] and out["hmm_states"] == 4
+    assert out["distilled"][0]["hmm_skipped"] is True      # NOOP (LLM nicht erreichbar)
     assert (tmp_path / "structured" / "distilled-hub-hub.md").exists()
 
 
@@ -208,9 +223,22 @@ def test_embed_cos_und_retrieval(tmp_path, monkeypatch):
     assert len(ra.simulate_5_multihop(graph)) == 5
 
 
-def test_simulate_3_reflections_und_lyapunov(no_key):
+def test_simulate_3_reflections_noop_ohne_llm(no_key):
     out = ra.simulate_3_reflections()
     assert len(out) == 3 and out[0]["lr"] == ra.HMMInertia().lr
+    assert all(r["skipped"] is True and r["delta_row0"] is None for r in out)
+    assert all(r["note"] == ra.HMM_NOOP_NOTE for r in out)
+
+
+def test_simulate_3_reflections_mit_llm(monkeypatch):
+    monkeypatch.setitem(sys.modules, "openai",
+                        _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
+    out = ra.simulate_3_reflections()
+    assert len(out) == 3 and all(r["skipped"] is False for r in out)
+    assert out[0]["delta_row0"][0] == 1
+
+
+def test_lyapunov_check_und_simulate(no_key):
     assert ra.lyapunov_check([1.0]) == {"E_dV": 0.0, "stable": True,
                                         "gate": "ok", "note": "zu wenig Daten"}
     ly = ra.simulate_lyapunov()

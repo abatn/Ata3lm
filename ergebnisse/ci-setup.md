@@ -17,7 +17,7 @@
 | `tests/test_shared_memory.py` (7) | ACL, Trust-Konflikt, Schema, Sync, Dump |
 | `tests/test_lru_cache.py` (9) | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung |
 | `tests/test_ingestion.py` (16) | Privacy/Secrets, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, async Enrichment, Lifecycle |
-| `tests/test_reflective.py` (16) | HMM-Trägheit, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov |
+| `tests/test_reflective.py` (20) | HMM-Trägheit, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov |
 | `tests/test_procedural_memory.py` (7) | Skill-Snapshots, Human-Gate-Update, Rollback |
 | `tests/test_solvers.py` (20) | 9 historische Solver-Snapshots (Ist-Verhalten) |
 | `pytest.ini` | Konfiguration + **Mindest-Score** (`--cov-fail-under=100`) + Marker |
@@ -29,13 +29,13 @@
 
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
-| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 115/115 = 100 % |
-| **Mindest-Score (Coverage)** | abgedeckte Statements / alle Statements **des gesamten Repo-Codes** | pytest-cov `--cov-fail-under` | `pytest.ini`: **100 %** (gemessen: 100,00 %, 1198/1198) |
+| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 119/119 = 100 % |
+| **Mindest-Score (Coverage)** | abgedeckte Statements / alle Statements **des gesamten Repo-Codes** | pytest-cov `--cov-fail-under` | `pytest.ini`: **100 %** (gemessen: 100,00 %, 1195/1195) |
 
 **Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
 bi_temporal, bias_monitor, fast_write_router, ingestion_hook, reflective_agent,
 shared/shared_memory, tier3-working/lru_cache, trust), `skills/procedural_memory.py`
-und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1198 Statements, 0 nicht
+und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1195 Statements, 0 nicht
 abgedeckt**.
 
 **100 ist das Maximum:** `--cov-fail-under=101` wird abgelehnt
@@ -46,9 +46,9 @@ Nachweis der 100-%-Schwelle daher über *weniger* Tests (nach `coverage erase`):
 $ python3 -m pytest -q -k "not reflective and not ingestion"
 data/memory/ingestion_hook.py                         278    203    27%  ...
 data/memory/reflective_agent.py                       245    197    20%  ...
-TOTAL                                                1198    400    67%
-FAIL Required test coverage of 100% not reached. Total coverage: 66.61%
-83 passed, 31 deselected in 1.48s
+TOTAL                                                1195    396    67%
+FAIL Required test coverage of 100% not reached. Total coverage: 66.86%
+83 passed, 36 deselected in 1.97s
 rc=1 (erwartet 1)
 ```
 
@@ -69,17 +69,17 @@ configfile: pytest.ini
 testpaths: tests
 plugins: cov-7.1.0, asyncio-1.2.0, langsmith-0.4.37, anyio-4.12.1
 asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 115 items
+collected 119 items
 
 tests/test_bi_temporal.py .....                                          [  4%]
 tests/test_fwr.py ............                                           [ 14%]
-tests/test_governance.py ..........                                      [ 23%]
-tests/test_ingestion.py ................                                 [ 37%]
-tests/test_lru_cache.py .........                                        [ 45%]
-tests/test_memory.py .............                                       [ 56%]
-tests/test_procedural_memory.py .......                                  [ 62%]
-tests/test_reflective.py ................                                [ 76%]
-tests/test_shared_memory.py .......                                      [ 82%]
+tests/test_governance.py ..........                                      [ 22%]
+tests/test_ingestion.py ................                                 [ 36%]
+tests/test_lru_cache.py .........                                        [ 43%]
+tests/test_memory.py .............                                       [ 54%]
+tests/test_procedural_memory.py .......                                  [ 60%]
+tests/test_reflective.py ....................                            [ 77%]
+tests/test_shared_memory.py .......                                      [ 83%]
 tests/test_solvers.py ....................                               [100%]
 
 ================================ tests coverage ================================
@@ -92,7 +92,7 @@ data/memory/bi_temporal.py                             51      0   100%
 data/memory/bias_monitor.py                            84      0   100%
 data/memory/fast_write_router.py                       71      0   100%
 data/memory/ingestion_hook.py                         278      0   100%
-data/memory/reflective_agent.py                       245      0   100%
+data/memory/reflective_agent.py                       242      0   100%
 data/memory/shared/shared_memory.py                   115      0   100%
 data/memory/tier3-working/lru_cache.py                132      0   100%
 data/memory/trust.py                                   48      0   100%
@@ -108,9 +108,9 @@ ergebnisse/rekursion/solver/solver_v6.py                4      0   100%
 ergebnisse/rekursion/solver/solver_v6_improved.py       8      0   100%
 skills/procedural_memory.py                            92      0   100%
 ---------------------------------------------------------------------------------
-TOTAL                                                1198      0   100%
+TOTAL                                                1195      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================= 115 passed in 1.56s ==============================
+============================= 119 passed in 2.84s ==============================
 ```
 
 ### Stand vorher (65 %, nur 4 Module) – zur Einordnung
@@ -122,7 +122,7 @@ Required test coverage of 65% reached. Total coverage: 67.30%
 ```
 
 Von 4 Modulen/24 Tests (67 %) über 4 Module/35 Tests (100 %) zum **gesamten
-Repo-Code**: +10 Module, +90 Tests, +935 Statements.
+Repo-Code**: +10 Module, +95 Tests, +932 Statements.
 
 ## 4. Designentscheidungen (jede mit Quelle)
 
@@ -146,8 +146,8 @@ als solches benannt, nicht als pytest-Kernfunktion.
 
 **Was 100 % hier bedeuten:** Statement-Coverage (`branch = False` in
 `.coveragerc`) – **kein** Branch-Coverage. Ausgenommen sind ausschließlich die
-`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1198 Statements,
-mit `--cov-config=/dev/null` 1304 → **106 Statements** in `__main__`-Blöcken,
+`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1195 Statements,
+mit `--cov-config=/dev/null` 1301 → **106 Statements** in `__main__`-Blöcken,
 die ein Import nie erreicht). Die Ausnahme steht sichtbar in `.coveragerc`, es
 wird keine weitere Zeile versteckt.
 
