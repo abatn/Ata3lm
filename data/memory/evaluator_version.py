@@ -654,7 +654,89 @@ def kappa_se_simplified(a: list, b: list) -> float:
 
 
 def kappa_ci(kappa: float, se: float, z: float = 1.96) -> tuple:
+    """Asymptotisches KI (veraltet für n=8) – ersetzt durch `bootstrap_kappa_ci`."""
     return (kappa - z * se, kappa + z * se)
+
+
+BOOTSTRAP_RESAMPLES = 10_000  # Efron & Tibshirani: B≥1000 für KI (Auftrag: 10.000)
+BOOTSTRAP_SEED = 0  # reproduzierbar (Auftrag)
+DEGENERATE_WARN_THRESHOLD = 0.05  # Auftrag: Warnung ab 5 % degenerierten Resamples
+
+
+def bootstrap_kappa_ci(
+    a: list,
+    b: list,
+    n_resamples: int = BOOTSTRAP_RESAMPLES,
+    seed: int = BOOTSTRAP_SEED,
+    confidence_level: float = 0.95,
+    method: str = "BCa",
+) -> dict:
+    """Case-level **Bootstrap**-KI für Cohen's κ (KEIN Wilson – κ ist keine Proportion).
+
+    - B = 10.000 Resamples mit Zurücklegen, seed-fixiert → bit-reproduzierbar.
+    - BCa (Default), Percentile als Fallback bei degenerierter Verteilung (NaN).
+    - `degenerate_share` = Anteil Resamples, in denen ein Stream konstant war
+      (κ undefiniert → 0.0); Warnung oberhalb `DEGENERATE_WARN_THRESHOLD`.
+    Quellen: scipy.stats.bootstrap (method='BCa') ·
+    Efron & Tibshirani 1993 (An Introduction to the Bootstrap, S. 184–188).
+    """
+
+    import warnings
+
+    import numpy as np
+    from scipy import stats as _st
+
+    a, b, n = list(a), list(b), len(a)
+    kappa = cohens_kappa(a, b)
+
+    # Degenerate-Share: eigener seed-fixierter Resample-Durchlauf
+    rng = np.random.default_rng(seed)
+    degenerate = 0
+    for _ in range(n_resamples):
+        idx = rng.integers(0, n, n)
+        if len({a[i] for i in idx}) == 1 or len({b[i] for i in idx}) == 1:
+            degenerate += 1
+    degenerate_share = degenerate / n_resamples
+
+    def stat(x, y):
+        return cohens_kappa(list(x), list(y))
+
+    with warnings.catch_warnings():  # degenerierte BCa-Akzeleration -> NaN, kein Lärm
+        warnings.simplefilter("ignore")
+        res = _st.bootstrap(
+            (a, b),
+            stat,
+            paired=True,
+            n_resamples=n_resamples,
+            confidence_level=confidence_level,
+            method=method,
+            random_state=seed,
+        )
+    lo, hi = res.confidence_interval
+    used = method
+    if np.isnan(lo) or np.isnan(hi):  # degenerierte Bootstrap-Verteilung
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = _st.bootstrap(
+                (a, b),
+                stat,
+                paired=True,
+                n_resamples=n_resamples,
+                confidence_level=confidence_level,
+                method="percentile",
+                random_state=seed,
+            )
+        lo, hi = res.confidence_interval
+        used = "percentile"
+    return {
+        "kappa": kappa,
+        "ci": (float(lo), float(hi)),
+        "method": used,
+        "n_resamples": n_resamples,
+        "seed": seed,
+        "degenerate_share": degenerate_share,
+        "degenerate_warning": degenerate_share > DEGENERATE_WARN_THRESHOLD,
+    }
 
 
 def landis_koch(kappa: float) -> str:

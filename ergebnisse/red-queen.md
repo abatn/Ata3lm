@@ -122,7 +122,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 176 passed · Coverage 1559/1559 Statements · 346/346 Branches = 100,00 %
+make test  → 179 passed · Coverage 1589/1589 Statements · 352/352 Branches = 100,00 %
 ```
 
 Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
@@ -268,7 +268,7 @@ https://huggingface.co/datasets/Hwilner/imo-gradingbench
 - `.github/workflows/ci.yml` (ersetzt `lint.yml`): Job **`lint`** (`ruff check` +
   `ruff format --check`) **und Job `test`** (`make test`, Matrix Python 3.9 + 3.12,
   installiert `requirements-dev.txt`). Damit prüft die CI den **kompletten**
-  Knowledge-Agenten: Lint + 176 Tests + 100 % Line/Branch-Coverage.
+  Knowledge-Agenten: Lint + 179 Tests + 100 % Line/Branch-Coverage.
   Ergänzend `tests/test_agents_law.py` (AGENTS.md §1–§11, Guardrails, Provenienz
   jeder Rekursion, Versionierung, Tiers/Connectors, RQGM-Verdrahtung, CI-Inhalt).
   **CI-Lauf `lint` war grün** (Run 37018230627); Test-Job neu hinzugefügt.
@@ -397,3 +397,56 @@ Zufall. Nächster Schritt für eine belastbare Messung: n ≈ 82 Items.
 | Steiger & Fouladi 1997 | KI via nichtzentrales t | Buchkapitel (What if There Were no Significance Tests?, 221–257) |
 | Fleiss, Cohen & Everitt 1969 | asymptotische κ-SE | Psychol. Bull. 72(5):323–327 (DOI 10.1037/h0028106 blockt Bots: 403) |
 | lechmazur/position_bias · sbezjak/llm-benchmark | Positions-Bias-Methodik | https://github.com/lechmazur/position_bias · https://github.com/sbezjak/llm-benchmark |
+
+### 10.8 Nachtrag: Bootstrap-KI für κ (ersetzt die asymptotische SE)
+
+**Warum nicht Wilson:** Wilson-Score-Intervalle setzen eine **Proportion** in
+[0,1] mit Varianz `p(1−p)/n` voraus. κ hat Wertebereich **[−1,1]** und eine
+komplexere Varianz, die die Randverteilungen der Konfusionsmatrix einbezieht.
+Der Agent darf κ **nie** über Wilson routen; ein Guard-Test
+(`test_bootstrap_konstanten_und_kein_wilson`) prüft, dass keine
+Wilson-Implementierung existiert. Fleiss, Cohen & Everitt (1969) dient **nur**
+als Begründung dieser Komplexität – **nicht** als Grundlage der KI-Berechnung.
+
+**Methode:** case-level Bootstrap (`bootstrap_kappa_ci`), **B = 10.000**,
+`seed = 0` (bit-reproduzierbar), **BCa** (Default), Percentile als Fallback bei
+degenerierter Verteilung (NaN). Quelle: `scipy.stats.bootstrap`
+(`method='BCa'`) · Efron & Tibshirani 1993, S. 184–188 (B ≥ 1000 für KI; 200
+nur für SE).
+
+**Reales Ergebnis** (dieselben 8 IMO-Grading-Items, LLM-Grader vs. Ground-Truth):
+
+```text
+Bootstrap-KI κ (B=10000, seed=0, method=BCa):
+  kappa=0.091  95%-KI=[0.000, 0.714]  (0.7s)
+  degenerate_share=0.4235  warning=True
+  asymptotisch (alt): kappa=0.091 KI=(-0.397, 0.579)
+  bit-reproduzierbar: True
+```
+
+**Degenerate-Share:** 42,35 % der Resamples hatten einen **konstanten Stream**
+(κ undefiniert → 0.0). Ab `DEGENERATE_WARN_THRESHOLD = 0.05` (Auftrag) wird
+gewarnt, weil SciPy bei degenerierter Bootstrap-Verteilung NaN liefert und die
+KI dann **nicht interpretierbar** ist. Genau das ist hier der Fall → die
+Bootstrap-KI **[0.000, 0.714]** ist bei n=8 **nicht belastbar**.
+
+**Vergleich der beiden KI-Methoden** (gleiche Daten):
+
+| Methode | 95%-KI | Bewertung |
+|---|---|---|
+| asymptotisch (Fleiss-SE, alt) | (−0.397, 0.579) | unterstellt Normalverteilung, bei n=8 unzuverlässig |
+| Bootstrap BCa (neu, Default) | (0.000, 0.714) | verteilungsfrei, aber degeneriert (42 % konstante Streams) |
+
+**Ehrlich:** Bei n=8 ist **keine** κ-Aussage belastbar – weder asymptotisch noch
+Bootstrap. Für eine stabile Bootstrap-KI braucht es deutlich mehr Items.
+
+**Quellen (geprüft 2026-10-02):**
+
+| Quelle | Verwendung | Status |
+|---|---|---|
+| https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.bootstrap.html | Bootstrap-Engine (BCa/Percentile, random_state) | HTTP 200 |
+| Efron & Tibshirani (1993), *An Introduction to the Bootstrap*, S. 184–188 | B ≥ 1000 für KI | Buch |
+| https://www.taylorfrancis.com/books/mono/10.1201/9780429246593/… | Buch-Nachweis | HTTP 200 |
+| Wilson (1927), JASA — DOI 10.1080/01621459.1927.10502953 | nur Gegenbeispiel (Proportion) | DOI **403** (Bots) → bibliografisch |
+| Fleiss, Cohen & Everitt (1969) | Begründung κ-Varianz (nicht KI-Grundlage) | DOI 403 → bibliografisch |
+| **„Clearway"** (`degenerate_share`, `bootstrap_resamples`) | vom Auftraggeber genannt | **NICHT verifizierbar**: PyPI-JSON `{"message":"Not Found"}` → **nicht zitiert** |

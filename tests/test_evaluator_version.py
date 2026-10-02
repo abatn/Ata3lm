@@ -7,6 +7,7 @@ additiv (kein Loop-Import). Quellen: arXiv:2606.26294 §3.1/§3.5,
 kingkillery/src/rqgm/beta.py.
 """
 
+import pathlib
 from types import SimpleNamespace
 
 import evaluator_version as ev
@@ -469,3 +470,34 @@ def test_llm_pairwise_judge_und_fail_soft():
 def test_llm_pairwise_judge_default_client(monkeypatch):
     monkeypatch.setattr(ev, "_default_client", lambda: _FakeJudge(content='{"winner": "B"}'))
     assert ev.make_llm_pairwise_judge()({"text": "x"}, {"text": "y"}) == "B"
+
+
+# ------------------------------------------------- Bootstrap-KI für κ (§10-Nachtrag)
+def test_bootstrap_kappa_ci_standard_und_reproduzierbar():
+    a = [1, 0, 1, 1, 0, 1, 0, 0]
+    b = [1, 0, 1, 0, 0, 1, 0, 1]
+    r1 = ev.bootstrap_kappa_ci(a, b, n_resamples=200, seed=0)
+    r2 = ev.bootstrap_kappa_ci(a, b, n_resamples=200, seed=0)
+    assert r1 == r2  # seed-fixiert, bit-reproduzierbar
+    assert r1["method"] in ("BCa", "percentile")
+    assert r1["n_resamples"] == 200 and r1["seed"] == 0
+    assert -1.0 <= r1["ci"][0] <= r1["ci"][1] <= 1.0
+    assert 0.0 <= r1["degenerate_share"] < 1.0
+    assert r1["kappa"] == ev.cohens_kappa(a, b)
+
+
+def test_bootstrap_kappa_ci_degeneriert_und_fallback():
+    konstant = [1] * 8
+    r = ev.bootstrap_kappa_ci(konstant, konstant, n_resamples=100, seed=0)
+    assert r["method"] == "percentile"  # BCa NaN -> Fallback
+    assert r["degenerate_share"] == 1.0
+    assert r["degenerate_warning"] is True
+    assert r["ci"] == (1.0, 1.0)
+
+
+def test_bootstrap_konstanten_und_kein_wilson():
+    assert ev.BOOTSTRAP_RESAMPLES == 10_000
+    assert ev.BOOTSTRAP_SEED == 0
+    src = (pathlib.Path(ev.__file__)).read_text(encoding="utf-8").lower()
+    assert "def wilson" not in src and "wilson_ci" not in src  # κ NIE über Wilson routen
+    assert "from scipy import stats" in src
