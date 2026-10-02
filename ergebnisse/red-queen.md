@@ -266,10 +266,9 @@ https://huggingface.co/datasets/Hwilner/imo-gradingbench
   `select = ["E","F","W","I"]`, `ignore = ["E501"]` (Zeilenlänge macht der Formatter).
 - `.pre-commit-config.yaml`: `ruff` + `ruff-format` (Rev `v0.16.10`, verifiziertes Tag).
 - `.github/workflows/lint.yml`: `ruff check .` + `ruff format --check .`.
-  **Hinweis:** Die Datei liegt lokal vor, der Push war aber blockiert
-  („OAuth App … without `workflow` scope") → manuell über die GitHub-UI
-  hinzufügen oder Token mit `workflow`-Scope verwenden. Der Rest des
-  Commits ist gepusht.
+  **Erledigt:** Token um `workflow`-Scope erweitert (`gh auth refresh -s workflow`),
+  Datei gepusht (652 Bytes auf GitHub). CI-Lauf **`lint` → success** (13 s,
+  Run 37018230627).
 - Ergebnis: `ruff check .` → **All checks passed**; `ruff format --check .` →
   **33 Python-Dateien formatiert** (45 wurden einmalig formatiert).
   **Markdown ausgeschlossen** (`exclude = ["*.md", "**/versions/**"]`), weil Ruff
