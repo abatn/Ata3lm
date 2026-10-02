@@ -1,0 +1,24 @@
+# Lint-CI: Ruff (check + format --check) für den Knowledge-Agenten.
+# Quellen: https://docs.astral.sh/ruff/ · Konfiguration: pyproject.toml
+# Optionaler Auto-Fix-Commit ist bewusst NICHT aktiv (kein stilles Schreiben in PRs).
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ruff installieren
+        run: pip install ruff==0.16.10
+      - name: Ruff check
+        run: ruff check .
+      - name: Ruff format --check
+        run: ruff format --check .
