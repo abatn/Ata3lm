@@ -2,14 +2,14 @@
 
 Alle Schreibpfade werden auf `tmp_path` umgebogen; das Repo bleibt unberührt.
 """
+
 import procedural_memory as pm
 
 
 def _setup(tmp_path, monkeypatch):
     skills = tmp_path / "skills"
     (skills / "demo").mkdir(parents=True)
-    (skills / "demo" / "SKILL.md").write_text("---\nname: demo\n---\n\nAlt.\n",
-                                              encoding="utf-8")
+    (skills / "demo" / "SKILL.md").write_text("---\nname: demo\n---\n\nAlt.\n", encoding="utf-8")
     monkeypatch.setattr(pm, "ROOT", tmp_path)
     monkeypatch.setattr(pm, "SKILLS", skills)
     monkeypatch.setattr(pm, "AUDIT", skills / "AUDIT.md")
@@ -21,12 +21,12 @@ def test_active_skills_ohne_versions(tmp_path, monkeypatch):
     skill = _setup(tmp_path, monkeypatch)
     (skill.parent / "versions" / "v1").mkdir(parents=True)
     (skill.parent / "versions" / "v1" / "SKILL.md").write_text("alt", encoding="utf-8")
-    assert pm.active_skills() == [skill]          # versions/ ist ausgeschlossen
+    assert pm.active_skills() == [skill]  # versions/ ist ausgeschlossen
 
 
 def test_rel_faellt_auf_absoluten_pfad_zurueck(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
-    outside = tmp_path.parent / "ausserhalb.md"     # liegt außerhalb von ROOT
+    outside = tmp_path.parent / "ausserhalb.md"  # liegt außerhalb von ROOT
     assert pm._rel(outside) == str(outside)
     assert pm._rel(tmp_path / "innen.md") == "innen.md"
 
@@ -43,10 +43,9 @@ def test_snapshot_ist_unveraenderlich(tmp_path, monkeypatch):
 def test_update_ohne_approved_bleibt_unveraendert(tmp_path, monkeypatch):
     skill = _setup(tmp_path, monkeypatch)
     r = pm.propose_update(skill, "NEU", "Grund", approved=False)
-    assert r == {"applied": False, "status": "pending",
-                 "reason": "kein approved (Human-Gate)"}
+    assert r == {"applied": False, "status": "pending", "reason": "kein approved (Human-Gate)"}
     assert "Alt." in skill.read_text(encoding="utf-8")
-    assert pm.AUDIT.exists()                       # Audit-Eintrag wurde geschrieben
+    assert pm.AUDIT.exists()  # Audit-Eintrag wurde geschrieben
 
 
 def test_update_mit_approved_versioniert(tmp_path, monkeypatch):

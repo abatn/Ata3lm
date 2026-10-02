@@ -1,0 +1,10 @@
+# pre-commit: Ruff (Lint + Format) vor jedem Commit.
+# Quellen: https://pre-commit.com/ · https://docs.astral.sh/ruff/
+# Rev = installierte Ruff-Version (verifiziertes Tag v0.16.10).
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

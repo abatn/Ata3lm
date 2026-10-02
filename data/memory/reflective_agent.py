@@ -17,7 +17,6 @@ Dateipfade sind die Projekt-Bindung (Auftrag).
 
 import json
 import os
-import sys
 from pathlib import Path
 
 # Projekt-Pfade (Auftrag)
@@ -32,21 +31,20 @@ DELTA_HUB = float(os.environ.get("HELA_DELTA_HUB", "1.0"))
 #   (1) total edge weight < delta_prune  (strukturelle Irrelevanz)
 #   (2) inactive duration  > delta_age   (temporale Dormanz)
 #   (3) zero recent access
-DELTA_PRUNE = float(os.environ.get("HELA_DELTA_PRUNE", "0.05"))       # Auftrag
-DELTA_AGE_DAYS = float(os.environ.get("HELA_DELTA_AGE_DAYS", "60"))   # Auftrag (HeLa-Mem tau=60)
-RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))         # legacy (nur 1 Bedingung)
+DELTA_PRUNE = float(os.environ.get("HELA_DELTA_PRUNE", "0.05"))  # Auftrag
+DELTA_AGE_DAYS = float(os.environ.get("HELA_DELTA_AGE_DAYS", "60"))  # Auftrag (HeLa-Mem tau=60)
+RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))  # legacy (nur 1 Bedingung)
 
 # --- SEAA HMM-Trägheit (arXiv:2609.17331) ---
 # Zustandsraum (Paper §5.7.1): K=4 latente Zustände
-HMM_STATES = int(os.environ.get("SEAA_STATES", "4"))     # K (SEAA Table 2)
-HMM_LR = float(os.environ.get("SEAA_LR", "0.05"))        # eta (SEAA Table 2)
-HMM_BETA = float(os.environ.get("SEAA_BETA", "4.0"))     # beta (SEAA Table 2)
+HMM_STATES = int(os.environ.get("SEAA_STATES", "4"))  # K (SEAA Table 2)
+HMM_LR = float(os.environ.get("SEAA_LR", "0.05"))  # eta (SEAA Table 2)
+HMM_BETA = float(os.environ.get("SEAA_BETA", "4.0"))  # beta (SEAA Table 2)
 # Paper §5.7.1: S = {calm, alert, impulsive, pessimistic}
 STATE_NAMES = ["calm", "alert", "impulsive", "pessimistic"]
 
 
 def _row_normalize(P):
-    import numpy as np
     return P / P.sum(axis=1, keepdims=True)
 
 
@@ -68,11 +66,13 @@ def parse_transition_delta(text: str, k: int):
         memory at all" → hier: lieber NOOP als eine erfundene Matrix.
     """
     import numpy as np
+
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
-        return None                                  # NOOP: ohne LLM keine Matrix
+        return None  # NOOP: ohne LLM keine Matrix
     try:
         from openai import OpenAI
+
         client = OpenAI(api_key=key, base_url=os.environ.get("OPENAI_BASE_URL"))
         # SEAA §4.2: Die Reflexion beantwortet 4 Fragen; (4) ist die
         # "language-to-parameter mapping" = strukturierte Edit von P_t.
@@ -88,20 +88,23 @@ def parse_transition_delta(text: str, k: int):
         )
         resp = client.chat.completions.create(
             model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
-            messages=[{"role": "user", "content": prompt}], max_tokens=2000, temperature=0.0,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2000,
+            temperature=0.0,
         )
         msg = resp.choices[0].message
-        raw = (msg.content or getattr(msg, "reasoning_content", None) or "")
+        raw = msg.content or getattr(msg, "reasoning_content", None) or ""
         import re
+
         m = re.search(r"\[[\s\S]*\]", raw)
         if not m:
-            return None                              # NOOP: kein JSON im Text
+            return None  # NOOP: kein JSON im Text
         candidate = np.array(json.loads(m.group(0)), dtype=float)
         if candidate.shape != (k, k):
-            return None                              # NOOP: falsche Form (SEAA: K×K)
+            return None  # NOOP: falsche Form (SEAA: K×K)
         return candidate
     except Exception:
-        return None                                  # NOOP: Fehler -> überspringen
+        return None  # NOOP: Fehler -> überspringen
 
 
 HMM_NOOP_NOTE = "HMM-Update übersprungen (keine LLM-Matrix)"
@@ -124,6 +127,7 @@ class HMMInertia:
 
     def __init__(self, states: int = HMM_STATES, lr: float = HMM_LR, beta: float = HMM_BETA):
         import numpy as np
+
         self.K = states
         self.lr = lr
         self.beta = beta
@@ -131,15 +135,17 @@ class HMMInertia:
         # P_base diagonal-dominant (SEAA Table 2)
         self.P_base = np.full((states, states), 0.1)
         np.fill_diagonal(self.P_base, 0.7)
-        self.V = np.zeros(states)          # state-preference vector (init 0, SEAA §5.7.1)
-        self.z = 0                          # current latent state
+        self.V = np.zeros(states)  # state-preference vector (init 0, SEAA §5.7.1)
+        self.z = 0  # current latent state
         # Prototyp-Verhalten pro Zustand (3 Traits, SEAA §5.7.1)
-        self.state_behavior = np.array([
-            [0.8, 0.2, 0.4],   # calm
-            [0.5, 0.5, 0.6],   # alert
-            [0.2, 0.9, 0.7],   # impulsive
-            [0.3, 0.1, 0.2],   # pessimistic
-        ])
+        self.state_behavior = np.array(
+            [
+                [0.8, 0.2, 0.4],  # calm
+                [0.5, 0.5, 0.6],  # alert
+                [0.2, 0.9, 0.7],  # impulsive
+                [0.3, 0.1, 0.2],  # pessimistic
+            ]
+        )
 
     def update_from_reflection(self, text: str):
         """Eq. 2 (LLM): Reflexion ändert die Übergangswahrscheinlichkeiten.
@@ -150,23 +156,34 @@ class HMMInertia:
         """
         delta = parse_transition_delta(text, self.K)
         if delta is None:
-            return {"before": self.P.tolist(), "after": self.P.tolist(),
-                    "delta": None, "lr": self.lr,
-                    "skipped": True, "note": HMM_NOOP_NOTE}
+            return {
+                "before": self.P.tolist(),
+                "after": self.P.tolist(),
+                "delta": None,
+                "lr": self.lr,
+                "skipped": True,
+                "note": HMM_NOOP_NOTE,
+            }
         before = self.P.copy()
         self.P = _row_normalize(self.P + self.lr * delta)
-        return {"before": before.tolist(), "after": self.P.tolist(),
-                "delta": delta.tolist(), "lr": self.lr, "skipped": False}
+        return {
+            "before": before.tolist(),
+            "after": self.P.tolist(),
+            "delta": delta.tolist(),
+            "lr": self.lr,
+            "skipped": False,
+        }
 
     def step_free_prototype(self, n_t=None):
         """LLM-freier Kern (SEAA §5.7.1, Eq. 3/4). Kein LLM nötig."""
         import numpy as np
+
         if n_t is None:
-            n_t = np.array([0.4, 0.4, 0.2])   # persönliches Erfahrungsbedürfnis
+            n_t = np.array([0.4, 0.4, 0.2])  # persönliches Erfahrungsbedürfnis
         z = self.z
         b = self.state_behavior[z]
         cos = float(np.dot(b, n_t) / (np.linalg.norm(b) * np.linalg.norm(n_t) + 1e-9))
-        r = cos - 0.80 + np.random.randn() * 0.10          # Eq. 4
+        r = cos - 0.80 + np.random.randn() * 0.10  # Eq. 4
         self.V[z] = np.clip(self.V[z] + self.lr * np.tanh(2 * r), -10, 10)  # Eq. 4
         # Eq. 3: P_t = softmax(log P_base + beta * V_t); V[j] verstärkt Spalte j
         # (Übergänge IN Zustand j) -> konzentriert P auf dominante Zustände.
@@ -174,9 +191,13 @@ class HMMInertia:
         self.P = self.P / self.P.sum(axis=1, keepdims=True)
         # Zustandsübergang (Eq. 3): sample nächster Zustand
         self.z = int(np.random.choice(self.K, p=self.P[z]))
-        return {"state": STATE_NAMES[z], "next_state": STATE_NAMES[self.z],
-                "r": round(r, 4), "V": [round(v, 4) for v in self.V.tolist()],
-                "P_row0": [round(x, 4) for x in self.P[0].tolist()]}
+        return {
+            "state": STATE_NAMES[z],
+            "next_state": STATE_NAMES[self.z],
+            "r": round(r, 4),
+            "V": [round(v, 4) for v in self.V.tolist()],
+            "P_row0": [round(x, 4) for x in self.P[0].tolist()],
+        }
 
 
 def load_graph(path: Path) -> dict:
@@ -215,8 +236,7 @@ def detect_forgetting(graph: dict, now_days: float = 0.0) -> list:
     return out
 
 
-def resolve_conflict(facts: list, subject: str, predicate: str, obj: str,
-                     now_iso: str) -> dict:
+def resolve_conflict(facts: list, subject: str, predicate: str, obj: str, now_iso: str) -> dict:
     """Konfliktlösung (Memory Survey + Graphiti): bei Widerspruch wird der alte
     Fakt NICHT gelöscht, sondern mit Supersede-Marker invalidiert; der neue gilt.
 
@@ -226,14 +246,12 @@ def resolve_conflict(facts: list, subject: str, predicate: str, obj: str,
     """
     delta = {"conflict": False, "superseded": [], "added": None}
     for f in facts:
-        if (f.get("s") == subject and f.get("p") == predicate
-                and f.get("status") == "valid" and f.get("o") != obj):
+        if f.get("s") == subject and f.get("p") == predicate and f.get("status") == "valid" and f.get("o") != obj:
             f["status"] = "superseded"
             f["invalid_at"] = now_iso
             delta["superseded"].append(dict(f))
             delta["conflict"] = True
-    new = {"s": subject, "p": predicate, "o": obj, "status": "valid",
-           "valid_from": now_iso, "invalid_at": None}
+    new = {"s": subject, "p": predicate, "o": obj, "status": "valid", "valid_from": now_iso, "invalid_at": None}
     facts.append(new)
     delta["added"] = dict(new)
     return delta
@@ -253,15 +271,20 @@ def simulate_lifecycle() -> dict:
     hubs = detect_hubs(graph)
     forgotten = detect_forgetting(graph, now_days=now)
 
-    facts = [{"s": "solver", "p": "current_version",
-              "o": "berechne_durchschnitt", "status": "valid",
-              "valid_from": "2026-09-30", "invalid_at": None}]
-    conflict = resolve_conflict(facts, "solver", "current_version",
-                               "berechne_median", "2026-10-01")
+    facts = [
+        {
+            "s": "solver",
+            "p": "current_version",
+            "o": "berechne_durchschnitt",
+            "status": "valid",
+            "valid_from": "2026-09-30",
+            "invalid_at": None,
+        }
+    ]
+    conflict = resolve_conflict(facts, "solver", "current_version", "berechne_median", "2026-10-01")
     return {
         "consolidation": {"hubs": hubs, "action": "hebbian-distillation"},
-        "forgetting": {"forgotten": forgotten,
-                       "conditions": "weight<delta_prune AND age>delta_age AND access==0"},
+        "forgetting": {"forgotten": forgotten, "conditions": "weight<delta_prune AND age>delta_age AND access==0"},
         "conflict": conflict,
     }
 
@@ -283,6 +306,7 @@ def distill(graph: dict, hub: str) -> dict:
     if key:
         try:
             from openai import OpenAI
+
             client = OpenAI(api_key=key, base_url=os.environ.get("OPENAI_BASE_URL"))
             prompt = (
                 "Synthesize this cluster of related memories into a single declarative "
@@ -291,7 +315,8 @@ def distill(graph: dict, hub: str) -> dict:
             resp = client.chat.completions.create(
                 model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=2000, temperature=0.0,
+                max_tokens=2000,
+                temperature=0.0,
             )
             msg = resp.choices[0].message
             summary = (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
@@ -302,8 +327,7 @@ def distill(graph: dict, hub: str) -> dict:
     else:
         summary = cluster
 
-    return {"hub": hub, "neighbors": ns, "summary": summary,
-            "hub_score": hub_score(graph, hub)}
+    return {"hub": hub, "neighbors": ns, "summary": summary, "hub_score": hub_score(graph, hub)}
 
 
 def write_semantic(entry: dict) -> Path:
@@ -345,7 +369,7 @@ def run_once() -> dict:
     graph = load_graph(GRAPH_FILE)
     hubs = detect_hubs(graph)
     forgotten = detect_forgetting(graph)
-    hmm = HMMInertia()   # SEAA-HMM-Trägheitsmatrix
+    hmm = HMMInertia()  # SEAA-HMM-Trägheitsmatrix
     results = []
     for hub in hubs:
         entry = distill(graph, hub)
@@ -353,22 +377,34 @@ def run_once() -> dict:
         idx = update_index(entry)
         # SEAA: Reflexion ändert die HMM-Übergangswahrscheinlichkeiten (Eq. 2)
         p_change = hmm.update_from_reflection(entry["summary"])
-        results.append({"hub": hub, "score": entry["hub_score"],
-                        "semantic": str(sem), "index": str(idx),
-                        "hmm_P_before": p_change["before"],
-                        "hmm_P_after": p_change["after"],
-                        "hmm_skipped": p_change["skipped"]})
-    # Red-Queen-Loop-Einbau (§9/§9.3 freigegeben 2026-10-02, Batnini + taouefik):
-    # opt-in über RQGM_LOOP=1 -> Standardverhalten unverändert.
+        results.append(
+            {
+                "hub": hub,
+                "score": entry["hub_score"],
+                "semantic": str(sem),
+                "index": str(idx),
+                "hmm_P_before": p_change["before"],
+                "hmm_P_after": p_change["after"],
+                "hmm_skipped": p_change["skipped"],
+            }
+        )
+    # Red-Queen-Loop (§9.3 freigegeben 2026-10-02, Batnini + taouefik):
+    # DAUERHAFT AKTIV (Default an); expliziter Aus-Schalter RQGM_LOOP=0 für Debug/Tests.
     rqgm = None
-    if os.environ.get("RQGM_LOOP") == "1":
+    if os.environ.get("RQGM_LOOP", "1") != "0":
         import evaluator_version as _rq
+
         anchor = _rq.GroundTruthAnchor(items=list(_rq.ANCHOR_ITEMS), source="demo")
         loop = _rq.RedQueenLoop(anchor, checkpoints={1, 2, 4, 8})
-        rqgm = loop.run([_rq.EvaluatorVersion("", _rq.make_grader(t), threshold=t)
-                         for t in (0.0, 0.5, 0.7)])
-    return {"hubs": hubs, "forgotten": forgotten, "distilled": results,
-            "hmm_states": hmm.K, "hmm_lr": hmm.lr, "rqgm": rqgm}
+        rqgm = loop.run([_rq.EvaluatorVersion("", _rq.make_grader(t), threshold=t) for t in (0.0, 0.5, 0.7)])
+    return {
+        "hubs": hubs,
+        "forgotten": forgotten,
+        "distilled": results,
+        "hmm_states": hmm.K,
+        "hmm_lr": hmm.lr,
+        "rqgm": rqgm,
+    }
 
 
 # --- HeLa-Mem Dual-Path Spreading Activation Retrieval (arXiv:2604.16839 §3.4) ---
@@ -385,6 +421,7 @@ THETA = float(os.environ.get("HELA_THETA", "0.6"))
 def _embed(text: str, dim: int = 64):
     """Einfache deterministische Embedding-Ersatzfunktion (Auftrag, kein Modell)."""
     import numpy as np
+
     v = np.zeros(dim)
     for tok in str(text).lower().split():
         v[hash(tok) % dim] += 1.0
@@ -394,6 +431,7 @@ def _embed(text: str, dim: int = 64):
 
 def _cos(a, b) -> float:
     import numpy as np
+
     na, nb = np.linalg.norm(a), np.linalg.norm(b)
     return float(np.dot(a, b) / (na * nb)) if na > 0 and nb > 0 else 0.0
 
@@ -401,13 +439,13 @@ def _cos(a, b) -> float:
 class DualPathRetrieval:
     """HeLa-Mem Dual-Path Retrieval: Base + Spreading Activation (arXiv:2604.16839 §3.4)."""
 
-    def __init__(self, tau: float = TAU_DAYS, alpha: float = ALPHA,
-                 beta: float = BETA, theta: float = THETA):
+    def __init__(self, tau: float = TAU_DAYS, alpha: float = ALPHA, beta: float = BETA, theta: float = THETA):
         self.tau, self.alpha, self.beta, self.theta = tau, alpha, beta, theta
 
     def base_activation(self, graph: dict, query: str, now_days: float) -> dict:
         """Eq. 3: S_base(v_i) = (sim(q,e_i) + alpha*keyword_match) * gamma(v_i)."""
         import math
+
         q = _embed(query)
         q_tokens = set(query.lower().split())
         out = {}
@@ -417,7 +455,7 @@ class DualPathRetrieval:
             kw = len(q_tokens & set(str(node.get("content", "")).lower().split()))
             kw_match = 1.0 if kw > 0 else 0.0
             dt = max(0.0, now_days - float(node.get("timestamp_days", 0.0)))
-            gamma = math.exp(-dt / self.tau)          # Zeitzerfall
+            gamma = math.exp(-dt / self.tau)  # Zeitzerfall
             out[nid] = (sim + self.alpha * kw_match) * gamma
         return out
 
@@ -427,7 +465,7 @@ class DualPathRetrieval:
         for j in graph.get("nodes", {}):
             inflow = 0.0
             for i, edges in graph.get("edges", {}).items():
-                if j in edges:                        # i -> j Kante
+                if j in edges:  # i -> j Kante
                     inflow += s_base.get(i, 0.0) * edges[j]
             s[j] = s_base.get(j, 0.0) + self.beta * inflow
         return s
@@ -440,10 +478,13 @@ class DualPathRetrieval:
         ranked = sorted(s.items(), key=lambda kv: -kv[1])[:top_k]
         # Spreading-Gewinn = S - S_base (welche Knoten durch Spreading dazukamen)
         gain = {k: round(s[k] - s_base.get(k, 0.0), 4) for k in s}
-        return {"base": {k: round(v, 4) for k, v in s_base.items()},
-                "spread": {k: round(v, 4) for k, v in s.items()},
-                "gain": gain, "activated": activated,
-                "top_k": [k for k, _ in ranked]}
+        return {
+            "base": {k: round(v, 4) for k, v in s_base.items()},
+            "spread": {k: round(v, 4) for k, v in s.items()},
+            "gain": gain,
+            "activated": activated,
+            "top_k": [k for k, _ in ranked],
+        }
 
 
 def simulate_5_multihop(graph: dict = None):
@@ -462,12 +503,16 @@ def simulate_5_multihop(graph: dict = None):
     for q in queries:
         r = dr.retrieve(graph, q, now_days=1.0, top_k=5)
         # Knoten, die NUR durch Spreading über theta kommen (nicht in base)
-        spread_only = [k for k in r["spread"]
-                       if r["spread"][k] >= dr.theta and r["base"].get(k, 0.0) < dr.theta]
-        out.append({"query": q, "top_k": r["top_k"],
-                    "activated": list(r["activated"].keys()),
-                    "spread_only": spread_only,
-                    "gain": r["gain"]})
+        spread_only = [k for k in r["spread"] if r["spread"][k] >= dr.theta and r["base"].get(k, 0.0) < dr.theta]
+        out.append(
+            {
+                "query": q,
+                "top_k": r["top_k"],
+                "activated": list(r["activated"].keys()),
+                "spread_only": spread_only,
+                "gain": r["gain"],
+            }
+        )
     return out
 
 
@@ -486,17 +531,18 @@ def simulate_3_reflections():
     for i, text in enumerate(reflections, 1):
         before = hmm.P.copy()
         ch = hmm.update_from_reflection(text)
-        out.append({
-            "reflection": i,
-            "text": text,
-            "P_before_row0": [round(x, 4) for x in before[0].tolist()],
-            "P_after_row0": [round(x, 4) for x in ch["after"][0]],
-            "delta_row0": ([round(x, 4) for x in ch["delta"][0]]
-                           if ch["delta"] is not None else None),
-            "skipped": ch["skipped"],
-            "note": ch.get("note", ""),
-            "lr": hmm.lr,
-        })
+        out.append(
+            {
+                "reflection": i,
+                "text": text,
+                "P_before_row0": [round(x, 4) for x in before[0].tolist()],
+                "P_after_row0": [round(x, 4) for x in ch["after"][0]],
+                "delta_row0": ([round(x, 4) for x in ch["delta"][0]] if ch["delta"] is not None else None),
+                "skipped": ch["skipped"],
+                "note": ch.get("note", ""),
+                "lr": hmm.lr,
+            }
+        )
     return out
 
 
@@ -509,16 +555,19 @@ def lyapunov_check(energies: list, tau: float = 0.0) -> dict:
     dV = [float(energies[i + 1]) - float(energies[i]) for i in range(len(energies) - 1)]
     e_dv = sum(dV) / len(dV)
     stable = e_dv <= tau
-    return {"E_dV": round(e_dv, 4), "dV": [round(x, 4) for x in dV],
-            "stable": stable, "gate": "ok" if stable else "ask"}
+    return {
+        "E_dV": round(e_dv, 4),
+        "dV": [round(x, 4) for x in dV],
+        "stable": stable,
+        "gate": "ok" if stable else "ask",
+    }
 
 
 def simulate_lyapunov() -> dict:
     """Zwei Verläufe: stabil (E[ΔV] ≤ 0) vs. instabil (E[ΔV] > 0)."""
-    stable_seq = [1.0, 0.8, 0.6, 0.45, 0.3, 0.2]      # fallende „Energie" (V sinkt)
-    unstable_seq = [0.2, 0.3, 0.5, 0.8, 1.2, 1.7]     # steigende „Energie" (V wächst)
-    return {"stable": lyapunov_check(stable_seq),
-            "unstable": lyapunov_check(unstable_seq)}
+    stable_seq = [1.0, 0.8, 0.6, 0.45, 0.3, 0.2]  # fallende „Energie" (V sinkt)
+    unstable_seq = [0.2, 0.3, 0.5, 0.8, 1.2, 1.7]  # steigende „Energie" (V wächst)
+    return {"stable": lyapunov_check(stable_seq), "unstable": lyapunov_check(unstable_seq)}
 
 
 if __name__ == "__main__":

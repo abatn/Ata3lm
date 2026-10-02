@@ -2,6 +2,9 @@
 
 Bedingungen sind wörtlich aus dem Gesetz; alle LLM-Antworten sind skriptet.
 """
+
+from types import SimpleNamespace
+
 import fast_write_router as fwr
 
 SMALL = fwr.SMALL_MODEL
@@ -24,61 +27,62 @@ def _script(monkeypatch, small, large_zero, large_mem):
 
 # ---------------------------------------------------------------- Stufe 1
 def test_non_write_wenn_small_zutrift(monkeypatch):
-    calls = _script(monkeypatch, "The capital of France is Paris.",
-                    "x", "x")
-    r = fwr.classify("What is the capital of France?",
-                     "Paris is the capital of France.", "Paris")
+    calls = _script(monkeypatch, "The capital of France is Paris.", "x", "x")
+    r = fwr.classify("What is the capital of France?", "Paris is the capital of France.", "Paris")
     assert r["class"] == "non-write"
     assert r["stage"] == 1
     assert r["escalated"] is False
-    assert r["gate"] == "none"          # §10.1: nicht speichern
-    assert len(calls) == 1              # keine Eskalation an den großen Router
+    assert r["gate"] == "none"  # §10.1: nicht speichern
+    assert len(calls) == 1  # keine Eskalation an den großen Router
 
 
 # ---------------------------------------------------------------- Stufe 2
 def test_write_update_greift_wenn_large_falsch_und_mem_korrekt(monkeypatch):
     """Fall „Größte Wüste": large falsch, mit Memory korrekt -> write-update."""
-    _script(monkeypatch,
-            "The Antarctic Desert is the largest desert in the world.",
-            "The largest desert in the world is the Antarctic Desert.",
-            "The largest desert in the world is the Sahara.")
-    r = fwr.classify("What is the largest desert in the world?",
-                     "The largest desert in the world is the Sahara.", "Sahara")
+    _script(
+        monkeypatch,
+        "The Antarctic Desert is the largest desert in the world.",
+        "The largest desert in the world is the Antarctic Desert.",
+        "The largest desert in the world is the Sahara.",
+    )
+    r = fwr.classify(
+        "What is the largest desert in the world?", "The largest desert in the world is the Sahara.", "Sahara"
+    )
     assert r["class"] == "write-update"
     assert r["stage"] == 2 and r["escalated"] is True
-    assert r["checks"] == {"refusal": False, "large_correct": False,
-                           "memory_correct": True}
-    assert r["gate"] == "ask"           # §9: self_update an tier1-base
+    assert r["checks"] == {"refusal": False, "large_correct": False, "memory_correct": True}
+    assert r["gate"] == "ask"  # §9: self_update an tier1-base
 
 
 def test_write_new_nur_bei_verweigerung_und_mem_korrekt(monkeypatch):
-    _script(monkeypatch, "I don't know.", "I don't know.",
-            "The capital of Xylophonia is Zentaria.")
-    r = fwr.classify("What is the capital of Xylophonia?",
-                     "The capital of Xylophonia is Zentaria.", "Zentaria")
+    _script(monkeypatch, "I don't know.", "I don't know.", "The capital of Xylophonia is Zentaria.")
+    r = fwr.classify("What is the capital of Xylophonia?", "The capital of Xylophonia is Zentaria.", "Zentaria")
     assert r["class"] == "write-new"
-    assert r["checks"] == {"refusal": True, "large_correct": False,
-                           "memory_correct": True}
-    assert r["gate"] == "ask"           # §10.4: neue Quelle
+    assert r["checks"] == {"refusal": True, "large_correct": False, "memory_correct": True}
+    assert r["gate"] == "ask"  # §10.4: neue Quelle
 
 
 def test_kein_write_update_wenn_mem_falsch(monkeypatch):
     """Die alte Falle: Verweigerung OHNE korrekten Memory -> kein write-update."""
-    _script(monkeypatch, "I don't know.", "I don't know.",
-            "Xylophonia has no capital.")
-    r = fwr.classify("What is the capital of Xylophonia?",
-                     "Xylophonia is a fictional country with no capital.",
-                     "Zentaria")
+    _script(monkeypatch, "I don't know.", "I don't know.", "Xylophonia has no capital.")
+    r = fwr.classify(
+        "What is the capital of Xylophonia?", "Xylophonia is a fictional country with no capital.", "Zentaria"
+    )
     assert r["class"] == "uncertain"
     assert r["checks"]["memory_correct"] is False
-    assert r["gate"] == "ask"           # §10.4: Unsicherheit -> Human-Gate
+    assert r["gate"] == "ask"  # §10.4: Unsicherheit -> Human-Gate
 
 
 def test_large_korrekt_aber_small_falsch_wird_nicht_geschrieben(monkeypatch):
-    _script(monkeypatch, "I don't know.", "The largest desert is the Sahara.",
-            "The largest desert in the world is the Sahara.")
-    r = fwr.classify("What is the largest desert in the world?",
-                     "The largest desert in the world is the Sahara.", "Sahara")
+    _script(
+        monkeypatch,
+        "I don't know.",
+        "The largest desert is the Sahara.",
+        "The largest desert in the world is the Sahara.",
+    )
+    r = fwr.classify(
+        "What is the largest desert in the world?", "The largest desert in the world is the Sahara.", "Sahara"
+    )
     assert r["class"] == "uncertain"
     assert r["gate"] == "ask"
 
@@ -99,7 +103,6 @@ def test_refusal_marker_und_matches():
 
 
 # ------------------------------------------------- _ask (ohne Netz: Fake-Client)
-from types import SimpleNamespace
 
 
 def _fake_client(msg, calls):
@@ -113,8 +116,7 @@ def _fake_client(msg, calls):
 
 def test_ask_ohne_memory_und_mit_memory(monkeypatch):
     calls = []
-    monkeypatch.setattr(fwr, "_client",
-                        _fake_client(SimpleNamespace(content=" Paris "), calls))
+    monkeypatch.setattr(fwr, "_client", _fake_client(SimpleNamespace(content=" Paris "), calls))
     assert fwr._ask(SMALL, "Capital?") == "Paris"
     assert "Use this knowledge:" not in calls[0]["messages"][0]["content"]
     assert fwr._ask(LARGE, "Capital?", memory="Paris ist es.") == "Paris"
@@ -131,8 +133,7 @@ def test_ask_faellt_auf_reasoning_content_zurueck(monkeypatch):
 # ------------------------------------------------------------- MemRouter (Paper)
 def test_memrouter_forward_only_und_parametrizahl():
     mr = fwr.MemRouter()
-    r = mr.classify("What is the capital of France?",
-                    "Paris is the capital.", "Paris")
+    r = mr.classify("What is the capital of France?", "Paris is the capital.", "Paris")
     assert r["class"] in ["non-write", "write-new", "write-update"]
     assert r["method"] == "memrouter" and r["forward_only"] is True
     assert r["params"] == 384 * 31250 + 31250 * 3
@@ -140,7 +141,7 @@ def test_memrouter_forward_only_und_parametrizahl():
 
 def test_embed_router_normalisiert_und_leerer_text():
     v = fwr._embed_router("Paris paris TOKYO")
-    assert abs(float((v ** 2).sum()) - 1.0) < 1e-9
+    assert abs(float((v**2).sum()) - 1.0) < 1e-9
     assert float((fwr._embed_router("") ** 2).sum()) == 0.0
 
 

@@ -3,12 +3,12 @@
 Kein Netz: die optionalen LLM-Schritte werden mit einem Fake-`openai`-Modul
 geprüft; Graph-, Structured- und Index-Pfade zeigen auf `tmp_path`.
 """
+
 import json
 import sys
 from types import SimpleNamespace
 
 import pytest
-
 import reflective_agent as ra
 
 
@@ -18,9 +18,19 @@ def _fake_openai(content=None, reasoning=None, raises=False):
         def create(self, **kw):
             if raises:
                 raise RuntimeError("endpoint nicht erreichbar")
-            return SimpleNamespace(choices=[SimpleNamespace(
-                message=SimpleNamespace(**({"content": content} if reasoning is None
-                                           else {"content": content, "reasoning_content": reasoning})))])
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(
+                            **(
+                                {"content": content}
+                                if reasoning is None
+                                else {"content": content, "reasoning_content": reasoning}
+                            )
+                        )
+                    )
+                ]
+            )
 
     class Client:
         def __init__(self, *a, **kw):
@@ -38,6 +48,7 @@ def no_key(monkeypatch):
 def test_row_normalize_und_noop_ohne_llm(no_key):
     """Heuristik entfernt (Rekursion 032/NOOP): ohne LLM-Key -> None, kein Default."""
     import numpy as np
+
     P = ra._row_normalize(np.array([[1.0, 3.0], [2.0, 2.0]]))
     assert np.allclose(P.sum(axis=1), 1.0)
     assert ra.parse_transition_delta("the action was wrong and failed", 4) is None
@@ -85,23 +96,24 @@ def test_hmm_update_noop_ohne_matrix(no_key):
     ch = hmm.update_from_reflection("the action was wrong")
     assert ch["skipped"] is True and ch["delta"] is None
     assert ch["note"] == ra.HMM_NOOP_NOTE
-    assert hmm.P.tolist() == before            # kein Update, kein Crash
+    assert hmm.P.tolist() == before  # kein Update, kein Crash
     assert len(ch["after"]) == 4 and ch["lr"] == hmm.lr
 
 
 def test_hmm_update_mit_llm_matrix(monkeypatch):
     import numpy as np
-    monkeypatch.setitem(sys.modules, "openai",
-                        _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
+
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
     hmm = ra.HMMInertia()
     ch = hmm.update_from_reflection("reflection")
     assert ch["skipped"] is False and ch["delta"][0][0] == 1
     assert np.allclose(np.array(ch["after"]).sum(axis=1), 1.0)
-    assert ch["after"] != ch["before"]         # P_t wurde geändert
+    assert ch["after"] != ch["before"]  # P_t wurde geändert
 
 
 def test_step_free_prototype(no_key):
     import numpy as np
+
     hmm = ra.HMMInertia()
     assert hmm.K == 4 and hmm.z == 0
     out = hmm.step_free_prototype()
@@ -148,7 +160,7 @@ def test_resolve_conflict_supersede():
 def test_simulate_lifecycle():
     out = ra.simulate_lifecycle()
     assert out["consolidation"]["hubs"] == ["hub_n2"]
-    assert out["forgetting"]["forgotten"] == ["isolated_n5"]   # 3 Bedingungen erfüllt
+    assert out["forgetting"]["forgotten"] == ["isolated_n5"]  # 3 Bedingungen erfüllt
     assert out["conflict"]["conflict"] is True
 
 
@@ -181,7 +193,7 @@ def test_write_semantic_und_update_index(tmp_path, monkeypatch):
     idx = ra.update_index(entry)
     ra.update_index({"hub": "hub_y", "neighbors": [], "summary": "s", "hub_score": 2.0})
     text = idx.read_text(encoding="utf-8")
-    assert "Hub hub_x" in text and "Hub hub_y" in text      # idempotent, beide Zeilen
+    assert "Hub hub_x" in text and "Hub hub_y" in text  # idempotent, beide Zeilen
 
 
 def test_run_once(tmp_path, monkeypatch):
@@ -191,11 +203,25 @@ def test_run_once(tmp_path, monkeypatch):
     monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
     monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
+    monkeypatch.setenv("RQGM_LOOP", "0")  # explizit aus (Debug)
     out = ra.run_once()
     assert out["hubs"] == ["hub"] and out["hmm_states"] == 4
-    assert out["distilled"][0]["hmm_skipped"] is True      # NOOP (LLM nicht erreichbar)
-    assert out["rqgm"] is None                             # opt-in, Standard aus
+    assert out["distilled"][0]["hmm_skipped"] is True  # NOOP (LLM nicht erreichbar)
+    assert out["rqgm"] is None  # RQGM_LOOP=0 -> aus
     assert (tmp_path / "structured" / "distilled-hub-hub.md").exists()
+
+
+def test_run_once_rqgm_default_an(tmp_path, monkeypatch):
+    graph = _graph()
+    monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
+    (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
+    monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
+    monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
+    monkeypatch.delenv("RQGM_LOOP", raising=False)  # Default = an
+    out = ra.run_once()
+    assert out["rqgm"] is not None
+    assert out["rqgm"]["report"]["current"] == "evaluator_v3"
 
 
 def test_run_once_mit_rqgm_loop(tmp_path, monkeypatch):
@@ -205,7 +231,7 @@ def test_run_once_mit_rqgm_loop(tmp_path, monkeypatch):
     monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
     monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
     monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    monkeypatch.setenv("RQGM_LOOP", "1")                   # §9.3 freigegeben
+    monkeypatch.setenv("RQGM_LOOP", "1")  # §9.3 freigegeben
     out = ra.run_once()
     assert out["rqgm"] is not None
     assert len(out["rqgm"]["trajectory"]) == 8
@@ -215,15 +241,18 @@ def test_run_once_mit_rqgm_loop(tmp_path, monkeypatch):
 # ------------------------------------------------------------- Dual-Path-Retrieval
 def test_embed_cos_und_retrieval(tmp_path, monkeypatch):
     import numpy as np
+
     assert float(np.linalg.norm(ra._embed("a b a"))) == pytest.approx(1.0)
     assert float(np.linalg.norm(ra._embed(""))) == 0.0
     assert ra._cos(ra._embed(""), ra._embed("x")) == 0.0
     assert ra._cos(ra._embed("a"), ra._embed("a")) == pytest.approx(1.0)
 
     graph = {
-        "nodes": {"n1": {"content": "HMM Traegheit Revise", "timestamp_days": 0.0},
-                  "n2": {"content": "voellig anderes Thema", "timestamp_days": 30.0},
-                  "n3": {"content": "Solver Bug Integer-Division", "timestamp_days": 0.0}},
+        "nodes": {
+            "n1": {"content": "HMM Traegheit Revise", "timestamp_days": 0.0},
+            "n2": {"content": "voellig anderes Thema", "timestamp_days": 30.0},
+            "n3": {"content": "Solver Bug Integer-Division", "timestamp_days": 0.0},
+        },
         "edges": {"n1": {"n2": 0.9}, "n3": {"n1": 0.5}},
     }
     dr = ra.DualPathRetrieval()
@@ -246,16 +275,14 @@ def test_simulate_3_reflections_noop_ohne_llm(no_key):
 
 
 def test_simulate_3_reflections_mit_llm(monkeypatch):
-    monkeypatch.setitem(sys.modules, "openai",
-                        _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
     out = ra.simulate_3_reflections()
     assert len(out) == 3 and all(r["skipped"] is False for r in out)
     assert out[0]["delta_row0"][0] == 1
 
 
 def test_lyapunov_check_und_simulate(no_key):
-    assert ra.lyapunov_check([1.0]) == {"E_dV": 0.0, "stable": True,
-                                        "gate": "ok", "note": "zu wenig Daten"}
+    assert ra.lyapunov_check([1.0]) == {"E_dV": 0.0, "stable": True, "gate": "ok", "note": "zu wenig Daten"}
     ly = ra.simulate_lyapunov()
     assert ly["stable"]["stable"] is True and ly["stable"]["gate"] == "ok"
     assert ly["unstable"]["stable"] is False and ly["unstable"]["gate"] == "ask"

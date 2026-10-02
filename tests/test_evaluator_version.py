@@ -6,11 +6,11 @@ Trefferquote. Offen 2: echte HF-Anker (CRAVE/IMO-GradingBench) über `load_ancho
 additiv (kein Loop-Import). Quellen: arXiv:2606.26294 §3.1/§3.5,
 kingkillery/src/rqgm/beta.py.
 """
-import math
 
-import pytest
+from types import SimpleNamespace
 
 import evaluator_version as ev
+import pytest
 
 
 def _anchor():
@@ -39,6 +39,7 @@ def test_best_belief_semantik_und_gegenprobe_scipy():
     assert ev.best_belief(10, 0) > ev.best_belief(5, 5) > ev.best_belief(0, 10)
     assert ev.posterior_mean(0, 0) == 0.5
     from scipy.special import betaincinv
+
     for s, f in [(0, 0), (4, 6), (10, 0), (3, 9)]:
         assert ev.best_belief(s, f) == pytest.approx(float(betaincinv(1 + s, 1 + f, 0.05)), abs=1e-6)
 
@@ -56,7 +57,7 @@ def test_anker_outcomes_accuracy_und_leer():
 
 def test_evaluator_version_kennzahlen():
     e = ev.EvaluatorVersion("", ev.make_grader(0.5), threshold=0.5)
-    assert e.anchor_outcomes == 0 and e.anchor_accuracy == 0.0   # vor register
+    assert e.anchor_outcomes == 0 and e.anchor_accuracy == 0.0  # vor register
     ev.RedQueen(_anchor()).register(e)
     assert e.anchor_outcomes == 10 and e.anchor_accuracy == 0.7
     assert 0.0 < e.best_belief() < 1.0
@@ -86,16 +87,16 @@ def test_checkpoint_verweigert_zu_kleinen_anker():
 
 def test_checkpoint_besser_ohne_approved_ist_pending():
     rq = ev.RedQueen(_anchor())
-    rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.0)))          # (S4,F6)
-    r = rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.7)))      # (S10,F0)
+    rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.0)))  # (S4,F6)
+    r = rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.7)))  # (S10,F0)
     assert r["promoted"] is False and r["pending"] is True and r["gate"] == "ask"
     assert r["candidate_best_belief"] > r["incumbent_best_belief"]
-    assert rq.current.version == "evaluator_v1"                          # §9
+    assert rq.current.version == "evaluator_v1"  # §9
 
 
 def test_checkpoint_besser_mit_approved_promoted_und_erasure():
     rq = ev.RedQueen(_anchor())
-    rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.0)))          # v1
+    rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.0)))  # v1
     rq.record("v1-item", 0.1)
     rq.record("gt", 0.0, evaluator_independent=True)
     r = rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.7)), approved=True)
@@ -106,7 +107,7 @@ def test_checkpoint_besser_mit_approved_promoted_und_erasure():
 
 def test_checkpoint_gleichstand_behaelt_incumbent():
     rq = ev.RedQueen(_anchor())
-    rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.5)))          # (S7,F3)
+    rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.5)))  # (S7,F3)
     # 0.45 akzeptiert dieselben Items wie 0.5 -> identische Bilanz -> Gleichstand
     r = rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.45)), approved=True)
     assert r["promoted"] is False and r["gate"] == "deny"
@@ -117,8 +118,7 @@ def test_checkpoint_gleichstand_behaelt_incumbent():
 def test_selective_erasure_behaelt_andere_evaluatoren():
     rq = ev.RedQueen(_anchor())
     rq.checkpoint(ev.EvaluatorVersion("", ev.make_grader(0.0)))
-    rq.archive.append({"evaluator": "evaluator_vX", "item": "fremd",
-                       "score": 0.0, "evaluator_independent": False})
+    rq.archive.append({"evaluator": "evaluator_vX", "item": "fremd", "score": 0.0, "evaluator_independent": False})
     rq.record("v1-item", 0.5)
     rq.record("gt", 0.0, evaluator_independent=True)
     assert rq.selective_erasure("evaluator_v1") == 1
@@ -152,14 +152,34 @@ class _FakeDS(list):
 
 def _fake_loader_grading(ds_id, split):
     assert ds_id == ev.IMO_GRADINGBENCH_ID and split == "train"
-    return _FakeDS([{"Grading ID": "GB-1", "Points": 7, "Response": "x" * 100},
-                    {"Grading ID": "GB-2", "Points": 0, "Response": "x" * 10}])
+    return _FakeDS(
+        [
+            {
+                "Grading ID": "GB-1",
+                "Points": 7,
+                "Response": "x" * 100,
+                "Problem": "P1",
+                "Grading guidelines": "full credit",
+            },
+            {
+                "Grading ID": "GB-2",
+                "Points": 0,
+                "Response": "x" * 10,
+                "Problem": "P2",
+                "Grading guidelines": "no credit",
+            },
+        ]
+    )
 
 
 def _fake_loader_coding(ds_id, split):
     assert ds_id == ev.CRAVE_ID and split == "test"
-    return _FakeDS([{"pr_number": 1, "label": "APPROVE", "patch": "x" * 50},
-                    {"pr_number": 2, "label": "REQUEST_CHANGES", "patch": "x"}])
+    return _FakeDS(
+        [
+            {"pr_number": 1, "label": "APPROVE", "patch": "x" * 50, "description": "d1"},
+            {"pr_number": 2, "label": "REQUEST_CHANGES", "patch": "x", "description": "d2"},
+        ]
+    )
 
 
 def test_load_anchor_grading_und_coding():
@@ -178,6 +198,7 @@ def test_load_anchor_unbekannter_typ():
 
 def test_load_anchor_nutzt_datasets_loader(monkeypatch):
     import datasets
+
     monkeypatch.setattr(datasets, "load_dataset", _fake_loader_grading)
     a = ev.load_anchor("grading", limit=1)
     assert a.n() == 1
@@ -203,8 +224,7 @@ def test_simulate_real_anchor_misst_eigene_zahl():
     out = ev.simulate_real_anchor("grading", load_dataset_fn=_fake_loader_grading)
     assert out["anchor"] == f"HF:{ev.IMO_GRADINGBENCH_ID}" and out["n_items"] == 2
     assert out["final_accuracy"] is not None
-    assert out["measured_gain"] == pytest.approx(
-        out["final_accuracy"] - out["baseline_accuracy_all_accept"])
+    assert out["measured_gain"] == pytest.approx(out["final_accuracy"] - out["baseline_accuracy_all_accept"])
     assert "eigene Messung" in out["note"]
 
 
@@ -212,7 +232,7 @@ def test_simulate_real_anchor_ohne_items():
     leer = _FakeDS([])
     out = ev.simulate_real_anchor("grading", load_dataset_fn=lambda i, split: leer)
     assert out["n_items"] == 0 and out["final_accuracy"] == 0.0
-    assert out["measured_gain"] == 0.0          # leerer Anker: kein Gewinn
+    assert out["measured_gain"] == 0.0  # leerer Anker: kein Gewinn
 
 
 def test_power_of_two_checkpoints_rho2():
@@ -243,11 +263,12 @@ def test_betacf_und_ppf_ohne_abbruch():
 # ------------------------------------------------------- Offen 3: Epochen-Loop
 def test_redqueenloop_epochen_und_checkpoints():
     loop = ev.RedQueenLoop(_anchor(), checkpoints={1, 3})
-    out = loop.run([ev.EvaluatorVersion("", ev.make_grader(0.0)),
-                    ev.EvaluatorVersion("", ev.make_grader(0.7))], approved=True)
+    out = loop.run(
+        [ev.EvaluatorVersion("", ev.make_grader(0.0)), ev.EvaluatorVersion("", ev.make_grader(0.7))], approved=True
+    )
     assert [e["epoch"] for e in out["trajectory"]] == [1, 2, 3]
     assert out["trajectory"][0]["checkpoint"]["version"] == "evaluator_v1"
-    assert out["trajectory"][1]["evaluator"] == "evaluator_v1"       # Epoche 2 fix
+    assert out["trajectory"][1]["evaluator"] == "evaluator_v1"  # Epoche 2 fix
     assert "checkpoint" not in out["trajectory"][1]
     assert out["trajectory"][2]["checkpoint"]["version"] == "evaluator_v2"
     assert out["report"]["current"] == "evaluator_v2"
@@ -255,15 +276,16 @@ def test_redqueenloop_epochen_und_checkpoints():
 
 def test_redqueenloop_approved_false_bleibt_pending():
     loop = ev.RedQueenLoop(_anchor(), checkpoints={1, 2})
-    out = loop.run([ev.EvaluatorVersion("", ev.make_grader(0.0)),
-                    ev.EvaluatorVersion("", ev.make_grader(0.7))], approved=False)
+    out = loop.run(
+        [ev.EvaluatorVersion("", ev.make_grader(0.0)), ev.EvaluatorVersion("", ev.make_grader(0.7))], approved=False
+    )
     cp2 = out["trajectory"][1]["checkpoint"]
     assert cp2["pending"] is True and cp2["promoted"] is False
     assert out["report"]["current"] == "evaluator_v1"
 
 
 def test_redqueenloop_ohne_kandidaten_und_defaults():
-    loop = ev.RedQueenLoop(_anchor())                # checkpoints=None -> {1,2,4,8}
+    loop = ev.RedQueenLoop(_anchor())  # checkpoints=None -> {1,2,4,8}
     assert loop.last_epoch() == 8
     out = loop.run([ev.EvaluatorVersion("", ev.make_grader(0.0))])
     assert len(out["trajectory"]) == 8
@@ -271,3 +293,91 @@ def test_redqueenloop_ohne_kandidaten_und_defaults():
     leer = ev.RedQueenLoop(_anchor(), checkpoints=set())
     assert leer.last_epoch() == 1
     assert leer.run([])["trajectory"][0]["evaluator"] is None
+
+
+# ------------------------------------------------- Offen 3+: LLM-Grader (fail-soft)
+class _FakeJudge:
+    def __init__(self, content=None, raises=False, reasoning=None):
+        self._content = content
+        self._raises = raises
+        self._reasoning = reasoning
+        self.calls = []
+
+        class _Comp:
+            def __init__(self, outer):
+                self.outer = outer
+
+            def create(self, **kw):
+                self.outer.calls.append(kw)
+                if self.outer._raises:
+                    raise RuntimeError("API down")
+                msg = SimpleNamespace(content=self.outer._content)
+                if self.outer._reasoning is not None:
+                    msg.reasoning_content = self.outer._reasoning
+                return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
+
+        self.chat = SimpleNamespace(completions=_Comp(self))
+
+
+def _rule_grader(it):
+    return it["feature"] >= 50
+
+
+def test_llm_grader_gueltiges_json_und_parameter():
+    judge = _FakeJudge(content='{"passed": true, "score": 1.0, "reason": "ok"}')
+    g = ev.make_llm_grader(_rule_grader, client=judge)
+    assert g({"id": "x", "feature": 0.0, "text": "t", "rubric": "r"}) is True
+    kw = judge.calls[0]
+    assert kw["temperature"] == 0.0 and kw["max_tokens"] == ev.GRADER_MAX_TOKENS
+    assert kw["response_format"] == {"type": "json_object"}
+    assert "PROBLEM:" in kw["messages"][0]["content"]
+
+
+def test_llm_grader_ungueltiges_schema_faellt_zurueck():
+    log = []
+    judge = _FakeJudge(content='{"passed": "ja"}')  # score fehlt, Typ falsch
+    g = ev.make_llm_grader(_rule_grader, client=judge, log=log)
+    assert g({"id": "GB-9", "feature": 100.0, "text": "", "rubric": ""}) is True
+    assert log and log[0]["fallback"] == "rule_grader" and log[0]["item"] == "GB-9"
+
+
+def test_llm_grader_api_fehler_ohne_log():
+    judge = _FakeJudge(raises=True)
+    g = ev.make_llm_grader(_rule_grader, client=judge, log=None)
+    assert g({"id": "y", "feature": 0.0, "text": "", "rubric": ""}) is False
+
+
+def test_llm_grader_default_client(monkeypatch):
+    judge = _FakeJudge(content='{"passed": false, "score": 0.0, "reason": "no"}')
+    monkeypatch.setattr(ev, "_default_client", lambda: judge)
+    g = ev.make_llm_grader(_rule_grader)  # client=None -> default
+    assert g({"id": "z", "feature": 999.0, "text": "", "rubric": ""}) is False
+
+
+def test_simulate_real_anchor_mit_llm():
+    judge = _FakeJudge(content='{"passed": true, "score": 0.9, "reason": "ok"}')
+    log = []
+    out = ev.simulate_real_anchor(
+        "grading", load_dataset_fn=_fake_loader_grading, use_llm=True, client=judge, grader_log=log
+    )
+    assert out["grader"] == "llm+rule-fallback"
+    assert out["report"]["current"] is not None
+    assert "+ LLM-Judge (fail-soft)" in out["note"]
+
+
+def test_default_client_konstruiert_ohne_netz():
+    """Deckt den echten _default_client()-Pfad ab (kein API-Call)."""
+    client = ev._default_client()
+    assert hasattr(client, "chat")
+
+
+def test_llm_grader_reasoning_content_fallback():
+    """Reasoning-Modelle liefern content leer -> reasoning_content lesen."""
+    judge = _FakeJudge(content=None, reasoning='{"passed": true, "score": 0.8, "reason": "r"}')
+    g = ev.make_llm_grader(_rule_grader, client=judge)
+    assert g({"id": "r1", "feature": 0.0, "text": "", "rubric": ""}) is True
+
+
+def test_extract_json_mit_und_ohne_objekt():
+    assert ev._extract_json('Vorrede {"passed": true, "score": 1} Nachrede') == '{"passed": true, "score": 1}'
+    assert ev._extract_json("kein json hier") == "kein json hier"

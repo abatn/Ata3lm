@@ -3,6 +3,7 @@
 Rein lokal (Dateisystem + reine Funktionen), kein Netzwerk, keine Schreibweise
 außer in temp-losen Assertions.
 """
+
 from pathlib import Path
 
 import bias_monitor as bm
@@ -39,7 +40,7 @@ def test_pii_wird_erkannt_und_entfernt():
     out = pii.minimize(text)
     assert "max.mustermann@example.com" not in out
     assert "DE89370400440532013000" not in out
-    assert "Kontakt:" in out          # übriger Text bleibt (sparse)
+    assert "Kontakt:" in out  # übriger Text bleibt (sparse)
     assert pii.anonymize(text) == out  # Alias löscht ebenfalls
 
 

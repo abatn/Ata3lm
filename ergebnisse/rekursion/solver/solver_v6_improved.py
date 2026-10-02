@@ -5,6 +5,7 @@ Aufgabe: Berechne den Median einer Liste von Zahlen.
 Verbesserung: sortiert und bildet bei gerader Laenge den Mittelwert.
 """
 
+
 def berechne_median(liste: list):
     """
     Berechne den Median einer Liste von Zahlen.
@@ -26,4 +27,4 @@ if __name__ == "__main__":
     test = [3, 1, 4, 1, 5]
     print(f"Eingabe: {test}")
     print(f"Ausgabe: {berechne_median(test)}")
-    print(f"Erwartet: 3")
+    print("Erwartet: 3")

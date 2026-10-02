@@ -1,0 +1,16 @@
+# Ruff-Konfiguration (Quelle: https://docs.astral.sh/ruff/configuration/).
+# Bewusst schlanke Auswahl (E/F/W = Pycodestyle/Pyflakes, I = Import-Sortierung);
+# E501 (Zeilenlänge) übernimmt der Formatter.
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+# Markdown ausgeschlossen: Ruff würde Python-Codeblöcke in Doku/Version-
+# Snapshots/Validierungsset umformatieren (unveränderliche Artefakte).
+exclude = [".git", ".venv", "node_modules", "__pycache__", ".pytest_cache", "*.md", "**/versions/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"

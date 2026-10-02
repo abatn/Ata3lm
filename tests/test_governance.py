@@ -2,6 +2,7 @@
 
 Rein lokal: `data/memory/approval.py` + `AGENTS.md` werden gelesen/ausgeführt.
 """
+
 from pathlib import Path
 
 import approval
@@ -13,8 +14,7 @@ AGENTS = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
 # ------------------------------------------------- Zwei-Personen-Flow §9.3
 def test_flow_pending_first_second_approved():
     a = approval.TwoPersonApproval(subject="CI-Test")
-    assert a.status() == {"subject": "CI-Test", "state": "pending",
-                          "approvers": [], "count": 0}
+    assert a.status() == {"subject": "CI-Test", "state": "pending", "approvers": [], "count": 0}
     assert a.approve("Batnini")["state"] == "first_approved"
     assert a.approve("Pruefer2")["state"] == "second_approved"
     assert a.finalize()["ok"] is True

@@ -14,6 +14,7 @@ Quellen (verifiziert 2026-10-01, HTTP 200):
 Lab-Prinzip: JSD + Drift-Index + Lyapunov-Damping = **belegt** (WhyLab/Agent-Drift);
 die konkrete Entropie-Gewichtung, `w_max` und τ sind **Auftrag**.
 """
+
 from __future__ import annotations
 
 import math
@@ -77,9 +78,10 @@ def capped_simplex(w: dict, w_max: float = 0.6, iters: int = 100) -> dict:
 @dataclass
 class BiasDriftMonitor:
     """Trigger: Drift-Index > τ → Flag + Human-Gate."""
+
     baseline: dict
-    tau: float = 0.10            # Auftrag
-    w_max: float = 0.6           # Auftrag (Capped Simplex)
+    tau: float = 0.10  # Auftrag
+    w_max: float = 0.6  # Auftrag (Capped Simplex)
     history: list = field(default_factory=list)
     _prev: Optional[dict] = None
 
@@ -95,54 +97,70 @@ class BiasDriftMonitor:
         signals = {k: abs(cur.get(k, 0.0) - ref.get(k, 0.0)) for k in keys}
         # Entropie-Gewichte: w_k ∝ Entropie-Beitrag von k in der Referenz
         contrib = {k: (-ref[k] * math.log2(ref[k]) if ref.get(k, 0.0) > 0 else 0.0) for k in keys}
-        w = capped_simplex(contrib, self.w_max)          # w_max = 0.6
+        w = capped_simplex(contrib, self.w_max)  # w_max = 0.6
         weighted_shift = sum(w[k] * signals[k] for k in keys)
-        DI = jsd(cur, ref)                                # JSD-basiert (ersetzt TV)
-        return {"DI": round(DI, 4), "jsd": round(DI, 4),
-                "weighted_shift": round(weighted_shift, 4),
-                "signals": {k: round(v, 4) for k, v in signals.items()},
-                "weights": {k: round(v, 4) for k, v in w.items()}}
+        DI = jsd(cur, ref)  # JSD-basiert (ersetzt TV)
+        return {
+            "DI": round(DI, 4),
+            "jsd": round(DI, 4),
+            "weighted_shift": round(weighted_shift, 4),
+            "signals": {k: round(v, 4) for k, v in signals.items()},
+            "weights": {k: round(v, 4) for k, v in w.items()},
+        }
 
     def observe(self, distribution: dict, step: Optional[int] = None) -> dict:
         d = _norm(distribution)
         di_base = self.drift_index(d, self.baseline)
         di_step = self.drift_index(d, self._prev) if self._prev else {"DI": 0.0}
-        metric = di_base["DI"]                      # DI = JSD
+        metric = di_base["DI"]  # DI = JSD
         flagged = metric > self.tau
-        damping = max(0.0, 1.0 - metric * 10)       # Lyapunov-bounded adaptive damping (Auftrag)
-        rec = {"step": step, "distribution": {k: round(v, 3) for k, v in d.items()},
-               "DI": di_base["DI"], "jsd": di_base["jsd"],
-               "weighted_shift": di_base["weighted_shift"], "step_DI": di_step["DI"],
-               "damping": round(damping, 4),
-               "flagged": flagged, "gate": "ask" if flagged else "ok"}
+        damping = max(0.0, 1.0 - metric * 10)  # Lyapunov-bounded adaptive damping (Auftrag)
+        rec = {
+            "step": step,
+            "distribution": {k: round(v, 3) for k, v in d.items()},
+            "DI": di_base["DI"],
+            "jsd": di_base["jsd"],
+            "weighted_shift": di_base["weighted_shift"],
+            "step_DI": di_step["DI"],
+            "damping": round(damping, 4),
+            "flagged": flagged,
+            "gate": "ask" if flagged else "ok",
+        }
         self.history.append(rec)
         self._prev = d
         return rec
 
     def report(self) -> dict:
         flagged = [h for h in self.history if h["flagged"]]
-        return {"steps": len(self.history), "tau": self.tau, "w_max": self.w_max,
-                "flagged_steps": [h["step"] for h in flagged],
-                "max_DI": max((h["DI"] for h in self.history), default=0.0),
-                "max_jsd": max((h["jsd"] for h in self.history), default=0.0)}
+        return {
+            "steps": len(self.history),
+            "tau": self.tau,
+            "w_max": self.w_max,
+            "flagged_steps": [h["step"] for h in flagged],
+            "max_DI": max((h["DI"] for h in self.history), default=0.0),
+            "max_jsd": max((h["jsd"] for h in self.history), default=0.0),
+        }
 
 
 def _demo() -> None:
     baseline = {"approve": 0.5, "revise": 0.3, "reject": 0.2}
-    mon = BiasDriftMonitor(baseline, tau=0.02, w_max=0.6)   # tau für JSD-Bereich (Auftrag)
+    mon = BiasDriftMonitor(baseline, tau=0.02, w_max=0.6)  # tau für JSD-Bereich (Auftrag)
 
     print("=== JSD-basierter Drift-Index: 10 self_update-Aufrufe ===")
     print(f"  Baseline: {baseline} | tau={mon.tau} | w_max={mon.w_max}")
     for i in range(1, 11):
         shift = 0.03 * i
-        dist = {"approve": 0.5 + shift, "revise": 0.3 - shift * 0.6,
-                "reject": 0.2 - shift * 0.4}
+        dist = {"approve": 0.5 + shift, "revise": 0.3 - shift * 0.6, "reject": 0.2 - shift * 0.4}
         r = mon.observe(dist, step=i)
-        print(f"  self_update {i:2}: DI(JSD)={r['DI']:.4f} weighted={r['weighted_shift']:.4f} "
-              f"damping={r['damping']:.3f} -> {r['gate']}")
+        print(
+            f"  self_update {i:2}: DI(JSD)={r['DI']:.4f} weighted={r['weighted_shift']:.4f} "
+            f"damping={r['damping']:.3f} -> {r['gate']}"
+        )
     print("\n  Report:", mon.report())
-    print("\n  Beispiel Signale/Gewichte (capped simplex w_max=0.6):",
-          mon.drift_index({"approve": 0.8, "revise": 0.1, "reject": 0.1}, baseline))
+    print(
+        "\n  Beispiel Signale/Gewichte (capped simplex w_max=0.6):",
+        mon.drift_index({"approve": 0.8, "revise": 0.1, "reject": 0.1}, baseline),
+    )
 
 
 if __name__ == "__main__":

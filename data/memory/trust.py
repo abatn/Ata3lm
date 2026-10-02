@@ -16,6 +16,7 @@ Quellen (verifiziert 2026-10-01, HTTP 200):
 
 Lab-Prinzip: Mechanik = aus den Quellen; Schwellen = Auftrag.
 """
+
 from __future__ import annotations
 
 import re
@@ -26,10 +27,10 @@ from dataclasses import dataclass, field
 # =====================================================================
 # Reihenfolge = Priorität: spezifische Muster (IBAN/Karte) VOR dem greedy phone.
 PII_PATTERNS = {
-    "email":       re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
-    "iban":        re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b"),
+    "email": re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
+    "iban": re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b"),
     "credit_card": re.compile(r"\b(?:\d[ -]?){13,16}\b"),
-    "phone":       re.compile(r"\+?\d[\d\s().\-]{7,}\d"),
+    "phone": re.compile(r"\+?\d[\d\s().\-]{7,}\d"),
 }
 
 
@@ -66,6 +67,7 @@ class PoisoningGuard:
     verifiziert-Flag (Consensus/Prüfung, A-MemGuard). Alles andere → rejected
     (MPBench: „no write-path validation" ist die Lücke).
     """
+
     trusted_sources: set = field(default_factory=lambda: {"user", "tool:verified", "system"})
 
     def admit(self, item: dict) -> dict:
@@ -88,15 +90,20 @@ class BiasCheck:
     DIB/DMT (arXiv:2602.01558): „Periodic Bias Evaluation" gegen Benchmark-
     Ground-Truth; Schwellwert tau = Auftrag.
     """
-    checkpoint: float          # Ground-Truth-Score (Referenz)
-    tau: float = 0.10          # Auftrag: max. tolerierte Abweichung
+
+    checkpoint: float  # Ground-Truth-Score (Referenz)
+    tau: float = 0.10  # Auftrag: max. tolerierte Abweichung
 
     def check(self, current: float) -> dict:
         drift = current - self.checkpoint
         flagged = abs(drift) > self.tau
-        return {"current": current, "checkpoint": self.checkpoint,
-                "drift": round(drift, 4), "flagged": flagged,
-                "status": "flag" if flagged else "ok"}
+        return {
+            "current": current,
+            "checkpoint": self.checkpoint,
+            "drift": round(drift, 4),
+            "flagged": flagged,
+            "status": "flag" if flagged else "ok",
+        }
 
 
 # =====================================================================
@@ -125,7 +132,7 @@ def _demo() -> None:
         print(f"  {item['source']:14} verified={item['verified']!s:5} -> admitted={r['admitted']} | {r['reason']}")
 
     print("\n=== [3] Bias: periodischer Check gegen Ground-Truth (DIB/DMT) ===")
-    bc = BiasCheck(checkpoint=0.05, tau=0.10)     # Referenz: niedriger Bias
+    bc = BiasCheck(checkpoint=0.05, tau=0.10)  # Referenz: niedriger Bias
     for cur in [0.06, 0.09, 0.20]:
         print(f"  current={cur} ->", bc.check(cur))
 

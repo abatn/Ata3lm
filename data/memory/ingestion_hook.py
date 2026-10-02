@@ -29,6 +29,7 @@ Quellen (verifiziert 2026-10-01, HTTP 200):
 Lab-Prinzip: Keine Erfindungen. Mechanik = aus den Quellen; konkrete Schwellen
 sind Projekt-Vorgabe (Auftrag) und als solche markiert.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -50,16 +51,16 @@ MIN_LEN = 12
 MAX_LEN = 8000
 ALLOWED_TYPES = {"prompt", "tool_result", "transcript", "note"}
 MIN_SOURCE_TRUST = 0.5
-DEDUP_WINDOW_S = 300                 # agentmemory: SHA-256, 5-min-Fenster
+DEDUP_WINDOW_S = 300  # agentmemory: SHA-256, 5-min-Fenster
 
 # HeLa-Mem Adaptive Forgetting / Hub (arXiv:2604.16839). Werte = Auftrag,
 # ausser τ/η/λ (belegt aus HeLa-Mem).
-DELTA_HUB = 1.5                      # Auftrag (Hub-Detection)
-DELTA_PRUNE = 0.5                    # Auftrag (Adaptive-Forgetting-Bedingung 1)
-DELTA_AGE_DAYS = 60                  # Auftrag (Bedingung 2); HeLa-Mem τ=60
-TAU_DAYS = 60                        # belegt (HeLa-Mem τ=60)
-ETA = 0.02                           # belegt (HeLa-Mem η=0.02)
-LAMBDA = 0.995                       # belegt (HeLa-Mem λ=0.995)
+DELTA_HUB = 1.5  # Auftrag (Hub-Detection)
+DELTA_PRUNE = 0.5  # Auftrag (Adaptive-Forgetting-Bedingung 1)
+DELTA_AGE_DAYS = 60  # Auftrag (Bedingung 2); HeLa-Mem τ=60
+TAU_DAYS = 60  # belegt (HeLa-Mem τ=60)
+ETA = 0.02  # belegt (HeLa-Mem η=0.02)
+LAMBDA = 0.995  # belegt (HeLa-Mem λ=0.995)
 
 
 def _now_iso() -> str:
@@ -84,7 +85,9 @@ SECRET_PATTERNS = [
     re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
     re.compile(r"Bearer\s+[A-Za-z0-9._\-+/=]{20,}", re.I),
     re.compile(r"(?:postgres(?:ql)?|mysql|redis|mongodb(?:\+srv)?)://[^\s'\"]+", re.I),
-    re.compile(r"-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----.*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----", re.DOTALL),
+    re.compile(
+        r"-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----.*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----", re.DOTALL
+    ),
 ]
 
 
@@ -119,9 +122,14 @@ class GateDecision:
 
 
 class EncodingGate:
-    def __init__(self, min_len: int = MIN_LEN, max_len: int = MAX_LEN,
-                 allowed: Optional[set] = None, min_trust: float = MIN_SOURCE_TRUST,
-                 privacy: Optional[PrivacyFilter] = None):
+    def __init__(
+        self,
+        min_len: int = MIN_LEN,
+        max_len: int = MAX_LEN,
+        allowed: Optional[set] = None,
+        min_trust: float = MIN_SOURCE_TRUST,
+        privacy: Optional[PrivacyFilter] = None,
+    ):
         self.min_len = min_len
         self.max_len = max_len
         self.allowed = allowed or set(ALLOWED_TYPES)
@@ -138,7 +146,7 @@ class EncodingGate:
             return GateDecision(False, f"zu lang ({n} > {self.max_len})")
         if source_trust < self.min_trust:
             return GateDecision(False, f"Quellvertrauen {source_trust} < {self.min_trust}")
-        clean, why = self.privacy.scan(text)          # 4. Prüfung: Privacy (agentmemory)
+        clean, why = self.privacy.scan(text)  # 4. Prüfung: Privacy (agentmemory)
         if not clean:
             return GateDecision(False, f"Privacy: {why}")
         return GateDecision(True, "ok")
@@ -150,10 +158,15 @@ class EncodingGate:
 #    WENN installiert; sonst regel-/wörterbuchbasiert (Auftrag = Approximation).
 # =====================================================================
 ENTITY_RULES: list[tuple[str, re.Pattern]] = [
-    ("Solver",  re.compile(r"\b(berechne_[a-zäöü]+|finde_[a-zäöü]+)\b")),
-    ("Concept", re.compile(r"\b(Knowledge-Agent|Fast Write Routing|Hebbian Distillation|Adaptive Forgetting|Spreading Activation|SHACL|GraphRAG|GLiNER|Trellis|TrueMemory|agentmemory)\b")),
-    ("Phase",   re.compile(r"\b(Konstrukt|Akt|Observe|Compare|Revise)\b")),
-    ("Stage",   re.compile(r"\b(Erfahrung|Wissen|Gedächtnis|Kognition|Denken|Nicht-Kognition|Handeln|Wissen\+)\b")),
+    ("Solver", re.compile(r"\b(berechne_[a-zäöü]+|finde_[a-zäöü]+)\b")),
+    (
+        "Concept",
+        re.compile(
+            r"\b(Knowledge-Agent|Fast Write Routing|Hebbian Distillation|Adaptive Forgetting|Spreading Activation|SHACL|GraphRAG|GLiNER|Trellis|TrueMemory|agentmemory)\b"
+        ),
+    ),
+    ("Phase", re.compile(r"\b(Konstrukt|Akt|Observe|Compare|Revise)\b")),
+    ("Stage", re.compile(r"\b(Erfahrung|Wissen|Gedächtnis|Kognition|Denken|Nicht-Kognition|Handeln|Wissen\+)\b")),
 ]
 
 _GLINER = None  # lazy geladen
@@ -163,6 +176,7 @@ def gliner_available() -> bool:
     """True, wenn echtes GLiNER importierbar ist."""
     try:
         import gliner  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -173,13 +187,12 @@ def _get_gliner():
     global _GLINER
     if _GLINER is None:
         from gliner import GLiNER  # type: ignore
-        _GLINER = GLiNER.from_pretrained(
-            os.environ.get("GLINER_MODEL", "urchade/gliner_multi-v2.1"))
+
+        _GLINER = GLiNER.from_pretrained(os.environ.get("GLINER_MODEL", "urchade/gliner_multi-v2.1"))
     return _GLINER
 
 
-def resolve_entities(text: str, backend: Optional[str] = None,
-                     labels: Optional[list] = None) -> list[dict[str, Any]]:
+def resolve_entities(text: str, backend: Optional[str] = None, labels: Optional[list] = None) -> list[dict[str, Any]]:
     """Entity-Resolution. backend = 'auto' | 'gliner' | 'rules'.
 
     - 'auto'/'gliner' + GLiNER installiert → echtes GLiNER (GraphRAG-SDK Step 1).
@@ -193,25 +206,35 @@ def resolve_entities(text: str, backend: Optional[str] = None,
         # Sätzen trifft; 0.4 → 2/2 ohne Rauschen (s. ergebnisse/mcp-check-gliner.md).
         threshold = float(os.environ.get("GLINER_THRESHOLD", "0.4"))
         ents = model.predict_entities(text or "", labels, threshold=threshold)
-        out = [{"entity_type": e["label"], "span": e["text"], "start": e["start"],
-                "end": e["end"], "confidence": round(float(e["score"]), 4),
-                "backend": "gliner"} for e in ents]
+        out = [
+            {
+                "entity_type": e["label"],
+                "span": e["text"],
+                "start": e["start"],
+                "end": e["end"],
+                "confidence": round(float(e["score"]), 4),
+                "backend": "gliner",
+            }
+            for e in ents
+        ]
         out.sort(key=lambda e: (e["start"], e["entity_type"]))
         return out
-    if backend == "gliner":          # explizit angefordert, aber nicht verfügbar
+    if backend == "gliner":  # explizit angefordert, aber nicht verfügbar
         return []
     # --- regelbasiert (Auftrag: Approximation des GLiNER-Prinzips) ---
     found: list[dict[str, Any]] = []
     for etype, pat in ENTITY_RULES:
         for m in pat.finditer(text or ""):
-            found.append({
-                "entity_type": etype,
-                "span": m.group(0),
-                "start": m.start(),
-                "end": m.end(),
-                "confidence": 1.0,          # exakter Wörterbuch-Treffer (Auftrag)
-                "backend": "rules",
-            })
+            found.append(
+                {
+                    "entity_type": etype,
+                    "span": m.group(0),
+                    "start": m.start(),
+                    "end": m.end(),
+                    "confidence": 1.0,  # exakter Wörterbuch-Treffer (Auftrag)
+                    "backend": "rules",
+                }
+            )
     found.sort(key=lambda e: (e["start"], e["entity_type"]))
     return found
 
@@ -219,8 +242,8 @@ def resolve_entities(text: str, backend: Optional[str] = None,
 # =====================================================================
 # 3. Graph-Update mit Konsistenzprüfung (GraphRAG / Neo4j MKG).
 # =====================================================================
-FUNCTIONAL = {"hasEnd", "hasBeginning", "gueltig_von"}     # Auftrag: 1 Objekt pro Subjekt
-ASYMMETRIC = {"supersedes", "before", "produces"}          # Auftrag: nicht symmetrisch
+FUNCTIONAL = {"hasEnd", "hasBeginning", "gueltig_von"}  # Auftrag: 1 Objekt pro Subjekt
+ASYMMETRIC = {"supersedes", "before", "produces"}  # Auftrag: nicht symmetrisch
 
 
 class MemoryGraph:
@@ -235,18 +258,18 @@ class MemoryGraph:
         return sum(w for (s, p, o), w in self.edges.items() if s == name or o == name)
 
 
-def update_graph(graph: MemoryGraph, entities: list[dict], relations: list[tuple],
-                 weights: Optional[dict] = None) -> dict[str, Any]:
+def update_graph(
+    graph: MemoryGraph, entities: list[dict], relations: list[tuple], weights: Optional[dict] = None
+) -> dict[str, Any]:
     """Schreibt Knoten/Kanten mit Dedup + Konfliktprüfung. Rückgabe: Graph-Delta."""
     weights = weights or {}
-    delta: dict[str, Any] = {"added_nodes": [], "added_edges": [],
-                             "deduped": [], "rejected": []}
+    delta: dict[str, Any] = {"added_nodes": [], "added_edges": [], "deduped": [], "rejected": []}
     for e in entities:
         name = e["span"] if isinstance(e, dict) else str(e)
         if name not in graph.nodes:
             graph.add_node(name)
             delta["added_nodes"].append(name)
-    for (s, p, o) in relations:
+    for s, p, o in relations:
         key = (s, p, o)
         if key in graph.edges:
             delta["deduped"].append(key)
@@ -279,14 +302,16 @@ def consolidate(graph: MemoryGraph, now_ts: float) -> dict[str, Any]:
         weight = graph.edge_weight(name)
         inactive_days = (now_ts - float(meta.get("last_access", now_ts))) / 86400.0
         recent = int(meta.get("recent_access", 0))
-        if weight >= DELTA_HUB:                                   # δ_hub (Hub-Detection)
-            report["hubs"].append({"node": name, "weight": round(weight, 3),
-                                   "action": "hebbian-distillation"})
-        elif (weight < DELTA_PRUNE                              # δ_prune (Bedingung 1)
-              and inactive_days > DELTA_AGE_DAYS               # Bedingung 2
-              and recent == 0):                                # Bedingung 3
-            report["forgotten"].append({"node": name, "weight": round(weight, 3),
-                                        "inactive_days": round(inactive_days, 1)})
+        if weight >= DELTA_HUB:  # δ_hub (Hub-Detection)
+            report["hubs"].append({"node": name, "weight": round(weight, 3), "action": "hebbian-distillation"})
+        elif (
+            weight < DELTA_PRUNE  # δ_prune (Bedingung 1)
+            and inactive_days > DELTA_AGE_DAYS  # Bedingung 2
+            and recent == 0
+        ):  # Bedingung 3
+            report["forgotten"].append(
+                {"node": name, "weight": round(weight, 3), "inactive_days": round(inactive_days, 1)}
+            )
         else:
             report["kept"].append({"node": name, "weight": round(weight, 3)})
     return report
@@ -307,14 +332,14 @@ class EnrichmentQueue:
             item = await self.queue.get()
             try:
                 text = item.get("text", "")
-                entities = resolve_entities(text)                 # Stufe 1
-                delta = update_graph(self.graph, entities, [])    # Stufe 2
+                entities = resolve_entities(text)  # Stufe 1
+                delta = update_graph(self.graph, entities, [])  # Stufe 2
                 item["steps"] = ["entity-resolution", "graph-update", "consolidation"]
                 item["entities"] = entities
                 item["graph_delta"] = delta
                 item["enriched_at"] = _now_iso()
                 self.processed.append(item)
-            except Exception:                                     # fail-soft
+            except Exception:  # fail-soft
                 pass
             finally:
                 self.queue.task_done()
@@ -339,9 +364,9 @@ class Record:
 
 
 class IngestionHook:
-    def __init__(self, gate: Optional[EncodingGate] = None,
-                 queue: Optional[EnrichmentQueue] = None,
-                 log_path: Path = DEFAULT_LOG):
+    def __init__(
+        self, gate: Optional[EncodingGate] = None, queue: Optional[EnrichmentQueue] = None, log_path: Path = DEFAULT_LOG
+    ):
         self.gate = gate or EncodingGate()
         self.queue = queue or EnrichmentQueue(log_path)
         self.log_path = log_path
@@ -365,31 +390,46 @@ class IngestionHook:
 
     async def on_session_start(self, session_id: str, source_type: str = "note") -> Optional[Record]:
         try:
-            rec = Record(session_id, _now_iso(), source_type, "", "session_start",
-                         tags=self._tags(session_id, source_type))
+            rec = Record(
+                session_id, _now_iso(), source_type, "", "session_start", tags=self._tags(session_id, source_type)
+            )
             self._append(rec)
             return rec
         except Exception:
             return None
 
-    async def on_user_prompt_submit(self, session_id: str, text: str,
-                                    source_type: str = "prompt",
-                                    source_trust: float = 1.0) -> Optional[Record]:
+    async def on_user_prompt_submit(
+        self, session_id: str, text: str, source_type: str = "prompt", source_trust: float = 1.0
+    ) -> Optional[Record]:
         try:
             h = _sha256(text or "")
             if self._is_duplicate(h):
-                rec = Record(session_id, _now_iso(), source_type, h, "rejected",
-                             "Duplikat (SHA-256, 5-min-Fenster)", self._tags(session_id, source_type))
+                rec = Record(
+                    session_id,
+                    _now_iso(),
+                    source_type,
+                    h,
+                    "rejected",
+                    "Duplikat (SHA-256, 5-min-Fenster)",
+                    self._tags(session_id, source_type),
+                )
                 self._append(rec)
                 return rec
             d = self.gate.check(text, source_type, source_trust)
-            rec = Record(session_id, _now_iso(), source_type, h,
-                         "accepted" if d.accepted else "rejected", d.reason,
-                         self._tags(session_id, source_type))
+            rec = Record(
+                session_id,
+                _now_iso(),
+                source_type,
+                h,
+                "accepted" if d.accepted else "rejected",
+                d.reason,
+                self._tags(session_id, source_type),
+            )
             if d.accepted:
                 rec.enrichment = "queued"
-                await self.queue.submit({"session_id": session_id, "content_hash": h,
-                                         "source_type": source_type, "text": text})
+                await self.queue.submit(
+                    {"session_id": session_id, "content_hash": h, "source_type": source_type, "text": text}
+                )
             self._append(rec)
             return rec
         except Exception:
@@ -397,8 +437,9 @@ class IngestionHook:
 
     async def on_session_end(self, session_id: str) -> Optional[Record]:
         try:
-            rec = Record(session_id, _now_iso(), "transcript", "", "session_end",
-                         tags=self._tags(session_id, "transcript"))
+            rec = Record(
+                session_id, _now_iso(), "transcript", "", "session_end", tags=self._tags(session_id, "transcript")
+            )
             self._append(rec)
             return rec
         except Exception:
@@ -414,27 +455,31 @@ async def _demo() -> None:
 
     print("=== [0] Lifecycle + Gate + Dedup ===")
     await hook.on_session_start("sess-001")
-    r = await hook.on_user_prompt_submit("sess-001",
-        "Der Knowledge-Agent nutzt Fast Write Routing im Konstrukt.",
-        "prompt", 0.9)
+    r = await hook.on_user_prompt_submit(
+        "sess-001", "Der Knowledge-Agent nutzt Fast Write Routing im Konstrukt.", "prompt", 0.9
+    )
     print("  OK                ->", r.decision, "| enrichment:", r.enrichment)
     r = await hook.on_user_prompt_submit("sess-001", "kurz", "prompt", 0.9)
     print("  zu kurz           ->", r.decision, "|", r.reason)
-    r = await hook.on_user_prompt_submit("sess-001",
-        "Der Knowledge-Agent nutzt Fast Write Routing im Konstrukt.", "prompt", 0.9)
+    r = await hook.on_user_prompt_submit(
+        "sess-001", "Der Knowledge-Agent nutzt Fast Write Routing im Konstrukt.", "prompt", 0.9
+    )
     print("  Dedup             ->", r.decision, "|", r.reason)
 
     print("\n=== [1] Privacy-Filter VOR dem Store (agentmemory) ===")
-    for probe in ["Mein Key: sk-proj-ABCDEFGHIJKLMNOPQRSTUVWX",
-                  "password=SuperGeheim123",
-                  "Token ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-                  "Inhalt <private>geheim</private> hier"]:
+    for probe in [
+        "Mein Key: sk-proj-ABCDEFGHIJKLMNOPQRSTUVWX",
+        "password=SuperGeheim123",
+        "Token ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        "Inhalt <private>geheim</private> hier",
+    ]:
         r = await hook.on_user_prompt_submit("sess-001", probe, "prompt", 0.9)
         print(f"  {probe[:34]:34} -> {r.decision} | {r.reason}")
 
     print("\n=== [2] Entity-Resolution (deterministisch, GLiNER-Prinzip) ===")
     s = "Der Knowledge-Agent nutzt Fast Write Routing im Konstrukt (Stufe Handeln)."
-    e1 = resolve_entities(s); e2 = resolve_entities(s)
+    e1 = resolve_entities(s)
+    e2 = resolve_entities(s)
     print("  Entitäten:", [(e["entity_type"], e["span"], e["confidence"]) for e in e1])
     print("  Reproduzierbar (2. Lauf identisch):", e1 == e2)
 
@@ -459,8 +504,10 @@ async def _demo() -> None:
     cg.edges[("isolated_n5", "assoc", "n9")] = 0.1
     rep = consolidate(cg, now)
     print("  Hubs (δ_hub, distill):", [(h["node"], h["weight"]) for h in rep["hubs"]])
-    print("  Forgotten (δ_prune/δ_age/0-access):",
-          [(f["node"], f["weight"], f["inactive_days"]) for f in rep["forgotten"]])
+    print(
+        "  Forgotten (δ_prune/δ_age/0-access):",
+        [(f["node"], f["weight"], f["inactive_days"]) for f in rep["forgotten"]],
+    )
     print("  Kept:", [(k["node"], k["weight"]) for k in rep["kept"]])
 
     await hook.on_session_end("sess-001")

@@ -13,9 +13,10 @@ Quelle (verifiziert 2026-10-01, HTTP 200):
 
 Lab-Prinzip: Mechanik = aus der Quelle; die konkreten Feldnamen/Daten sind Auftrag.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 
@@ -26,11 +27,11 @@ class Fact:
     obj: str
     # VALID TIME: wann gilt der Fakt in der Welt?
     valid_from: str
-    valid_to: Optional[str] = None          # None = weiterhin gültig
+    valid_to: Optional[str] = None  # None = weiterhin gültig
     # TRANSACTION TIME: wann wurde er gespeichert/verworfen?
     recorded_at: str = ""
-    superseded_at: Optional[str] = None     # None = weiterhin geglaubt
-    supersedes: int = -1                    # Index des abgelösten Fakts
+    superseded_at: Optional[str] = None  # None = weiterhin geglaubt
+    supersedes: int = -1  # Index des abgelösten Fakts
 
 
 class BiTemporalStore:
@@ -39,39 +40,54 @@ class BiTemporalStore:
     def __init__(self):
         self.facts: list[Fact] = []
 
-    def assert_fact(self, subject: str, predicate: str, obj: str,
-                    valid_from: str, recorded_at: str) -> dict:
+    def assert_fact(self, subject: str, predicate: str, obj: str, valid_from: str, recorded_at: str) -> dict:
         """Retroaktives Update: bei Widerspruch (gleiches s,p, anderes o) wird der
         alte Fakt invalidiert (valid_to + superseded_at), NICHT gelöscht."""
         superseded = None
         for i, f in enumerate(self.facts):
-            if (f.subject == subject and f.predicate == predicate
-                    and f.superseded_at is None and f.obj != obj):
-                f.valid_to = valid_from           # Welt: alter Fakt endet, als neuer begann
-                f.superseded_at = recorded_at      # Wissen: alter Fakt verworfen bei Speicherung
+            if f.subject == subject and f.predicate == predicate and f.superseded_at is None and f.obj != obj:
+                f.valid_to = valid_from  # Welt: alter Fakt endet, als neuer begann
+                f.superseded_at = recorded_at  # Wissen: alter Fakt verworfen bei Speicherung
                 superseded = i
-        new = Fact(subject, predicate, obj, valid_from, None, recorded_at, None,
-                   supersedes=(superseded if superseded is not None else -1))
+        new = Fact(
+            subject,
+            predicate,
+            obj,
+            valid_from,
+            None,
+            recorded_at,
+            None,
+            supersedes=(superseded if superseded is not None else -1),
+        )
         self.facts.append(new)
         return {"index": len(self.facts) - 1, "superseded": superseded, "fact": asdict(new)}
 
     def as_of(self, valid_time: str, knowledge_time: str) -> list[dict]:
         """Bitemporal: „Was glaubten wir am knowledge_time über valid_time?" """
-        return [asdict(f) for f in self.facts
-                if f.valid_from <= valid_time and (f.valid_to is None or valid_time < f.valid_to)
-                and f.recorded_at <= knowledge_time
-                and (f.superseded_at is None or knowledge_time < f.superseded_at)]
+        return [
+            asdict(f)
+            for f in self.facts
+            if f.valid_from <= valid_time
+            and (f.valid_to is None or valid_time < f.valid_to)
+            and f.recorded_at <= knowledge_time
+            and (f.superseded_at is None or knowledge_time < f.superseded_at)
+        ]
 
     def world_state_as_of(self, valid_time: str) -> list[dict]:
         """Nur valid time: was war am valid_time tatsächlich wahr (egal wann gelernt)."""
-        return [asdict(f) for f in self.facts
-                if f.valid_from <= valid_time and (f.valid_to is None or valid_time < f.valid_to)]
+        return [
+            asdict(f)
+            for f in self.facts
+            if f.valid_from <= valid_time and (f.valid_to is None or valid_time < f.valid_to)
+        ]
 
     def knowledge_as_of(self, knowledge_time: str) -> list[dict]:
         """Nur transaction time: was glaubten wir am knowledge_time?"""
-        return [asdict(f) for f in self.facts
-                if f.recorded_at <= knowledge_time
-                and (f.superseded_at is None or knowledge_time < f.superseded_at)]
+        return [
+            asdict(f)
+            for f in self.facts
+            if f.recorded_at <= knowledge_time and (f.superseded_at is None or knowledge_time < f.superseded_at)
+        ]
 
 
 def _demo() -> None:
@@ -86,19 +102,21 @@ def _demo() -> None:
     for i, f in enumerate(st.facts):
         print(f"  F{i}: {f.subject} {f.predicate} {f.obj}")
         print(f"       valid_time:        {f.valid_from} .. {f.valid_to or 'offen'}")
-        print(f"       transaction_time:  {f.recorded_at} .. {f.superseded_at or 'offen'}"
-              + (f"  (supersedes F{f.supersedes})" if f.supersedes >= 0 else ""))
+        print(
+            f"       transaction_time:  {f.recorded_at} .. {f.superseded_at or 'offen'}"
+            + (f"  (supersedes F{f.supersedes})" if f.supersedes >= 0 else "")
+        )
 
     print("\n=== [3] As-of-Time-Abfragen ===")
     q = [("2024-02-01", "2024-02-01"), ("2024-04-01", "2024-04-01"), ("2024-02-01", "2024-04-01")]
     for vt, kt in q:
         hits = st.as_of(vt, kt)
-        print(f"  as_of(valid={vt}, knowledge={kt}) -> "
-              + (", ".join(f"{h['subject']} {h['predicate']} {h['obj']}" for h in hits) or "(kein Fakt)"))
-    print("  world_state_as_of(2024-02-01) ->",
-          [f"{h['obj']}" for h in st.world_state_as_of("2024-02-01")])
-    print("  knowledge_as_of(2024-04-01)   ->",
-          [f"{h['obj']}" for h in st.knowledge_as_of("2024-04-01")])
+        print(
+            f"  as_of(valid={vt}, knowledge={kt}) -> "
+            + (", ".join(f"{h['subject']} {h['predicate']} {h['obj']}" for h in hits) or "(kein Fakt)")
+        )
+    print("  world_state_as_of(2024-02-01) ->", [f"{h['obj']}" for h in st.world_state_as_of("2024-02-01")])
+    print("  knowledge_as_of(2024-04-01)   ->", [f"{h['obj']}" for h in st.knowledge_as_of("2024-04-01")])
 
 
 if __name__ == "__main__":

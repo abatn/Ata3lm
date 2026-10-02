@@ -19,10 +19,11 @@ Lab-Prinzip: Mechanik = aus den Quellen; die konkrete Auflösungsstrategie
 Hinweis: Der Auftrag nennt `data/memory/shared_memory.py`; die Datei liegt unter
 `data/memory/shared/shared_memory.py`.
 """
+
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -43,9 +44,9 @@ class Entry:
     writer: str
     ts: str
     trust: float = 0.0
-    status: str = "confirmed"    # confirmed | superseded | contested  (LatticeMind-Status)
-    supersedes: int = 0          # Version, die dieser Eintrag ablöst
-    superseded_by: int = 0       # Version, die DIESEN Eintrag ablöst (unterlegen; nicht gelöscht)
+    status: str = "confirmed"  # confirmed | superseded | contested  (LatticeMind-Status)
+    supersedes: int = 0  # Version, die dieser Eintrag ablöst
+    superseded_by: int = 0  # Version, die DIESEN Eintrag ablöst (unterlegen; nicht gelöscht)
     invalid_at: str = ""
 
 
@@ -57,8 +58,7 @@ class SharedTier:
     - Schema:     key   -> set(erlaubte Werte)           (Konsistenz-Check)
     """
 
-    def __init__(self, acl: Optional[dict] = None, trust: Optional[dict] = None,
-                 schema: Optional[dict] = None):
+    def __init__(self, acl: Optional[dict] = None, trust: Optional[dict] = None, schema: Optional[dict] = None):
         self.entries: dict[str, Entry] = {}
         self.history: list[Entry] = []
         self.versions: dict[str, int] = {}
@@ -85,11 +85,11 @@ class SharedTier:
 
     # --- Schreiben: Trigger → Validierung → Auflösung (Trust) → Commit ---
     def write(self, agent: str, key: str, value: str) -> dict:
-        chk = self.validate_write(agent, key, value)          # Konsistenzprüfung
+        chk = self.validate_write(agent, key, value)  # Konsistenzprüfung
         if not chk["ok"]:
             return {"ok": False, "phase": "validation", "reason": chk["reason"]}
 
-        cur = self.entries.get(key)                 # aktuell CONFIRMED (LatticeMind)
+        cur = self.entries.get(key)  # aktuell CONFIRMED (LatticeMind)
         new_trust = float(self.trust.get(agent, 0.0))
         v = self.versions.get(key, 0) + 1
         self.versions[key] = v
@@ -97,39 +97,50 @@ class SharedTier:
 
         # Write-Time-Konfliktlösung (LatticeMind): Trust-Score entscheidet.
         if cur is None or cur.value == value:
-            e.status = "confirmed"                  # neu oder Evidence-Accumulation
+            e.status = "confirmed"  # neu oder Evidence-Accumulation
             self.entries[key] = e
             outcome, conflict = "confirmed", False
         else:
             conflict = True
-            if new_trust > cur.trust:               # stärkerer Trust gewinnt
+            if new_trust > cur.trust:  # stärkerer Trust gewinnt
                 cur.status = "superseded"
                 cur.invalid_at = e.ts
-                cur.superseded_by = v               # unterlegen: superseded_by (nicht gelöscht)
+                cur.superseded_by = v  # unterlegen: superseded_by (nicht gelöscht)
                 e.supersedes = cur.version
                 e.status = "confirmed"
                 self.entries[key] = e
                 outcome = "superseded_old"
-            elif new_trust < cur.trust:             # schwächerer Trust → unterlegen, behalten
+            elif new_trust < cur.trust:  # schwächerer Trust → unterlegen, behalten
                 e.status = "superseded"
                 e.superseded_by = cur.version
                 outcome = "superseded_new"
-            else:                                   # Gleichstand → contested (LatticeMind)
+            else:  # Gleichstand → contested (LatticeMind)
                 e.status = "contested"
                 outcome = "contested"
         self.history.append(e)
-        return {"ok": True, "phase": "commit", "version": v, "conflict": conflict,
-                "outcome": outcome, "status": e.status,
-                "current": self.entries[key].value, "current_version": self.entries[key].version}
+        return {
+            "ok": True,
+            "phase": "commit",
+            "version": v,
+            "conflict": conflict,
+            "outcome": outcome,
+            "status": e.status,
+            "current": self.entries[key].value,
+            "current_version": self.entries[key].version,
+        }
 
     # --- Lesen ---
     def read(self, agent: str, key: str) -> dict:
         if not self._can(agent, key, "read"):
             return {"ok": False, "reason": f"{agent}: kein Leserecht auf '{key}'"}
         e = self.entries.get(key)
-        return {"ok": True, "value": e.value if e else None,
-                "version": e.version if e else None, "writer": e.writer if e else None,
-                "trust": e.trust if e else None}
+        return {
+            "ok": True,
+            "value": e.value if e else None,
+            "version": e.version if e else None,
+            "writer": e.writer if e else None,
+            "trust": e.trust if e else None,
+        }
 
     # --- Sync: Konflikte über die Historie (gleicher Key, versch. Werte) ---
     def sync(self) -> dict:
@@ -140,9 +151,14 @@ class SharedTier:
         for k, es in by_key.items():
             vals = sorted({e.value for e in es})
             if len(vals) > 1:
-                conflicts.append({"key": k, "values": vals,
-                                  "resolved_to": self.entries[k].value,
-                                  "rule": "versioning + trust-supersession (LatticeMind; Memory Survey)"})
+                conflicts.append(
+                    {
+                        "key": k,
+                        "values": vals,
+                        "resolved_to": self.entries[k].value,
+                        "rule": "versioning + trust-supersession (LatticeMind; Memory Survey)",
+                    }
+                )
         return {"conflicts": conflicts, "keys": len(self.entries)}
 
     def dump(self, path: Path) -> Path:

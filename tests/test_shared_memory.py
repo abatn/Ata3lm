@@ -1,11 +1,11 @@
 """Shared Memory Tier (data/memory/shared/shared_memory.py) – ACL · Trust · Supersede."""
+
 import shared_memory as sm
 
 
 def _tier():
     acl = {a: {"read": {"*"}, "write": {"*"}} for a in ("agentA", "agentB", "agentC")}
-    return sm.SharedTier(acl, {"agentA": 0.5, "agentB": 0.9, "agentC": 0.3},
-                         {"config.mode": {"fast", "safe"}})
+    return sm.SharedTier(acl, {"agentA": 0.5, "agentB": 0.9, "agentC": 0.3}, {"config.mode": {"fast", "safe"}})
 
 
 def test_acl_blockiert_schreiben_und_lesen():
@@ -27,22 +27,27 @@ def test_leerer_wert_und_schema_verstoss():
 def test_trust_entscheidet_konflikt():
     t = _tier()
     assert t.write("agentA", "k", "v1")["outcome"] == "confirmed"
-    assert t.write("agentA", "k", "v1")["outcome"] == "confirmed"     # gleicher Wert
-    r = t.write("agentB", "k", "v2")                                   # 0.9 > 0.5
+    assert t.write("agentA", "k", "v1")["outcome"] == "confirmed"  # gleicher Wert
+    r = t.write("agentB", "k", "v2")  # 0.9 > 0.5
     assert r["outcome"] == "superseded_old" and r["conflict"] is True
     assert t.entries["k"].value == "v2"
-    r = t.write("agentC", "k", "v3")                                   # 0.3 < 0.9
+    r = t.write("agentC", "k", "v3")  # 0.3 < 0.9
     assert r["outcome"] == "superseded_new"
-    assert t.entries["k"].value == "v2"                                # unterlegen, behalten
+    assert t.entries["k"].value == "v2"  # unterlegen, behalten
     t.trust["agentA"] = 0.9
-    assert t.write("agentA", "k", "v4")["outcome"] == "contested"      # Gleichstand
+    assert t.write("agentA", "k", "v4")["outcome"] == "contested"  # Gleichstand
     assert t.history[-1].status == "contested"
 
 
 def test_read_ohne_eintrag_und_mit_eintrag():
     t = _tier()
     assert t.read("agentA", "nie-geschrieben") == {
-        "ok": True, "value": None, "version": None, "writer": None, "trust": None}
+        "ok": True,
+        "value": None,
+        "version": None,
+        "writer": None,
+        "trust": None,
+    }
     t.write("agentA", "k", "v")
     assert t.read("agentA", "k")["value"] == "v"
 
@@ -74,6 +79,6 @@ def test_sync_ohne_konflikt_bei_gleichem_wert():
     """Branch 142->140: gleicher Wert -> nur eine Ausprägung, kein Konflikt."""
     t = _tier()
     t.write("agentA", "k", "v1")
-    t.write("agentA", "k", "v1")              # Historie wächst, Werte bleiben gleich
+    t.write("agentA", "k", "v1")  # Historie wächst, Werte bleiben gleich
     s = t.sync()
     assert s["conflicts"] == [] and s["keys"] == 1

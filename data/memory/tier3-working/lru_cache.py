@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path("/home/opc/knowledge-agent")
 TIER3 = ROOT / "data/memory/tier3-working"
 TIER2 = ROOT / "data/memory/tier2-index"
-STRUCTURED = ROOT / "knowledge/structured"   # Ingestion-Output
+STRUCTURED = ROOT / "knowledge/structured"  # Ingestion-Output
 
 CAPACITY = 15  # Projekt-Vorgabe (Auftrag); FluxMem nutzt z. B. 4 (STIM)
 
@@ -45,10 +45,10 @@ def relevance(path: Path) -> float:
     """
     name = path.name
     if name.startswith("distilled-") or name.startswith("entity-"):
-        return 1.0      # hohe Kritikalität (Entitäten / destilliertes Wissen)
+        return 1.0  # hohe Kritikalität (Entitäten / destilliertes Wissen)
     if name.startswith("relation"):
-        return 0.6      # mittlere Kritikalität (Beziehungen)
-    return 0.3          # niedrig (Sonstiges)
+        return 0.6  # mittlere Kritikalität (Beziehungen)
+    return 0.3  # niedrig (Sonstiges)
 
 
 class WorkingMemory:
@@ -61,9 +61,9 @@ class WorkingMemory:
     def __init__(self, capacity: int = CAPACITY, policy: str = "value"):
         self.capacity = capacity
         self.policy = policy
-        self.items = OrderedDict()   # key -> {value, pinned, last_used, hits}
+        self.items = OrderedDict()  # key -> {value, pinned, last_used, hits}
         self.tick = 0
-        self.evicted = []            # nach Tier 2 ausgelagert
+        self.evicted = []  # nach Tier 2 ausgelagert
         self.log = []
 
     # --- search-before-store (Quelle: memory-skills) ---
@@ -76,25 +76,27 @@ class WorkingMemory:
         if key in self.items:
             self.items[key]["last_used"] = self.tick
             self.items[key]["hits"] += 1
-            self.items[key]["recent_access"] = 1   # HeLa-Mem: recent access
+            self.items[key]["recent_access"] = 1  # HeLa-Mem: recent access
             self.items.move_to_end(key)
-            self.log.append({"tick": self.tick, "op": "access", "key": key,
-                             "size": len(self.items)})
+            self.log.append({"tick": self.tick, "op": "access", "key": key, "size": len(self.items)})
             return self.items[key]
         return None
 
     # --- Store mit wertbewusster Eviction (HTM-EAR, arXiv:2603.10032) ---
-    def store(self, key: str, value: str, pinned: bool = False, importance: float = 0.5,
-              edge_weight: float = 1.0):
+    def store(self, key: str, value: str, pinned: bool = False, importance: float = 0.5, edge_weight: float = 1.0):
         self.tick += 1
-        if key in self.items:                 # search-before-store: kein Duplikat
+        if key in self.items:  # search-before-store: kein Duplikat
             self.access(key)
             return
-        self.items[key] = {"value": value, "pinned": pinned,
-                           "last_used": self.tick, "hits": 0,
-                           "importance": importance,
-                           "edge_weight": edge_weight,   # HeLa-Mem: total edge weight
-                           "recent_access": 0}           # HeLa-Mem: zero recent access
+        self.items[key] = {
+            "value": value,
+            "pinned": pinned,
+            "last_used": self.tick,
+            "hits": 0,
+            "importance": importance,
+            "edge_weight": edge_weight,  # HeLa-Mem: total edge weight
+            "recent_access": 0,
+        }  # HeLa-Mem: zero recent access
         self.items.move_to_end(key)
         evicted_key = None
         if len(self.items) > self.capacity:
@@ -107,8 +109,7 @@ class WorkingMemory:
                 # wird nach Scoring ausgelagert (bleibt bei max. 15).
                 if evicted_key is None:
                     evicted_key = self._evict_lowest_score()
-        self.log.append({"tick": self.tick, "op": "store", "key": key,
-                         "size": len(self.items), "evicted": evicted_key})
+        self.log.append({"tick": self.tick, "op": "store", "key": key, "size": len(self.items), "evicted": evicted_key})
 
     def should_forget(self, key: str) -> bool:
         """HeLa-Mem Adaptive Forgetting: alle 3 Bedingungen gleichzeitig.
@@ -118,9 +119,11 @@ class WorkingMemory:
         δ_prune, (2) its inactive duration exceeds δ_age, and (3) it has zero recent access."
         """
         it = self.items[key]
-        return (it.get("edge_weight", 1.0) < DELTA_PRUNE
-                and (self.tick - it.get("last_used", self.tick)) > DELTA_AGE
-                and it.get("recent_access", 0) == 0)
+        return (
+            it.get("edge_weight", 1.0) < DELTA_PRUNE
+            and (self.tick - it.get("last_used", self.tick)) > DELTA_AGE
+            and it.get("recent_access", 0) == 0
+        )
 
     def evict_score(self, key: str) -> float:
         """S_evict = α·importance + β·min(usage/10, 1)  (HTM-EAR Eq., α=0.75, β=0.25).
@@ -131,7 +134,6 @@ class WorkingMemory:
         """
         it = self.items[key]
         return 0.75 * it.get("importance", 0.5) + 0.25 * min(it.get("hits", 0) / 10.0, 1.0)
-
 
     def fill_from_structured(self, min_relevance: float = 0.5):
         """Initialbefüllung: nach dem Ingestion-Zyklus relevante Items laden.
@@ -147,8 +149,7 @@ class WorkingMemory:
             rel = relevance(p)
             if rel >= min_relevance:
                 before = len(self.items)
-                self.store(p.stem, f"aus {p.name}",
-                           pinned=(rel >= 1.0))   # hohe Kritikalität -> gepinnt
+                self.store(p.stem, f"aus {p.name}", pinned=(rel >= 1.0))  # hohe Kritikalität -> gepinnt
                 if len(self.items) > before or p.stem in self.items:
                     loaded.append(p.stem)
         return loaded
@@ -178,8 +179,7 @@ class WorkingMemory:
             if freq * crit >= 0.8:  # pragma: no branch
                 # edge_weight: write-update stark vernetzt, write-new schwach
                 ew = 1.0 if cls == "write-update" else 0.3
-                self.store(key, f"router:{cls}", pinned=(cls == "write-update"),
-                           importance=crit, edge_weight=ew)
+                self.store(key, f"router:{cls}", pinned=(cls == "write-update"), importance=crit, edge_weight=ew)
                 loaded.append(key)
         return loaded
 
@@ -214,8 +214,7 @@ class WorkingMemory:
         Statt LRU: das Item mit dem niedrigsten S_evict = α·importance +
         β·min(usage/10,1) wird ausgelagert. (HTM-EAR, arXiv:2603.10032)
         """
-        candidates = [(k, self.evict_score(k)) for k, v in self.items.items()
-                      if not v["pinned"]]
+        candidates = [(k, self.evict_score(k)) for k, v in self.items.items() if not v["pinned"]]
         if not candidates:
             return None  # alles gepinnt
         key = min(candidates, key=lambda kv: kv[1])[0]
@@ -245,12 +244,12 @@ def simulate_20_router_runs():
     wm = WorkingMemory(capacity=CAPACITY)
     wm.store("identity", "Agent-Identität", pinned=True)
     wm.store("ontology", "8 Stufen / 5 Phasen", pinned=True)
-    wm.fill_from_structured()   # Initialbefüllung aus knowledge/structured/
+    wm.fill_from_structured()  # Initialbefüllung aus knowledge/structured/
     for i in range(1, 21):
         # simulierter Router-Output pro Durchlauf
         router_out = [{"class": "write-new", "key": f"item-{i}"}]
         if i % 4 == 0:
-            router_out.append({"class": "write-update", "key": f"item-{max(1, i-3)}"})
+            router_out.append({"class": "write-update", "key": f"item-{max(1, i - 3)}"})
         if i % 5 == 0:
             router_out.append({"class": "non-write", "key": f"skip-{i}"})  # nur Historie
         wm.fill_from_router(router_out)
@@ -259,7 +258,7 @@ def simulate_20_router_runs():
 
 if __name__ == "__main__":
     if os.environ.get("EVICT_COMPARE") == "1":
-        import copy as _copy
+
         def run(policy):
             wm = WorkingMemory(capacity=CAPACITY, policy=policy)
             wm.store("identity", "Agent-Identität", pinned=True, importance=1.0)
@@ -268,23 +267,32 @@ if __name__ == "__main__":
             for i in range(1, 21):
                 out = [{"class": "write-new", "key": f"item-{i}"}]
                 if i % 4 == 0:
-                    out.append({"class": "write-update", "key": f"item-{max(1,i-3)}"})
+                    out.append({"class": "write-update", "key": f"item-{max(1, i - 3)}"})
                 wm.fill_from_router(out)
             return wm
+
         lru, val = run("lru"), run("value")
-        print(json.dumps({
-            "lru_evicted": lru.evicted,
-            "value_evicted": val.evicted,
-            "lru_active": list(lru.items.keys()),
-            "value_active": list(val.items.keys()),
-        }, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {
+                    "lru_evicted": lru.evicted,
+                    "value_evicted": val.evicted,
+                    "lru_active": list(lru.items.keys()),
+                    "value_active": list(val.items.keys()),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
     else:
         wm = simulate_20_router_runs()
         out = {
-            "capacity": wm.capacity, "policy": wm.policy,
+            "capacity": wm.capacity,
+            "policy": wm.policy,
             "final_size": len(wm.items),
             "active_keys": list(wm.items.keys()),
             "pinned": [k for k, v in wm.items.items() if v["pinned"]],
-            "evicted": wm.evicted, "evicted_count": len(wm.evicted),
+            "evicted": wm.evicted,
+            "evicted_count": len(wm.evicted),
         }
         print(json.dumps(out, ensure_ascii=False, indent=2))

@@ -3,6 +3,7 @@
 Kein Netz: der optionale GLiNER-Pfad wird mit einem Fake-Modell geprüft, das
 Log wird auf `tmp_path` umgebogen (kein Repo-Schreibzugriff).
 """
+
 import asyncio
 import json
 import sys
@@ -17,11 +18,14 @@ def test_privacy_scan_private_tag_und_secrets():
     assert p.scan("ok text") == (True, "ok")
     assert p.scan("x <private>geheim</private> y")[0] is False
     assert "private-Tag" in p.scan("x <private>geheim</private> y")[1]
-    for probe in ["api_key = ABCDEFGH12345678", "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWX",
-                  "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-                  "AKIAIOSFODNN7EXAMPLE",
-                  "Bearer abcdefghijklmnopqrstuvwxyz123456",
-                  "postgres://user:pw@host:5432/db"]:
+    for probe in [
+        "api_key = ABCDEFGH12345678",
+        "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWX",
+        "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        "AKIAIOSFODNN7EXAMPLE",
+        "Bearer abcdefghijklmnopqrstuvwxyz123456",
+        "postgres://user:pw@host:5432/db",
+    ]:
         clean, why = p.scan(probe)
         assert clean is False and "Secret-Muster" in why
 
@@ -52,7 +56,7 @@ def test_gate_alle_ablehnungsgruende():
 def test_gliner_available_true_und_false(monkeypatch):
     monkeypatch.setitem(sys.modules, "gliner", types.ModuleType("gliner"))
     assert ih.gliner_available() is True
-    monkeypatch.setitem(sys.modules, "gliner", None)      # import -> ImportError
+    monkeypatch.setitem(sys.modules, "gliner", None)  # import -> ImportError
     assert ih.gliner_available() is False
 
 
@@ -71,13 +75,13 @@ def test_get_gliner_laedt_einmal(monkeypatch):
     monkeypatch.setattr(ih, "_GLINER", None)
     first = ih._get_gliner()
     assert first == {"model": "urchade/gliner_multi-v2.1"}
-    assert ih._get_gliner() is first and len(calls) == 1   # nur einmal geladen
+    assert ih._get_gliner() is first and len(calls) == 1  # nur einmal geladen
 
 
 def test_resolve_entities_regelbasiert_und_sortiert():
     text = "Der Knowledge-Agent nutzt Fast Write Routing im Konstrukt (Stufe Handeln)."
     ents = ih.resolve_entities(text, backend="rules")
-    assert ih.resolve_entities(text, backend="rules") == ents          # reproduzierbar
+    assert ih.resolve_entities(text, backend="rules") == ents  # reproduzierbar
     types_ = {e["entity_type"] for e in ents}
     assert {"Concept", "Phase", "Stage"} <= types_
     assert all(e["backend"] == "rules" and e["confidence"] == 1.0 for e in ents)
@@ -93,14 +97,21 @@ def test_resolve_entities_mit_echtem_gliner_pfad(monkeypatch):
     class Model:
         def predict_entities(self, text, labels, threshold):
             assert threshold == 0.4 and labels == ["Solver", "Concept"]
-            return [{"label": "Solver", "text": "berechne_median", "start": 0,
-                     "end": 15, "score": 0.98765}]
+            return [{"label": "Solver", "text": "berechne_median", "start": 0, "end": 15, "score": 0.98765}]
 
     monkeypatch.setattr(ih, "gliner_available", lambda: True)
     monkeypatch.setattr(ih, "_get_gliner", lambda: Model())
     out = ih.resolve_entities("berechne_median", labels=["Solver", "Concept"])
-    assert out == [{"entity_type": "Solver", "span": "berechne_median", "start": 0,
-                    "end": 15, "confidence": 0.9877, "backend": "gliner"}]
+    assert out == [
+        {
+            "entity_type": "Solver",
+            "span": "berechne_median",
+            "start": 0,
+            "end": 15,
+            "confidence": 0.9877,
+            "backend": "gliner",
+        }
+    ]
 
 
 # ------------------------------------------------------------- Graph + Konsolidierung
@@ -119,11 +130,11 @@ def test_update_graph_dedup_und_konflikte():
     d = ih.update_graph(g, [{"span": "a"}, "b"], [("a", "supersedes", "b")])
     assert d["added_nodes"] == ["a", "b"] and d["added_edges"] == [("a", "supersedes", "b")]
     assert ih.update_graph(g, [], [("a", "supersedes", "b")])["deduped"] == [("a", "supersedes", "b")]
-    d2 = ih.update_graph(g, [], [("b", "supersedes", "a")])            # Gegenrichtung
+    d2 = ih.update_graph(g, [], [("b", "supersedes", "a")])  # Gegenrichtung
     assert d2["rejected"][0][1].startswith("Konflikt: Gegenrichtung")
     d3 = ih.update_graph(g, [], [("i", "hasEnd", "2024-05-01")], weights={("i", "hasEnd", "2024-05-01"): 0.4})
     assert d3["added_edges"] and g.edges[("i", "hasEnd", "2024-05-01")] == 0.4
-    d4 = ih.update_graph(g, [], [("i", "hasEnd", "2024-06-01")])        # funktionaler Konflikt
+    d4 = ih.update_graph(g, [], [("i", "hasEnd", "2024-06-01")])  # funktionaler Konflikt
     assert d4["rejected"][0][1].startswith("Konflikt: i hasEnd bereits")
 
 
@@ -145,7 +156,7 @@ def test_consolidate_hub_forgotten_kept():
 # --------------------------------------------------------------- EnrichmentQueue
 def test_worker_verarbeitet_und_ist_fail_soft(tmp_path):
     async def run_ok():
-        q = ih.EnrichmentQueue(log_path=tmp_path / "log.jsonl")   # im Loop anlegen!
+        q = ih.EnrichmentQueue(log_path=tmp_path / "log.jsonl")  # im Loop anlegen!
         assert q.graph.nodes == {}
         task = asyncio.create_task(q.worker())
         await q.submit({"text": "Der Knowledge-Agent nutzt Fast Write Routing."})
@@ -172,7 +183,7 @@ def test_worker_fail_soft_bei_fehler(tmp_path, monkeypatch):
         task.cancel()
         return q
 
-    assert asyncio.run(run()).processed == []     # fail-soft: kein Absturz
+    assert asyncio.run(run()).processed == []  # fail-soft: kein Absturz
 
 
 # --------------------------------------------------------------- IngestionHook
@@ -183,8 +194,8 @@ def test_hook_lifecycle_dedup_und_gate(tmp_path):
         hook = ih.IngestionHook(log_path=tmp_path / "ingest.jsonl")
         start = await hook.on_session_start("s1")
         r1 = await hook.on_user_prompt_submit("s1", text, "prompt", 0.9)
-        r2 = await hook.on_user_prompt_submit("s1", text, "prompt", 0.9)      # Duplikat
-        r3 = await hook.on_user_prompt_submit("s1", "kurz", "prompt", 0.9)   # Gate
+        r2 = await hook.on_user_prompt_submit("s1", text, "prompt", 0.9)  # Duplikat
+        r3 = await hook.on_user_prompt_submit("s1", "kurz", "prompt", 0.9)  # Gate
         end = await hook.on_session_end("s1")
         return start, r1, r2, r3, end
 
@@ -205,9 +216,11 @@ def test_hook_faengt_ausnahmen(tmp_path, monkeypatch):
 
     async def run():
         hook = ih.IngestionHook(log_path=tmp_path / "ingest.jsonl")
-        return (await hook.on_session_start("s1"),
-                await hook.on_user_prompt_submit("s1", "lang genug hier", "prompt", 1.0),
-                await hook.on_session_end("s1"))
+        return (
+            await hook.on_session_start("s1"),
+            await hook.on_user_prompt_submit("s1", "lang genug hier", "prompt", 1.0),
+            await hook.on_session_end("s1"),
+        )
 
     assert asyncio.run(run()) == (None, None, None)
 
@@ -219,7 +232,7 @@ def test_demo_laeuft_im_tmp(tmp_path, monkeypatch, capsys):
     assert "Lifecycle + Gate + Dedup" in out
     assert "Enrichment (async) verarbeitet:" in out
     lines = (tmp_path / "demo.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    assert all(json.loads(l)["session_id"] == "sess-001" for l in lines)
+    assert all(json.loads(line)["session_id"] == "sess-001" for line in lines)
 
 
 def test_update_graph_knoten_bereits_vorhanden():
@@ -227,4 +240,4 @@ def test_update_graph_knoten_bereits_vorhanden():
     g = ih.MemoryGraph()
     g.add_node("a")
     d = ih.update_graph(g, [{"span": "a"}, "b"], [])
-    assert d["added_nodes"] == ["b"]          # "a" war bereits vorhanden
+    assert d["added_nodes"] == ["b"]  # "a" war bereits vorhanden

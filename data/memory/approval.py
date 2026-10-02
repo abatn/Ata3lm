@@ -16,11 +16,11 @@ Projekt-Vorgabe (Auftrag) – die Quelle verlangt sie nur für Annex-III-1(a).
 
 Flow: pending → first_approved → second_approved → approved
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
 
 
 def _now() -> str:
@@ -42,8 +42,11 @@ class TwoPersonApproval:
         if self.state == "approved":
             return {"ok": False, "state": self.state, "reason": "bereits approved"}
         if person in self.approvers:
-            return {"ok": False, "state": self.state,
-                    "reason": f"'{person}' hat bereits bestätigt – zwei DISTINKTE Personen nötig"}
+            return {
+                "ok": False,
+                "state": self.state,
+                "reason": f"'{person}' hat bereits bestätigt – zwei DISTINKTE Personen nötig",
+            }
         self.approvers.append(person)
         self.state = "first_approved" if len(self.approvers) == 1 else "second_approved"
         self.history.append({"person": person, "state": self.state, "ts": _now()})
@@ -51,15 +54,22 @@ class TwoPersonApproval:
 
     def finalize(self) -> dict:
         if len(self.approvers) < 2:
-            return {"ok": False, "state": self.state,
-                    "reason": f"mind. 2 natürliche Personen erforderlich (aktuell {len(self.approvers)})"}
+            return {
+                "ok": False,
+                "state": self.state,
+                "reason": f"mind. 2 natürliche Personen erforderlich (aktuell {len(self.approvers)})",
+            }
         self.state = "approved"
         self.history.append({"person": "(finalize)", "state": "approved", "ts": _now()})
         return {"ok": True, "state": self.state, "approvers": list(self.approvers)}
 
     def status(self) -> dict:
-        return {"subject": self.subject, "state": self.state,
-                "approvers": list(self.approvers), "count": len(self.approvers)}
+        return {
+            "subject": self.subject,
+            "state": self.state,
+            "approvers": list(self.approvers),
+            "count": len(self.approvers),
+        }
 
 
 def _demo() -> None:
@@ -67,8 +77,8 @@ def _demo() -> None:
     a = TwoPersonApproval(subject="Rekursion 023")
     print("  Start          :", a.status())
     print("  approve(Batnini)     ->", a.approve("Batnini"))
-    print("  approve(Batnini) x2  ->", a.approve("Batnini"))       # distinkt verletzt
-    print("  finalize (nur 1)     ->", a.finalize())               # < 2 Personen
+    print("  approve(Batnini) x2  ->", a.approve("Batnini"))  # distinkt verletzt
+    print("  finalize (nur 1)     ->", a.finalize())  # < 2 Personen
     print("  approve(Verifier2)   ->", a.approve("Verifier2"))
     print("  finalize (2 Personen)->", a.finalize())
     print("  Endstatus      :", a.status())

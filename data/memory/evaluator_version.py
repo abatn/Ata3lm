@@ -37,6 +37,7 @@ Hinweis: Dieses Modul ist additiv; kein bestehender Prozess importiert es.
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -48,14 +49,13 @@ from typing import Callable, Optional
 _TINY = 1e-30
 
 
-def _betacf(a: float, b: float, x: float, max_iter: int = 200,
-            eps: float = 1e-12) -> float:
+def _betacf(a: float, b: float, x: float, max_iter: int = 200, eps: float = 1e-12) -> float:
     """Kettenbruch der unvollständigen Beta-Funktion (Lentz-Verfahren)."""
     qab, qap, qam = a + b, a + 1.0, a - 1.0
     c = 1.0
     d = 1.0 - qab * x / qap
-    if abs(d) < _TINY:                 # numerischer Schutz (für a,b>=1, 0<x<1 unerreichbar)
-        d = _TINY                      # pragma: no cover
+    if abs(d) < _TINY:  # numerischer Schutz (für a,b>=1, 0<x<1 unerreichbar)
+        d = _TINY  # pragma: no cover
     d = 1.0 / d
     h = d
     for m in range(1, max_iter + 1):
@@ -63,19 +63,19 @@ def _betacf(a: float, b: float, x: float, max_iter: int = 200,
         aa = m * (b - m) * x / ((qam + m2) * (a + m2))
         d = 1.0 + aa * d
         if abs(d) < _TINY:
-            d = _TINY                  # pragma: no cover
+            d = _TINY  # pragma: no cover
         c = 1.0 + aa / c
         if abs(c) < _TINY:
-            c = _TINY                  # pragma: no cover
+            c = _TINY  # pragma: no cover
         d = 1.0 / d
         h *= d * c
         aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
         d = 1.0 + aa * d
         if abs(d) < _TINY:
-            d = _TINY                  # pragma: no cover
+            d = _TINY  # pragma: no cover
         c = 1.0 + aa / c
         if abs(c) < _TINY:
-            c = _TINY                  # pragma: no cover
+            c = _TINY  # pragma: no cover
         d = 1.0 / d
         delta = d * c
         h *= delta
@@ -97,8 +97,7 @@ def regularized_incomplete_beta(x: float, a: float, b: float) -> float:
     return 1.0 - front * _betacf(b, a, 1.0 - x) / b
 
 
-def beta_ppf(q: float, a: float, b: float, tol: float = 1e-10,
-             max_iter: int = 200) -> float:
+def beta_ppf(q: float, a: float, b: float, tol: float = 1e-10, max_iter: int = 200) -> float:
     """Inverse CDF (Quantil) der Beta(a, b) per Bisektion (monoton in x)."""
     if q <= 0.0:
         return 0.0
@@ -133,26 +132,25 @@ def _now() -> str:
 # ---------------------------------------------------------------------------
 # 2. Paper-Parameter (Tab. 3 + 4, PDF-geprüft) und Anker-IDs
 # ---------------------------------------------------------------------------
-CAMBRIDGE_GRADER_GAIN = 0.09        # Abstract: +9 % Ground-Truth-Genauigkeit
-EPS_BEST_BELIEF = 0.05             # Tab. 3
-MIN_ANCHOR = 5                     # Tab. 3: "five-outcome anchor minimum"
-CHECKPOINT_RHO = 2                 # Tab. 3: power-of-two (ρ = 2)
-UCB_AIR_ALPHA = 0.6                # Tab. 3 (inherited)
-PAPER_TOTAL_EVALS = 12_288         # Tab. 3
-PAPER_TRAIN_SAMPLES_PER_NODE = 3   # Tab. 3
-PAPER_SPLITS = (10, 49, 166)       # Tab. 4 (Polyglot train/val/test)
-PAPER_BUDGET_USD = {"expand": 25, "train": 8, "val": 25}          # Tab. 4
+CAMBRIDGE_GRADER_GAIN = 0.09  # Abstract: +9 % Ground-Truth-Genauigkeit
+EPS_BEST_BELIEF = 0.05  # Tab. 3
+MIN_ANCHOR = 5  # Tab. 3: "five-outcome anchor minimum"
+CHECKPOINT_RHO = 2  # Tab. 3: power-of-two (ρ = 2)
+UCB_AIR_ALPHA = 0.6  # Tab. 3 (inherited)
+PAPER_TOTAL_EVALS = 12_288  # Tab. 3
+PAPER_TRAIN_SAMPLES_PER_NODE = 3  # Tab. 3
+PAPER_SPLITS = (10, 49, 166)  # Tab. 4 (Polyglot train/val/test)
+PAPER_BUDGET_USD = {"expand": 25, "train": 8, "val": 25}  # Tab. 4
 PAPER_BUDGET_TIME_S = {"expand": 1200, "train": 900, "val": 1200}  # Tab. 4
 
-CRAVE_ID = "TuringEnterprises/CRAVE"          # HF (Paper-Ref [50])
-IMO_GRADINGBENCH_ID = "Hwilner/imo-gradingbench"   # HF (Paper §C.4)
-ANCHOR_CODING = "Polyglot-Exec-Tests"          # Paper §C.4 (Coder)
-ANCHOR_CRAVE = "CRAVE"                         # Paper §C.4 (Reviewer)
-ANCHOR_GRADING = "IMO-GradingBench"            # Paper §C.4 (Grading)
+CRAVE_ID = "TuringEnterprises/CRAVE"  # HF (Paper-Ref [50])
+IMO_GRADINGBENCH_ID = "Hwilner/imo-gradingbench"  # HF (Paper §C.4)
+ANCHOR_CODING = "Polyglot-Exec-Tests"  # Paper §C.4 (Coder)
+ANCHOR_CRAVE = "CRAVE"  # Paper §C.4 (Reviewer)
+ANCHOR_GRADING = "IMO-GradingBench"  # Paper §C.4 (Grading)
 
 
-def power_of_two_checkpoints(total: int, start: int = 16,
-                             rho: int = CHECKPOINT_RHO) -> list[int]:
+def power_of_two_checkpoints(total: int, start: int = 16, rho: int = CHECKPOINT_RHO) -> list[int]:
     """Checkpoint-Zeitpunkte mit exponentiell wachsendem Abstand (Tab. 3, ρ=2)."""
     out: list[int] = []
     t = start
@@ -225,8 +223,7 @@ def make_grader(threshold: float) -> Callable:
     return lambda it: it["feature"] >= threshold
 
 
-def feature_quantiles(anchor: GroundTruthAnchor,
-                      qs: tuple = (0.25, 0.5, 0.75)) -> list[float]:
+def feature_quantiles(anchor: GroundTruthAnchor, qs: tuple = (0.25, 0.5, 0.75)) -> list[float]:
     """Feature-Schwellen an festen Quantilen (a priori, kein Cherry-Picking)."""
     feats = sorted(float(it["feature"]) for it in anchor.items)
     if not feats:
@@ -264,19 +261,22 @@ class RedQueen:
         evaluator.anchor_successes, evaluator.anchor_failures = s, f
         return evaluator
 
-    def record(self, item_id: str, score: float,
-               evaluator_independent: bool = False) -> dict:
+    def record(self, item_id: str, score: float, evaluator_independent: bool = False) -> dict:
         if self.current is None:
             return {"ok": False, "reason": "kein aktiver Evaluator"}
-        rec = {"evaluator": self.current.version, "item": item_id, "score": score,
-               "evaluator_independent": evaluator_independent, "ts": _now()}
+        rec = {
+            "evaluator": self.current.version,
+            "item": item_id,
+            "score": score,
+            "evaluator_independent": evaluator_independent,
+            "ts": _now(),
+        }
         self.archive.append(rec)
         return {"ok": True, "record": rec}
 
     def selective_erasure(self, old_version: str) -> int:
         """Löscht Records des alten Evaluators; Anker-Records bleiben."""
-        keep = [r for r in self.archive
-                if r["evaluator"] != old_version or r.get("evaluator_independent")]
+        keep = [r for r in self.archive if r["evaluator"] != old_version or r.get("evaluator_independent")]
         erased = len(self.archive) - len(keep)
         self.archive = keep
         return erased
@@ -284,62 +284,85 @@ class RedQueen:
     def checkpoint(self, candidate: EvaluatorVersion, approved: bool = False) -> dict:
         """ε-Best-Belief-Ersatzgate (Paper §3.5; Algorithm 1 Z. 22–31)."""
         self.register(candidate)
-        if self.current is None:                          # erste Epoche
+        if self.current is None:  # erste Epoche
             candidate.version = candidate.version or "evaluator_v1"
             self.current = candidate
             self.versions.append(candidate)
-            return {"promoted": True, "version": candidate.version,
-                    "accuracy": candidate.anchor_accuracy,
-                    "best_belief": round(candidate.best_belief(), 4),
-                    "reason": "initialer Evaluator (Ground-Truth-Anker)",
-                    "gate": "allow"}
-        if self.anchor.n() < self.min_anchor:             # Tab. 3: min_anchor
-            return {"promoted": False, "version": self.current.version,
-                    "reason": f"Anker zu klein ({self.anchor.n()} < "
-                              f"{self.min_anchor}) – nicht verifizierbar",
-                    "gate": "ask"}
+            return {
+                "promoted": True,
+                "version": candidate.version,
+                "accuracy": candidate.anchor_accuracy,
+                "best_belief": round(candidate.best_belief(), 4),
+                "reason": "initialer Evaluator (Ground-Truth-Anker)",
+                "gate": "allow",
+            }
+        if self.anchor.n() < self.min_anchor:  # Tab. 3: min_anchor
+            return {
+                "promoted": False,
+                "version": self.current.version,
+                "reason": f"Anker zu klein ({self.anchor.n()} < {self.min_anchor}) – nicht verifizierbar",
+                "gate": "ask",
+            }
         cand_bb = candidate.best_belief()
         inc_bb = self.current.best_belief()
-        if cand_bb > inc_bb:                              # STRICT (ties → incumbent)
-            if not approved:                              # §9: kein self_update
-                return {"promoted": False, "pending": True,
-                        "version": self.current.version,
-                        "candidate_best_belief": round(cand_bb, 4),
-                        "incumbent_best_belief": round(inc_bb, 4),
-                        "reason": "BB_ε strikt besser, aber ohne approved (§9)",
-                        "gate": "ask"}
+        if cand_bb > inc_bb:  # STRICT (ties → incumbent)
+            if not approved:  # §9: kein self_update
+                return {
+                    "promoted": False,
+                    "pending": True,
+                    "version": self.current.version,
+                    "candidate_best_belief": round(cand_bb, 4),
+                    "incumbent_best_belief": round(inc_bb, 4),
+                    "reason": "BB_ε strikt besser, aber ohne approved (§9)",
+                    "gate": "ask",
+                }
             old = self.current
             candidate.version = f"evaluator_v{len(self.versions) + 1}"
             erased = self.selective_erasure(old.version)
             self.current = candidate
             self.versions.append(candidate)
-            return {"promoted": True, "version": candidate.version,
-                    "replaced": old.version, "accuracy": candidate.anchor_accuracy,
-                    "best_belief": round(cand_bb, 4), "erased_records": erased,
-                    "reason": "BB_ε strikt besser + approved", "gate": "ask"}
-        return {"promoted": False, "version": self.current.version,
-                "candidate_best_belief": round(cand_bb, 4),
-                "incumbent_best_belief": round(inc_bb, 4),
-                "reason": "BB_ε nicht strikt besser (Gleichstand → Incumbent)",
-                "gate": "deny"}
+            return {
+                "promoted": True,
+                "version": candidate.version,
+                "replaced": old.version,
+                "accuracy": candidate.anchor_accuracy,
+                "best_belief": round(cand_bb, 4),
+                "erased_records": erased,
+                "reason": "BB_ε strikt besser + approved",
+                "gate": "ask",
+            }
+        return {
+            "promoted": False,
+            "version": self.current.version,
+            "candidate_best_belief": round(cand_bb, 4),
+            "incumbent_best_belief": round(inc_bb, 4),
+            "reason": "BB_ε nicht strikt besser (Gleichstand → Incumbent)",
+            "gate": "deny",
+        }
 
     def report(self) -> dict:
-        return {"current": self.current.version if self.current else None,
-                "current_best_belief": (round(self.current.best_belief(), 4)
-                                        if self.current else None),
-                "versions": [{"version": v.version,
-                              "accuracy": round(v.anchor_accuracy, 4),
-                              "best_belief": round(v.best_belief(), 4)}
-                             for v in self.versions],
-                "archive_size": len(self.archive),
-                "evaluator_ceiling_avoided": len(self.versions) > 1}
+        return {
+            "current": self.current.version if self.current else None,
+            "current_best_belief": (round(self.current.best_belief(), 4) if self.current else None),
+            "versions": [
+                {
+                    "version": v.version,
+                    "accuracy": round(v.anchor_accuracy, 4),
+                    "best_belief": round(v.best_belief(), 4),
+                }
+                for v in self.versions
+            ],
+            "archive_size": len(self.archive),
+            "evaluator_ceiling_avoided": len(self.versions) > 1,
+        }
 
 
 # ---------------------------------------------------------------------------
 # 5. Echte Anker laden (HuggingFace) – fail-soft
 # ---------------------------------------------------------------------------
-def load_anchor(kind: str = "grading", *, load_dataset_fn: Optional[Callable] = None,
-                limit: int = 200) -> GroundTruthAnchor:
+def load_anchor(
+    kind: str = "grading", *, load_dataset_fn: Optional[Callable] = None, limit: int = 200
+) -> GroundTruthAnchor:
     """Lädt einen echten Ground-Truth-Anker von HuggingFace.
 
     - kind="grading": IMO-GradingBench, truth = (Points == 7)  (Paper §C.4:
@@ -353,14 +376,28 @@ def load_anchor(kind: str = "grading", *, load_dataset_fn: Optional[Callable] = 
         from datasets import load_dataset as load_dataset_fn
     if kind == "grading":
         ds = load_dataset_fn(IMO_GRADINGBENCH_ID, split="train")
-        items = [{"id": str(r["Grading ID"]), "truth": int(r["Points"]) == 7,
-                  "feature": float(len(r["Response"] or ""))}
-                 for r in list(ds)[:limit]]
+        items = [
+            {
+                "id": str(r["Grading ID"]),
+                "truth": int(r["Points"]) == 7,
+                "feature": float(len(r["Response"] or "")),
+                "text": f"{r['Problem']}\n\n{r['Response']}",
+                "rubric": r["Grading guidelines"],
+            }
+            for r in list(ds)[:limit]
+        ]
         return GroundTruthAnchor(items, source=f"HF:{IMO_GRADINGBENCH_ID}")
     ds = load_dataset_fn(CRAVE_ID, split="test")
-    items = [{"id": str(r["pr_number"]), "truth": r["label"] == "APPROVE",
-              "feature": float(len(r["patch"] or ""))}
-             for r in list(ds)[:limit]]
+    items = [
+        {
+            "id": str(r["pr_number"]),
+            "truth": r["label"] == "APPROVE",
+            "feature": float(len(r["patch"] or "")),
+            "text": f"{r.get('description', '')}\n\n{r.get('patch', '')}",
+            "rubric": "",
+        }
+        for r in list(ds)[:limit]
+    ]
     return GroundTruthAnchor(items, source=f"HF:{CRAVE_ID}")
 
 
@@ -371,9 +408,7 @@ class RedQueenLoop:
     """Treibt Epochen; der Evaluator ist je Epoche fix und wird nur an
     Checkpoints durch einen Challenger ersetzt (Paper §3.3, Algorithm 1)."""
 
-    def __init__(self, anchor: GroundTruthAnchor,
-                 checkpoints: Optional[set] = None,
-                 min_anchor: int = MIN_ANCHOR):
+    def __init__(self, anchor: GroundTruthAnchor, checkpoints: Optional[set] = None, min_anchor: int = MIN_ANCHOR):
         self.rq = RedQueen(anchor, min_anchor=min_anchor)
         self.checkpoints = set(checkpoints) if checkpoints is not None else {1, 2, 4, 8}
         self.trajectory: list[dict] = []
@@ -394,7 +429,86 @@ class RedQueenLoop:
 
 
 # ---------------------------------------------------------------------------
-# 7. Simulationen
+# 8. Echter LLM-Grader (zweiter Call als Judge) – deterministisch + fail-soft
+#    Quellen: arXiv:2606.26294 §5 (Grader-Evolution) ·
+#    OpenAI Structured Outputs (https://platform.openai.com/docs/guides/structured-outputs)
+# ---------------------------------------------------------------------------
+GRADER_MODEL = os.environ.get("RQGM_GRADER_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+GRADER_MAX_TOKENS = int(os.environ.get("RQGM_GRADER_MAX_TOKENS", "1024"))  # fest (Auftrag)
+GRADER_TEMPERATURE = 0.0  # deterministisch (Auftrag)
+
+
+def _default_client():
+    """OpenAI-kompatibler Client aus der Umgebung (Key/Base-URL)."""
+    from openai import OpenAI
+
+    return OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY", ""),
+        base_url=os.environ.get("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+    )
+
+
+def _extract_json(raw: str) -> str:
+    """Erstes JSON-Objekt aus einer Antwort ziehen (robust gegen Fließtext)."""
+    import re
+
+    m = re.search(r"\{.*\}", raw or "", re.DOTALL)
+    return m.group(0) if m else (raw or "")
+
+
+def _grader_prompt(item: dict) -> str:
+    return (
+        "You are a strict grader. Decide whether the RESPONSE earns FULL credit "
+        "for the PROBLEM according to the GUIDELINES. "
+        "Output ONLY the JSON object - no prose, no markdown, no code fences - "
+        'with keys {"passed": true|false, "score": 0..1, "reason": "short"}.\n'
+        f"PROBLEM:\n{item.get('text', '')}\nGUIDELINES:\n{item.get('rubric', '')}"
+    )
+
+
+def make_llm_grader(
+    rule_grader: Callable,
+    *,
+    client=None,
+    model: str = GRADER_MODEL,
+    max_tokens: int = GRADER_MAX_TOKENS,
+    log: Optional[list] = None,
+) -> Callable:
+    """Zweiter LLM-Call als Judge; JSON-Verdict per Pydantic validiert.
+
+    temperature=0, feste max_tokens. **Fail-soft:** bei API-Fehler oder
+    ungültigem Schema → Regel-Grader + Log-Eintrag (kein Crash).
+    """
+    from pydantic import BaseModel, Field
+
+    class GraderVerdict(BaseModel):
+        passed: bool
+        score: float = Field(ge=0.0, le=1.0)
+        reason: str = ""
+
+    def verdict(item: dict) -> bool:
+        try:
+            c = client or _default_client()
+            resp = c.chat.completions.create(
+                model=model,
+                temperature=GRADER_TEMPERATURE,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+                messages=[{"role": "user", "content": _grader_prompt(item)}],
+            )
+            raw = resp.choices[0].message
+            raw = raw.content or getattr(raw, "reasoning_content", None) or ""
+            return bool(GraderVerdict.model_validate_json(_extract_json(raw)).passed)
+        except Exception as e:  # fail-soft
+            if log is not None:
+                log.append({"fallback": "rule_grader", "item": item.get("id"), "error": str(e)[:160]})
+            return bool(rule_grader(item))
+
+    return verdict
+
+
+# ---------------------------------------------------------------------------
+# 9. Simulationen
 # ---------------------------------------------------------------------------
 ANCHOR_ITEMS = [
     {"id": f"proof-{i:02d}", "feature": q, "truth": q >= 0.7}
@@ -409,56 +523,78 @@ def simulate_3_evaluators() -> dict:
     rq.record("proof-01", 0.9)
     rq.record("gt-unit-1", 0.0, evaluator_independent=True)
     e2_pending = rq.checkpoint(EvaluatorVersion("", make_grader(0.5), threshold=0.5))
-    e2 = rq.checkpoint(EvaluatorVersion("", make_grader(0.5), threshold=0.5),
-                       approved=True)
+    e2 = rq.checkpoint(EvaluatorVersion("", make_grader(0.5), threshold=0.5), approved=True)
     rq.record("proof-02", 0.6)
     rq.record("gt-unit-2", 0.0, evaluator_independent=True)
-    e3 = rq.checkpoint(EvaluatorVersion("", make_grader(0.7), threshold=0.7),
-                       approved=True)
+    e3 = rq.checkpoint(EvaluatorVersion("", make_grader(0.7), threshold=0.7), approved=True)
     return {
-        "epoch_1": e1, "epoch_2_pending": e2_pending, "epoch_2": e2, "epoch_3": e3,
-        "report": rq.report(), "archive": rq.archive,
+        "epoch_1": e1,
+        "epoch_2_pending": e2_pending,
+        "epoch_2": e2,
+        "epoch_3": e3,
+        "report": rq.report(),
+        "archive": rq.archive,
         "paper_gain_ground_truth": CAMBRIDGE_GRADER_GAIN,
         "checkpoints": power_of_two_checkpoints(PAPER_TOTAL_EVALS),
-        "paper_params": {"eps_best_belief": EPS_BEST_BELIEF,
-                         "min_anchor": MIN_ANCHOR, "checkpoint_rho": CHECKPOINT_RHO,
-                         "ucb_air_alpha": UCB_AIR_ALPHA,
-                         "total_evals": PAPER_TOTAL_EVALS,
-                         "train_samples_per_node": PAPER_TRAIN_SAMPLES_PER_NODE,
-                         "splits": list(PAPER_SPLITS),
-                         "budget_usd": dict(PAPER_BUDGET_USD),
-                         "budget_time_s": dict(PAPER_BUDGET_TIME_S),
-                         "anchors": [ANCHOR_CODING, ANCHOR_CRAVE, ANCHOR_GRADING]},
+        "paper_params": {
+            "eps_best_belief": EPS_BEST_BELIEF,
+            "min_anchor": MIN_ANCHOR,
+            "checkpoint_rho": CHECKPOINT_RHO,
+            "ucb_air_alpha": UCB_AIR_ALPHA,
+            "total_evals": PAPER_TOTAL_EVALS,
+            "train_samples_per_node": PAPER_TRAIN_SAMPLES_PER_NODE,
+            "splits": list(PAPER_SPLITS),
+            "budget_usd": dict(PAPER_BUDGET_USD),
+            "budget_time_s": dict(PAPER_BUDGET_TIME_S),
+            "anchors": [ANCHOR_CODING, ANCHOR_CRAVE, ANCHOR_GRADING],
+        },
     }
 
 
-def simulate_real_anchor(kind: str = "grading", limit: int = 200,
-                         *, load_dataset_fn: Optional[Callable] = None) -> dict:
+def simulate_real_anchor(
+    kind: str = "grading",
+    limit: int = 200,
+    *,
+    load_dataset_fn: Optional[Callable] = None,
+    use_llm: bool = False,
+    client=None,
+    grader_log: Optional[list] = None,
+) -> dict:
     """Echte Messung: ε-BB-Ko-Evolution auf einem realen HF-Anker.
 
-    Die Grader sind deterministische Schwellwert-Regeln auf einem echten Feature
-    (Auftrag), NICHT die LLM-Grader des Papers. Die gemessene Zahl ist daher
-    unsere – nicht die +9 % des Papers.
+    use_llm=False: deterministische Schwellwert-Regeln (offline).
+    use_llm=True : zweiter LLM-Call als Judge (fail-soft → Regel-Grader).
+    Die gemessene Zahl ist unsere – nicht die +9 % des Papers.
     """
     anchor = load_anchor(kind, load_dataset_fn=load_dataset_fn, limit=limit)
     rq = RedQueen(anchor)
-    before = anchor.accuracy(make_grader(0.0))          # trivialer Baseline-Grader
+    before = anchor.accuracy(make_grader(0.0))  # trivialer Baseline-Grader
+    thresholds = feature_quantiles(anchor)
+    graders = [make_grader(thr) for thr in thresholds]
+    if use_llm:
+        graders = [make_llm_grader(g, client=client, log=grader_log) for g in graders]
     results = []
-    for i, thr in enumerate(feature_quantiles(anchor), 1):
-        r = rq.checkpoint(EvaluatorVersion("", make_grader(thr), threshold=thr),
-                          approved=True)
-        r["threshold"] = thr
+    for i, g in enumerate(graders, 1):
+        r = rq.checkpoint(EvaluatorVersion("", g), approved=True)
+        r["threshold"] = thresholds[i - 1]
         results.append(r)
     final = rq.current
-    return {"anchor": anchor.source, "n_items": anchor.n(),
-            "baseline_accuracy_all_accept": round(before, 4),
-            "epochs": results, "report": rq.report(),
-            "final_accuracy": round(final.anchor_accuracy, 4),
-            "measured_gain": round(final.anchor_accuracy - before, 4),
-            "paper_gain_ground_truth": CAMBRIDGE_GRADER_GAIN,
-            "note": "eigene Messung auf echtem Anker; Grader = Schwellwert-Regeln"}
+    return {
+        "anchor": anchor.source,
+        "n_items": anchor.n(),
+        "grader": "llm+rule-fallback" if use_llm else "rule",
+        "baseline_accuracy_all_accept": round(before, 4),
+        "epochs": results,
+        "report": rq.report(),
+        "final_accuracy": round(final.anchor_accuracy, 4),
+        "measured_gain": round(final.anchor_accuracy - before, 4),
+        "paper_gain_ground_truth": CAMBRIDGE_GRADER_GAIN,
+        "note": "eigene Messung auf echtem Anker; Grader = Schwellwert-Regeln"
+        + (" + LLM-Judge (fail-soft)" if use_llm else ""),
+    }
 
 
 if __name__ == "__main__":
     import json
+
     print(json.dumps(simulate_real_anchor("grading"), ensure_ascii=False, indent=2))

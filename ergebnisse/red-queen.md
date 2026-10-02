@@ -122,10 +122,10 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 150 passed · Coverage 1427/1427 Statements · 320/320 Branches = 100,00 %
+make test  → 159 passed · Coverage 1462/1462 Statements · 324/324 Branches = 100,00 %
 ```
 
-Tests (`tests/test_evaluator_version.py`, 26) – u. a.:
+Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
 
 | Test | Prüft |
 |---|---|
@@ -245,3 +245,67 @@ https://arxiv.org/abs/2606.26294 · https://github.com/kingkillery/red-queen-god
 (src/rqgm/beta.py, src/rqgm/search.py) · https://github.com/ianyac/red-queen-godel-machine ·
 https://huggingface.co/datasets/TuringEnterprises/CRAVE ·
 https://huggingface.co/datasets/Hwilner/imo-gradingbench
+
+## 9. Verbleibende Punkte geschlossen (2026-10-02)
+
+### 9.1 RQGM_LOOP dauerhaft aktiv
+
+`reflective_agent.run_once()` fährt den Red-Queen-Loop jetzt **standardmäßig**
+(`os.environ.get("RQGM_LOOP", "1") != "0"`). Der explizite Aus-Schalter
+`RQGM_LOOP=0` bleibt für Debug/Tests. Test-Matrix:
+
+| Zustand | Erwartung | Test |
+|---|---|---|
+| Default (unset) | `rqgm` im Report, `current=evaluator_v3` | `test_run_once_rqgm_default_an` |
+| `RQGM_LOOP=0` | `rqgm is None` | `test_run_once` |
+| `RQGM_LOOP=1` | `rqgm` im Report | `test_run_once_mit_rqgm_loop` |
+
+### 9.2 Lint/Formatter (Ruff + pre-commit + CI)
+
+- `pyproject.toml`: `[tool.ruff]` line-length 120, target `py39`,
+  `select = ["E","F","W","I"]`, `ignore = ["E501"]` (Zeilenlänge macht der Formatter).
+- `.pre-commit-config.yaml`: `ruff` + `ruff-format` (Rev `v0.16.10`, verifiziertes Tag).
+- `.github/workflows/lint.yml`: `ruff check .` + `ruff format --check .`.
+- Ergebnis: `ruff check .` → **All checks passed**; `ruff format --check .` →
+  **33 Python-Dateien formatiert** (45 wurden einmalig formatiert).
+  **Markdown ausgeschlossen** (`exclude = ["*.md", "**/versions/**"]`), weil Ruff
+  sonst Python-Codeblöcke in Doku, **unveränderlichen Versions-Snapshots** und im
+  Validierungsset umformatiert hätte.
+- Quellen (HTTP 200): https://docs.astral.sh/ruff/ ·
+  https://docs.astral.sh/ruff/configuration/ · https://pre-commit.com/
+
+### 9.3 Echte LLM-Grader (zweiter Call als Judge)
+
+`make_llm_grader(rule_grader, …)` in `evaluator_version.py`:
+
+- **Zweiter LLM-Call** mit JSON-Verdict `{passed, score, reason}`,
+  **Pydantic-validiert** (`GraderVerdict`, score 0..1).
+- **Deterministisch:** `temperature=0.0`, feste `max_tokens`
+  (`RQGM_GRADER_MAX_TOKENS`, Default 1024), Modell `RQGM_GRADER_MODEL`.
+- **Robust:** erstes JSON-Objekt wird aus der Antwort extrahiert
+  (`_extract_json`); `content` **oder** `reasoning_content` wird gelesen.
+- **Fail-soft:** API-Fehler/ungültiges Schema → Regel-Grader + Log-Eintrag.
+- Quellen: arXiv:2606.26294 §5 (Grader-Evolution) ·
+  OpenAI Structured Outputs (https://platform.openai.com/docs/guides/structured-outputs)
+
+**Reale Messung** (8 IMO-Grading-Items, `nvidia/nemotron-3-super-120b-a12b`):
+
+```text
+Modell: nvidia/nemotron-3-super-120b-a12b | max_tokens: 1024 | Fallbacks: 15 / 24
+Baseline: 0.125 -> Final: 0.625 | Gewinn: 0.5
+  thr=4371 promoted=True  acc=0.25  BB=0.0977
+  thr=4631 promoted=False acc=None  BB=0.0977   (Gleichstand -> Incumbent bleibt)
+  thr=4983 promoted=True  acc=0.625 BB=0.3449
+```
+
+**Ehrlich:** Das sind **eigene** Zahlen auf echtem Ground-Truth-Anker
+(+50 pp auf 8 Items mit LLM-Judge + Fail-soft) – **nicht** die +9 % des Papers.
+Der Endpoint lieferte in **15 von 24** Calls kein gültiges JSON (Reasoning-Modell
+→ Fließtext); genau dafür greift die Fail-soft-Regel. Das Gate verhält sich
+korrekt (Gleichstand hält den Incumbent).
+
+### Quellen (HTTP 200, 2026-10-02)
+
+https://docs.astral.sh/ruff/ · https://docs.astral.sh/ruff/configuration/ ·
+https://pre-commit.com/ · https://platform.openai.com/docs/guides/structured-outputs ·
+https://arxiv.org/abs/2606.26294 · https://huggingface.co/datasets/Hwilner/imo-gradingbench
