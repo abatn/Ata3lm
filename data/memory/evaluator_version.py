@@ -518,9 +518,9 @@ def _pair_prompt(item_a: dict, item_b: dict) -> str:
     )
 
 
-def make_llm_pairwise_judge(*, client=None, model: str = GRADER_MODEL,
-                            max_tokens: int = GRADER_MAX_TOKENS,
-                            log: Optional[list] = None) -> Callable:
+def make_llm_pairwise_judge(
+    *, client=None, model: str = GRADER_MODEL, max_tokens: int = GRADER_MAX_TOKENS, log: Optional[list] = None
+) -> Callable:
     """Paarweiser LLM-Judge (A/B) für Positions-Bias-Tests (Quelle: lechmazur/position_bias).
 
     Fail-soft: bei API-Fehler/ungültigem Schema gewinnt der **längere** Text
@@ -535,7 +535,9 @@ def make_llm_pairwise_judge(*, client=None, model: str = GRADER_MODEL,
         try:
             c = client or _default_client()
             resp = c.chat.completions.create(
-                model=model, temperature=GRADER_TEMPERATURE, max_tokens=max_tokens,
+                model=model,
+                temperature=GRADER_TEMPERATURE,
+                max_tokens=max_tokens,
                 response_format={"type": "json_object"},
                 messages=[{"role": "user", "content": _pair_prompt(item_a, item_b)}],
             )
@@ -596,8 +598,7 @@ def power_paired_t(effect_size: float, n: int, alpha: float = 0.05) -> float:
         return float(1.0 - stats.nct.cdf(tcrit, df, ncp))
 
 
-def required_n_paired_t(effect_size: float, power: float = 0.80, alpha: float = 0.05,
-                        n_max: int = 100_000) -> int:
+def required_n_paired_t(effect_size: float, power: float = 0.80, alpha: float = 0.05, n_max: int = 100_000) -> int:
     """Kleinste n mit Power ≥ Ziel (G*Power-Analog); n_max, wenn nie erreicht."""
     for n in range(2, n_max + 1):
         if power_paired_t(effect_size, n, alpha) >= power:
