@@ -43,11 +43,12 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 | `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
 | `test_evaluator_version.py` | Red-Queen: ε-Best-Belief-Gate, echte HF-Anker, Selective Erasure, Epochen-Loop, LLM-Grader | 34 |
 | `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
+| `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI-Verdrahtung) | 8 |
 | `../pytest.ini` | Konfiguration + Mindest-Score + Marker | – |
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **159 Tests, alle grün, ~5,5 s, ohne Netzwerk.**
+Gesamt: **167 Tests, alle grün, ~5,5 s, ohne Netzwerk.**
 
 ## Netzwerk-Policy
 

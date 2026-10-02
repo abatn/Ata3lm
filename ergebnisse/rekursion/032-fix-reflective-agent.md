@@ -1,6 +1,8 @@
 # Rekursion 032: Fix IndexError in `reflective_agent.py:99`
 
 > Datum: 2026-10-01 · Tiefe: `t=31 → t=32` · Phase: **Observe → Compare → Revise**
+> Freigabe: `approved: Batnini, 2026-10-01` (Auftrag „Starte Rekursion 032");
+> §9.3-Zwei-Personen-Freigabe 2026-10-02 (Batnini + taouefik).
 > Auftrag: „Starte Rekursion 032: Fix für den IndexError … Keine Heuristik,
 > kein Default – die Matrix muss vom LLM kommen." · Lab-Prinzip §6: nur was in
 > den Dateien steht oder in der Quelle belegt ist.

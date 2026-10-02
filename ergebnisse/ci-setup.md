@@ -26,14 +26,16 @@
 | `Makefile` | `make test` → `python3 -m pytest` (+ `make clean`) |
 | `pyproject.toml` | Ruff-Konfiguration (line-length 120, py39, select E/F/W/I) |
 | `.pre-commit-config.yaml` | Ruff + Ruff-Format (Rev v0.16.10) |
-| `.github/workflows/lint.yml` | CI: `ruff check` + `ruff format --check` |
+| `.github/workflows/ci.yml` | CI: Job `lint` (Ruff) + Job `test` (pytest 3.9/3.12) |
+| `requirements-dev.txt` | Gepinnte Dev-/CI-Abhängigkeiten (pytest/numpy/scipy/pydantic/datasets/openai/ruff) |
+| `tests/test_agents_law.py` (8) | AGENTS.md-Konformität: §1–§11, Guardrails, Provenienz, Versionierung, CI-Verdrahtung |
 | `.gitignore` | `.pytest_cache/`, `.coverage`, `coverage.xml`, `htmlcov/` |
 
 ## 2. Zwei Scores – nicht verwechseln
 
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
-| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 159/159 = 100 % |
+| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 167/167 = 100 % |
 | **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1462/1462 Statements, 324/324 Branches) |
 
 **Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
@@ -73,18 +75,19 @@ configfile: pytest.ini
 testpaths: tests
 plugins: cov-7.1.0, asyncio-1.2.0, langsmith-0.4.37, anyio-4.12.1
 asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 159 items
+collected 167 items
 
-tests/test_bi_temporal.py .....                                          [  3%]
-tests/test_evaluator_version.py ..................................       [ 24%]
-tests/test_fwr.py ............                                           [ 32%]
-tests/test_governance.py ..........                                      [ 38%]
-tests/test_ingestion.py .................                                [ 49%]
-tests/test_lru_cache.py ..........                                       [ 55%]
-tests/test_memory.py ..............                                      [ 64%]
-tests/test_procedural_memory.py .......                                  [ 68%]
-tests/test_reflective.py ......................                          [ 82%]
-tests/test_shared_memory.py ........                                     [ 87%]
+tests/test_agents_law.py ........                                        [  4%]
+tests/test_bi_temporal.py .....                                          [  7%]
+tests/test_evaluator_version.py ..................................       [ 28%]
+tests/test_fwr.py ............                                           [ 35%]
+tests/test_governance.py ..........                                      [ 41%]
+tests/test_ingestion.py .................                                [ 51%]
+tests/test_lru_cache.py ..........                                       [ 57%]
+tests/test_memory.py ..............                                      [ 65%]
+tests/test_procedural_memory.py .......                                  [ 70%]
+tests/test_reflective.py ......................                          [ 83%]
+tests/test_shared_memory.py ........                                     [ 88%]
 tests/test_solvers.py ....................                               [100%]
 
 ================================ tests coverage ================================
@@ -116,7 +119,7 @@ skills/procedural_memory.py                            94      0     12      0  
 -----------------------------------------------------------------------------------------------
 TOTAL                                                1462      0    324      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================= 159 passed in 5.52s ==============================
+============================= 167 passed in 5.47s ==============================
 ```
 
 ### Stand vorher (65 %, nur 4 Module) – zur Einordnung

@@ -1,0 +1,10 @@
+# Dev-/CI-Abhängigkeiten (gepinnt auf die lokal verifizierten Versionen, 2026-10-02).
+# Installation: python3 -m pip install -r requirements-dev.txt
+pytest==8.4.2
+pytest-cov==7.1.0
+numpy==2.0.2
+scipy==1.13.1
+pydantic==2.11.4
+datasets==4.5.0
+openai==2.36.0
+ruff==0.16.10

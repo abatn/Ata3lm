@@ -122,7 +122,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 159 passed · Coverage 1462/1462 Statements · 324/324 Branches = 100,00 %
+make test  → 167 passed · Coverage 1462/1462 Statements · 324/324 Branches = 100,00 %
 ```
 
 Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
@@ -265,10 +265,13 @@ https://huggingface.co/datasets/Hwilner/imo-gradingbench
 - `pyproject.toml`: `[tool.ruff]` line-length 120, target `py39`,
   `select = ["E","F","W","I"]`, `ignore = ["E501"]` (Zeilenlänge macht der Formatter).
 - `.pre-commit-config.yaml`: `ruff` + `ruff-format` (Rev `v0.16.10`, verifiziertes Tag).
-- `.github/workflows/lint.yml`: `ruff check .` + `ruff format --check .`.
-  **Erledigt:** Token um `workflow`-Scope erweitert (`gh auth refresh -s workflow`),
-  Datei gepusht (652 Bytes auf GitHub). CI-Lauf **`lint` → success** (13 s,
-  Run 37018230627).
+- `.github/workflows/ci.yml` (ersetzt `lint.yml`): Job **`lint`** (`ruff check` +
+  `ruff format --check`) **und Job `test`** (`make test`, Matrix Python 3.9 + 3.12,
+  installiert `requirements-dev.txt`). Damit prüft die CI den **kompletten**
+  Knowledge-Agenten: Lint + 167 Tests + 100 % Line/Branch-Coverage.
+  Ergänzend `tests/test_agents_law.py` (AGENTS.md §1–§11, Guardrails, Provenienz
+  jeder Rekursion, Versionierung, Tiers/Connectors, RQGM-Verdrahtung, CI-Inhalt).
+  **CI-Lauf `lint` war grün** (Run 37018230627); Test-Job neu hinzugefügt.
 - Ergebnis: `ruff check .` → **All checks passed**; `ruff format --check .` →
   **33 Python-Dateien formatiert** (45 wurden einmalig formatiert).
   **Markdown ausgeschlossen** (`exclude = ["*.md", "**/versions/**"]`), weil Ruff
