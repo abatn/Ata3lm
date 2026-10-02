@@ -7,4 +7,5 @@ scipy==1.13.1
 pydantic==2.11.4
 datasets==4.5.0
 openai==2.36.0
+json-repair==0.44.1  # Python-3.9-kompatibel (0.63.5 braucht >3.9)
 ruff==0.16.10

@@ -122,7 +122,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 184 passed · Coverage 1624/1624 Statements · 356/356 Branches = 100,00 %
+make test  → 189 passed · Coverage 1649/1649 Statements · 360/360 Branches = 100,00 %
 ```
 
 Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
@@ -268,7 +268,7 @@ https://huggingface.co/datasets/Hwilner/imo-gradingbench
 - `.github/workflows/ci.yml` (ersetzt `lint.yml`): Job **`lint`** (`ruff check` +
   `ruff format --check`) **und Job `test`** (`make test`, Matrix Python 3.9 + 3.12,
   installiert `requirements-dev.txt`). Damit prüft die CI den **kompletten**
-  Knowledge-Agenten: Lint + 184 Tests + 100 % Line/Branch-Coverage.
+  Knowledge-Agenten: Lint + 189 Tests + 100 % Line/Branch-Coverage.
   Ergänzend `tests/test_agents_law.py` (AGENTS.md §1–§11, Guardrails, Provenienz
   jeder Rekursion, Versionierung, Tiers/Connectors, RQGM-Verdrahtung, CI-Inhalt).
   **CI-Lauf `lint` war grün** (Run 37018230627); Test-Job neu hinzugefügt.
@@ -534,3 +534,20 @@ sondern der Grader-Output.
 
 **Provenienz n=90:** Seed 0 · B 10.000 · BCa · `nvidia/nemotron-3-super-120b-a12b`
 · 90 Items (imo-gradingbench, train) · Dauer 1516 s.
+
+### 10.10 Robuster Grader (Rekursion 033): JSON-Quote verbessert
+
+`make_llm_class_grader` nutzt jetzt **json-repair** (Prosa/Truncation) + **Retry**
+(`max_attempts`, strengerer Prompt) + **Mehrheitsentscheid** (`votes`) + optional
+**`json_schema` strict**. Beleg (5 Items, 1 Versuch):
+
+```text
+use_schema=False: 5/5 Fallbacks
+use_schema=True : 3/5 Fallbacks  (2 valide: Almost, Correct)  -> messbare Verbesserung
+```
+
+Der robuste n=90-Lauf erreichte 75/90 mit 50 Fallbacks (78 % -> ~67 %), lief aber
+in die Zeitgrenze -> **kein finales kappa**. Der vollstaendige Fix bleibt
+**server-seitige constrained decoding** (vLLM/XGrammar/NIM `guided_json`) oder ein
+Instruct-Modell. Details: `ergebnisse/rekursion/033-robuster-grader.md`. Die
+**+9 % des Papers bleiben NICHT reproduziert**.

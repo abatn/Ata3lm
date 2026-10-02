@@ -8,6 +8,7 @@ kingkillery/src/rqgm/beta.py.
 """
 
 import pathlib
+import sys
 from types import SimpleNamespace
 
 import evaluator_version as ev
@@ -300,10 +301,12 @@ def test_redqueenloop_ohne_kandidaten_und_defaults():
 
 # ------------------------------------------------- Offen 3+: LLM-Grader (fail-soft)
 class _FakeJudge:
-    def __init__(self, content=None, raises=False, reasoning=None):
+    def __init__(self, content=None, raises=False, reasoning=None, sequence=None):
         self._content = content
         self._raises = raises
         self._reasoning = reasoning
+        self._sequence = sequence
+        self.n_calls = 0
         self.calls = []
 
         class _Comp:
@@ -314,7 +317,12 @@ class _FakeJudge:
                 self.outer.calls.append(kw)
                 if self.outer._raises:
                     raise RuntimeError("API down")
-                msg = SimpleNamespace(content=self.outer._content)
+                self.outer.n_calls += 1
+                content = self.outer._content
+                if self.outer._sequence is not None:
+                    idx = min(self.outer.n_calls - 1, len(self.outer._sequence) - 1)
+                    content = self.outer._sequence[idx]
+                msg = SimpleNamespace(content=content)
                 if self.outer._reasoning is not None:
                     msg.reasoning_content = self.outer._reasoning
                 return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
@@ -552,3 +560,42 @@ def test_stable_kappa_run():
     assert "degenerate_share" in out and "degenerate_interpretation" in out
     assert out["class_counts_llm"] == {"Correct": 2}
     assert out["fallbacks"] == 0
+
+
+# ------------------------------------- Robuster Grader (json-repair/Retry/Mehrheit)
+def test_repair_json_repariert_prosa_und_fallback(monkeypatch):
+    assert ev._repair_json("Hier: {grade: Partial,} bitte") == '{"grade": "Partial"}'
+    monkeypatch.setitem(sys.modules, "json_repair", None)  # Import schlägt fehl
+    assert ev._repair_json('Prosa {"grade": "Almost"} Rest') == '{"grade": "Almost"}'
+
+
+def test_llm_class_grader_retry_dann_erfolg():
+    judge = _FakeJudge(sequence=["kein json", '{"grade": "Almost"}'])
+    g = ev.make_llm_class_grader(client=judge, max_attempts=3)
+    assert g({"id": "x", "text": "t", "rubric": "r"}) == "Almost"
+    assert judge.n_calls == 2  # 1 Fehlversuch, dann Erfolg
+
+
+def test_llm_class_grader_alle_versuche_fehlen():
+    judge = _FakeJudge(content="immer noch kein json")
+    log = []
+    g = ev.make_llm_class_grader(client=judge, max_attempts=2, log=log)
+    assert g({"id": "GB-9", "text": "t", "rubric": "r"}) == "Incorrect"
+    assert judge.n_calls == 2 and log[0]["fallback"] == "rule_incorrect"
+
+
+def test_llm_class_grader_mehrheit_und_gleichstand():
+    g3 = ev.make_llm_class_grader(client=_FakeJudge(content='{"grade": "Correct"}'), votes=3)
+    assert g3({"id": "a", "text": "t", "rubric": "r"}) == "Correct"
+    tie = _FakeJudge(sequence=['{"grade": "Correct"}', '{"grade": "Partial"}'])
+    g2 = ev.make_llm_class_grader(client=tie, votes=2)
+    assert g2({"id": "b", "text": "t", "rubric": "r"}) == "Incorrect"  # 1:1 -> Fallback
+
+
+def test_llm_class_grader_use_schema():
+    judge = _FakeJudge(content='{"grade": "Partial"}')
+    g = ev.make_llm_class_grader(client=judge, use_schema=True)
+    assert g({"id": "s", "text": "t", "rubric": "r"}) == "Partial"
+    rf = judge.calls[0]["response_format"]
+    assert rf["type"] == "json_schema" and rf["json_schema"]["strict"] is True
+    assert rf["json_schema"]["schema"]["properties"]["grade"]["enum"] == list(ev.CLASS_GRADES)

@@ -899,41 +899,106 @@ def kappa_required_n(kappa: float, props: list, target_width: float = 0.30, conf
     return int(math.ceil((2.0 * z) ** 2 * po * (1.0 - po) / (target_width**2 * (1.0 - pe) ** 2)))
 
 
-def _class_prompt(item: dict) -> str:
+GRADER_MAX_ATTEMPTS = int(os.environ.get("RQGM_GRADER_MAX_ATTEMPTS", "3"))
+GRADER_VOTES = int(os.environ.get("RQGM_GRADER_VOTES", "1"))
+
+
+def _repair_json(raw: str) -> str:
+    """JSON reparieren (json-repair), sonst erstes {...} per Regex.
+
+    Quelle: https://github.com/mangiucugna/json_repair (PyPI `json-repair`).
+    """
+    try:
+        from json_repair import repair_json
+
+        repaired = repair_json(raw or "")
+        return repaired if repaired else _extract_json(raw)
+    except Exception:
+        return _extract_json(raw)
+
+
+def _class_schema() -> dict:
+    """OpenAI-Structured-Outputs-Schema (strict) für das Klassen-Verdict."""
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "ClassVerdict",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {"grade": {"type": "string", "enum": list(CLASS_GRADES)}},
+                "required": ["grade"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+def _class_prompt(item: dict, strict: bool = False) -> str:
+    suffix = " Return ONLY the JSON object, nothing else." if strict else ""
     return (
         "You are a strict IMO proof grader. Grade the RESPONSE for the PROBLEM as "
         'exactly one of {"Correct", "Almost", "Partial", "Incorrect"}. '
-        'Output ONLY the JSON object {"grade": "<class>"} - no prose.\n'
+        'Output ONLY the JSON object {"grade": "<class>"} - no prose.' + suffix + "\n"
         f"PROBLEM:\n{item.get('text', '')}\nGUIDELINES:\n{item.get('rubric', '')}"
     )
 
 
 def make_llm_class_grader(
-    *, client=None, model: str = GRADER_MODEL, max_tokens: int = GRADER_MAX_TOKENS, log: Optional[list] = None
+    *,
+    client=None,
+    model: str = GRADER_MODEL,
+    max_tokens: int = GRADER_MAX_TOKENS,
+    log: Optional[list] = None,
+    max_attempts: int = GRADER_MAX_ATTEMPTS,
+    votes: int = GRADER_VOTES,
+    use_schema: bool = False,
 ) -> Callable:
-    """4-Klassen-LLM-Grader (Correct/Almost/Partial/Incorrect), Pydantic-validiert,
-    fail-soft → `"Incorrect"` + Log-Eintrag."""
+    """Robuster 4-Klassen-LLM-Grader (Correct/Almost/Partial/Incorrect).
+
+    - **json-repair** repariert Prosa/abgeschnittenes JSON.
+    - **Retry** bis `max_attempts` (strengerer Prompt ab Versuch 2).
+    - **Mehrheitsentscheid** über `votes` Samples (Gleichstand → Fallback).
+    - optional `use_schema` (OpenAI Structured Outputs, `json_schema` strict).
+    - **fail-soft**: nach Erschöpfung → `"Incorrect"` + Log-Eintrag.
+    Quellen: json_repair · OpenAI Structured Outputs · NVIDIA NIM Structured Generation.
+    """
+    from collections import Counter
+
     from pydantic import BaseModel
 
     class ClassVerdict(BaseModel):
         grade: str
 
+    def _one(item: dict) -> str:
+        last: Optional[Exception] = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                c = client or _default_client()
+                resp = c.chat.completions.create(
+                    model=model,
+                    temperature=GRADER_TEMPERATURE,
+                    max_tokens=max_tokens,
+                    response_format=_class_schema() if use_schema else {"type": "json_object"},
+                    messages=[{"role": "user", "content": _class_prompt(item, strict=attempt > 1)}],
+                )
+                msg = resp.choices[0].message
+                raw = msg.content or getattr(msg, "reasoning_content", None) or ""
+                grade_value = ClassVerdict.model_validate_json(_repair_json(raw)).grade.strip()
+                if grade_value not in CLASS_GRADES:
+                    raise ValueError(f"ungueltige Klasse: {grade_value}")
+                return grade_value
+            except Exception as e:
+                last = e
+        raise last
+
     def grade(item: dict) -> str:
         try:
-            c = client or _default_client()
-            resp = c.chat.completions.create(
-                model=model,
-                temperature=GRADER_TEMPERATURE,
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"},
-                messages=[{"role": "user", "content": _class_prompt(item)}],
-            )
-            msg = resp.choices[0].message
-            raw = msg.content or getattr(msg, "reasoning_content", None) or ""
-            g = ClassVerdict.model_validate_json(_extract_json(raw)).grade.strip()
-            if g not in CLASS_GRADES:
-                raise ValueError(f"ungueltige Klasse: {g}")
-            return g
+            results = [_one(item) for _ in range(votes)]
+            top, count = Counter(results).most_common(1)[0]
+            if count * 2 <= votes:  # Gleichstand -> unsicher
+                raise ValueError("keine Mehrheit")
+            return top
         except Exception as e:  # fail-soft
             if log is not None:
                 log.append({"fallback": "rule_incorrect", "item": item.get("id"), "error": str(e)[:160]})
