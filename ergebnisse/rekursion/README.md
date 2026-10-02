@@ -58,6 +58,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 031 | `031-fwr-modell.md` | System-Iteration (Governance/FWR) | approved: Batnini, 2026-10-01 (Score 8/8) | siehe File |
 | 032 | `032-fix-reflective-agent.md` | System-Iteration (Robustheit/HMM) | approved: Batnini, 2026-10-01 (Auftrag „Rekursion 032") | siehe File |
 | 033 | `033-robuster-grader.md` | System-Iteration (Grader/JSON) | approved: Batnini, 2026-10-02 (Auftrag „nach AGENTS.md") | siehe File |
+| 034 | `034-externer-grader-test.md` | System-Iteration (Grader/externer Endpoint) | approved: Batnini, 2026-10-02 (Auftrag „test und führe dein Plan") | siehe File |
 
 ## Guardrail
 

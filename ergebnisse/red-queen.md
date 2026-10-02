@@ -122,7 +122,7 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 189 passed · Coverage 1649/1649 Statements · 360/360 Branches = 100,00 %
+make test  → 189 passed · Coverage 1651/1651 Statements · 360/360 Branches = 100,00 %
 ```
 
 Tests (`tests/test_evaluator_version.py`, 34) – u. a.:
@@ -551,3 +551,21 @@ in die Zeitgrenze -> **kein finales kappa**. Der vollstaendige Fix bleibt
 **server-seitige constrained decoding** (vLLM/XGrammar/NIM `guided_json`) oder ein
 Instruct-Modell. Details: `ergebnisse/rekursion/033-robuster-grader.md`. Die
 **+9 % des Papers bleiben NICHT reproduziert**.
+
+### 10.11 Externer Grader-Test (Rekursion 034): JSON gelöst, Genauigkeit modelllimitiert
+
+Gegen zwei vom Auftraggeber bereitgestellte Ollama-Endpoints (`qwen3:14b`,
+`qwen2.5:14b`) lief unser Grader unverändert:
+
+```text
+JSON-Quote (5 Items):  0/5 Fallbacks mit use_schema=True  -> JSON-Problem GELÖST
+Genauigkeit (5 Items): 0/5 Übereinstimmung (Human: Incorrect/Partial/Partial/Almost/Almost)
+                       beide 14B-Modelle vergeben fast immer "Correct"
+```
+
+Diagnose (Item 1, Human **Incorrect**): die Antwort behauptet „I have successfully
+proven the statement" – ein langer, selbstsicherer, aber fehlerhafter Beweis. Der
+14B-Grader **prüft die Mathematik nicht**. Ein geschärfter Rubric-Prompt änderte
+nichts. ⇒ **nicht mehr das JSON, sondern die Modellstärke ist die Grenze**. Nächstes:
+Qwen3-30B-A3B-Instruct (4-bit, 2×T4) oder gpt-oss-20b. Details:
+`ergebnisse/rekursion/034-externer-grader-test.md`. Die **+9 % bleiben NICHT reproduziert**.

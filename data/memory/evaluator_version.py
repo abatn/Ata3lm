@@ -382,6 +382,8 @@ def load_anchor(
                 "truth": int(r["Points"]) == 7,
                 "feature": float(len(r["Response"] or "")),
                 "text": f"{r['Problem']}\n\n{r['Response']}",
+                "problem": r["Problem"],
+                "response": r["Response"],
                 "rubric": r["Grading guidelines"],
                 "label": str(r["Reward"]),
             }
@@ -936,11 +938,20 @@ def _class_schema() -> dict:
 
 def _class_prompt(item: dict, strict: bool = False) -> str:
     suffix = " Return ONLY the JSON object, nothing else." if strict else ""
+    problem = item.get("problem") or item.get("text", "")
+    response = item.get("response") or ""
     return (
-        "You are a strict IMO proof grader. Grade the RESPONSE for the PROBLEM as "
-        'exactly one of {"Correct", "Almost", "Partial", "Incorrect"}. '
-        'Output ONLY the JSON object {"grade": "<class>"} - no prose.' + suffix + "\n"
-        f"PROBLEM:\n{item.get('text', '')}\nGUIDELINES:\n{item.get('rubric', '')}"
+        "You are a STRICT IMO proof grader. Read PROBLEM, GRADING GUIDELINES and the "
+        "candidate RESPONSE. Map the achieved credit to exactly one class:\n"
+        "  Correct   = full credit (7/7): complete and valid proof.\n"
+        "  Almost    = nearly complete (5-6/7): minor gaps.\n"
+        "  Partial   = partial progress (1-4/7).\n"
+        "  Incorrect = no valid progress (0/7).\n"
+        "Be strict: a long, confident or well-written answer is NOT automatically "
+        "correct - the key steps must actually be present and valid. If unsure, do NOT "
+        'choose Correct. Output ONLY the JSON object {"grade": "<class>"} - no prose.' + suffix + "\n"
+        f"PROBLEM:\n{problem}\nGRADING GUIDELINES:\n{item.get('rubric', '')}\n"
+        f"CANDIDATE RESPONSE:\n{response}"
     )
 
 
