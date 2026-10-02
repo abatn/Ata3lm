@@ -122,10 +122,10 @@ Lesart:
 ## 4. Test + Compare-Beleg
 
 ```text
-make test  → 146 passed · Coverage 1405/1405 Statements · 314/314 Branches = 100,00 %
+make test  → 150 passed · Coverage 1427/1427 Statements · 320/320 Branches = 100,00 %
 ```
 
-Tests (`tests/test_evaluator_version.py`, 23) – u. a.:
+Tests (`tests/test_evaluator_version.py`, 26) – u. a.:
 
 | Test | Prüft |
 |---|---|
@@ -222,10 +222,22 @@ beim Grading und **lehnt** beim Coding den dritten Kandidaten ab (BB 0,4516 <
 - **Evaluator-Replacement-Pfad:** Das ε-BB-Gate ist im Replacement-Pfad
   (`RedQueen.checkpoint`) eingebaut – strikt besser, ties keep incumbent,
   Selective Erasure.
-- **Kein Loop-Eingriff:** Das Modul wird von **keinem** bestehenden Prozess
-  importiert (additiv). Ein Einbau in `reflective_agent`/den Rekursions-Loop
-  wäre eine Verhaltensänderung des Agenten und bräuchte ein **eigenes** §9-Go –
-  daher bewusst nicht erfolgt; hier dokumentiert.
+- **Loop-Einbau (2026-10-02, §9.3 freigegeben):** `reflective_agent.run_once()`
+  importiert `evaluator_version` und fährt den `RedQueenLoop` (8 Epochen,
+  Checkpoints 1/2/4/8); das Ergebnis steht als `"rqgm"` im Report. Der Einbau ist
+  **opt-in** über `RQGM_LOOP=1` – das Standardverhalten bleibt unverändert.
+  Freigabe-Record (2 von 2):
+
+```text
+pending           : {"subject": "Red-Queen Loop-Einbau (Verhaltensänderung, §9/§9.3)", "state": "pending", "approvers": [], "count": 0}
+approve(Batnini)  : {"ok": true, "state": "first_approved", "approvers": ["Batnini"]}
+approve(taouefik) : {"ok": true, "state": "second_approved", "approvers": ["Batnini", "taouefik"]}
+finalize          : {"ok": true, "state": "approved", "approvers": ["Batnini", "taouefik"]}
+Endstatus         : {"state": "approved", "approvers": ["Batnini", "taouefik"], "count": 2}
+```
+
+  Test: `test_reflective.py::test_run_once_mit_rqgm_loop` (8 Epochen,
+  `current=evaluator_v3`) und `test_run_once` (`rqgm is None` ohne Flag).
 
 ### Quellen (HTTP 200, 2026-10-02)
 

@@ -365,7 +365,36 @@ def load_anchor(kind: str = "grading", *, load_dataset_fn: Optional[Callable] = 
 
 
 # ---------------------------------------------------------------------------
-# 6. Simulationen
+# 6. Epochen-Loop (RQGM §3.3): fixer Evaluator je Epoche, Ersatz an Checkpoints
+# ---------------------------------------------------------------------------
+class RedQueenLoop:
+    """Treibt Epochen; der Evaluator ist je Epoche fix und wird nur an
+    Checkpoints durch einen Challenger ersetzt (Paper §3.3, Algorithm 1)."""
+
+    def __init__(self, anchor: GroundTruthAnchor,
+                 checkpoints: Optional[set] = None,
+                 min_anchor: int = MIN_ANCHOR):
+        self.rq = RedQueen(anchor, min_anchor=min_anchor)
+        self.checkpoints = set(checkpoints) if checkpoints is not None else {1, 2, 4, 8}
+        self.trajectory: list[dict] = []
+
+    def last_epoch(self) -> int:
+        return max(self.checkpoints) if self.checkpoints else 1
+
+    def run(self, candidates: list, approved: bool = True) -> dict:
+        """candidates = Challenger in Checkpoint-Reihenfolge."""
+        pending = list(candidates)
+        for epoch in range(1, self.last_epoch() + 1):
+            entry: dict = {"epoch": epoch}
+            if (epoch == 1 or epoch in self.checkpoints) and pending:
+                entry["checkpoint"] = self.rq.checkpoint(pending.pop(0), approved=approved)
+            entry["evaluator"] = self.rq.current.version if self.rq.current else None
+            self.trajectory.append(entry)
+        return {"trajectory": self.trajectory, "report": self.rq.report()}
+
+
+# ---------------------------------------------------------------------------
+# 7. Simulationen
 # ---------------------------------------------------------------------------
 ANCHOR_ITEMS = [
     {"id": f"proof-{i:02d}", "feature": q, "truth": q >= 0.7}

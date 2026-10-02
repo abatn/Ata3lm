@@ -238,3 +238,36 @@ def test_betacf_und_ppf_ohne_abbruch():
     """Deckt die Schleifen-Enden ohne break (max_iter=1, eps=0) ab."""
     assert ev._betacf(2.0, 3.0, 0.4, max_iter=1, eps=0.0) > 0.0
     assert ev.beta_ppf(0.5, 2.0, 3.0, tol=0.0, max_iter=1) > 0.0
+
+
+# ------------------------------------------------------- Offen 3: Epochen-Loop
+def test_redqueenloop_epochen_und_checkpoints():
+    loop = ev.RedQueenLoop(_anchor(), checkpoints={1, 3})
+    out = loop.run([ev.EvaluatorVersion("", ev.make_grader(0.0)),
+                    ev.EvaluatorVersion("", ev.make_grader(0.7))], approved=True)
+    assert [e["epoch"] for e in out["trajectory"]] == [1, 2, 3]
+    assert out["trajectory"][0]["checkpoint"]["version"] == "evaluator_v1"
+    assert out["trajectory"][1]["evaluator"] == "evaluator_v1"       # Epoche 2 fix
+    assert "checkpoint" not in out["trajectory"][1]
+    assert out["trajectory"][2]["checkpoint"]["version"] == "evaluator_v2"
+    assert out["report"]["current"] == "evaluator_v2"
+
+
+def test_redqueenloop_approved_false_bleibt_pending():
+    loop = ev.RedQueenLoop(_anchor(), checkpoints={1, 2})
+    out = loop.run([ev.EvaluatorVersion("", ev.make_grader(0.0)),
+                    ev.EvaluatorVersion("", ev.make_grader(0.7))], approved=False)
+    cp2 = out["trajectory"][1]["checkpoint"]
+    assert cp2["pending"] is True and cp2["promoted"] is False
+    assert out["report"]["current"] == "evaluator_v1"
+
+
+def test_redqueenloop_ohne_kandidaten_und_defaults():
+    loop = ev.RedQueenLoop(_anchor())                # checkpoints=None -> {1,2,4,8}
+    assert loop.last_epoch() == 8
+    out = loop.run([ev.EvaluatorVersion("", ev.make_grader(0.0))])
+    assert len(out["trajectory"]) == 8
+    assert "checkpoint" not in out["trajectory"][1]  # Kandidaten erschöpft
+    leer = ev.RedQueenLoop(_anchor(), checkpoints=set())
+    assert leer.last_epoch() == 1
+    assert leer.run([])["trajectory"][0]["evaluator"] is None

@@ -358,8 +358,17 @@ def run_once() -> dict:
                         "hmm_P_before": p_change["before"],
                         "hmm_P_after": p_change["after"],
                         "hmm_skipped": p_change["skipped"]})
+    # Red-Queen-Loop-Einbau (§9/§9.3 freigegeben 2026-10-02, Batnini + taouefik):
+    # opt-in über RQGM_LOOP=1 -> Standardverhalten unverändert.
+    rqgm = None
+    if os.environ.get("RQGM_LOOP") == "1":
+        import evaluator_version as _rq
+        anchor = _rq.GroundTruthAnchor(items=list(_rq.ANCHOR_ITEMS), source="demo")
+        loop = _rq.RedQueenLoop(anchor, checkpoints={1, 2, 4, 8})
+        rqgm = loop.run([_rq.EvaluatorVersion("", _rq.make_grader(t), threshold=t)
+                         for t in (0.0, 0.5, 0.7)])
     return {"hubs": hubs, "forgotten": forgotten, "distilled": results,
-            "hmm_states": hmm.K, "hmm_lr": hmm.lr}
+            "hmm_states": hmm.K, "hmm_lr": hmm.lr, "rqgm": rqgm}
 
 
 # --- HeLa-Mem Dual-Path Spreading Activation Retrieval (arXiv:2604.16839 §3.4) ---

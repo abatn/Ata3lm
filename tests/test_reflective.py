@@ -194,7 +194,22 @@ def test_run_once(tmp_path, monkeypatch):
     out = ra.run_once()
     assert out["hubs"] == ["hub"] and out["hmm_states"] == 4
     assert out["distilled"][0]["hmm_skipped"] is True      # NOOP (LLM nicht erreichbar)
+    assert out["rqgm"] is None                             # opt-in, Standard aus
     assert (tmp_path / "structured" / "distilled-hub-hub.md").exists()
+
+
+def test_run_once_mit_rqgm_loop(tmp_path, monkeypatch):
+    graph = _graph()
+    monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
+    (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
+    monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
+    monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
+    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
+    monkeypatch.setenv("RQGM_LOOP", "1")                   # §9.3 freigegeben
+    out = ra.run_once()
+    assert out["rqgm"] is not None
+    assert len(out["rqgm"]["trajectory"]) == 8
+    assert out["rqgm"]["report"]["current"] == "evaluator_v3"
 
 
 # ------------------------------------------------------------- Dual-Path-Retrieval
