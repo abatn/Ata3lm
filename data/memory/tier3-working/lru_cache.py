@@ -230,6 +230,18 @@ class WorkingMemory:
             loaded.append({"concept": key, "score": round(score, 4)})
         return loaded
 
+    def fill_from_tier2(
+        self, query: str, concepts_path: Path = None, edges: list = None, top_k: int = 5, min_score: float = 0.0
+    ):
+        """tier2 → tier3: lädt Konzepte aus `tier2-index/concept-index.md` (Hybrid-Retrieval).
+
+        Knoten = Konzepte aus dem Index; `edges` = echte GAAMA-Kanten (optional, Default
+        keine — der Index ist flach). score = w_sim·cos + w_ppr·ppr (GAAMA §3.4).
+        """
+        concepts = parse_concept_index(concepts_path)
+        items = [(c["concept"], c["concept"]) for c in concepts]
+        return self.fill_from_graph(query, items, edges or [], top_k=top_k, min_score=min_score)
+
     def consolidate_edges(self, edges: list, dims: dict, tau: float = VALIDATION_TAU):
         """Validation-Gated Hebbian-Konsolidierung: LTP nur bei bestandener Prüfung.
 

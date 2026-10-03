@@ -131,3 +131,18 @@ def test_bidirectional():
 def test_hub_dampening_deaktiviert():
     ppr = lru.edge_type_aware_ppr(["A", "B"], [("A", "B", "NEXT")], {"A": 1.0}, hub_dampening_threshold=0)
     assert set(ppr) == {"A", "B"}
+
+
+def test_fill_from_tier2_5_konzepte(tmp_path):
+    """Ladepfad aus tier2-index/concept-index.md: 5 Konzepte -> Tier3."""
+    wm = lru.WorkingMemory(capacity=15)
+    loaded = wm.fill_from_tier2("8 stufen phasen identität", concepts_path=_index(tmp_path), top_k=5)
+    assert len(loaded) == 5
+    assert all(e["concept"] in wm.items for e in loaded)
+    assert {e["concept"] for e in loaded} == {
+        "8 Stufen",
+        "5 Phasen",
+        "Identität",
+        "Kernbeziehungen",
+        "Fast Write Routing",
+    }

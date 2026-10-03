@@ -368,13 +368,19 @@ def test_positions_und_repetitions_kennzahlen():
 def test_llm_pairwise_judge_real_und_fail_soft(monkeypatch):
     a = {"id": "1", "text": "kurz", "rubric": "r"}
     b = {"id": "2", "text": "viel laengerer text", "rubric": "r"}
-    assert call(ev.make_llm_pairwise_judge(), a, b) in ("A", "B")  # realer Judge
-    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
     log = []
-    j = ev.make_llm_pairwise_judge(log=log)
-    assert j(a, b) == "B" and log[0]["fallback"] == "rule_length"  # Regel: längerer Text
-    j2 = ev.make_llm_pairwise_judge(log=None)
-    assert j2(b, a) == "A"
+    for _ in range(6):  # echte Wiederholung bis Erfolg (kein Fallback-Log)
+        log = []
+        res = call(ev.make_llm_pairwise_judge(log=log), a, b)
+        if not log:
+            break
+    assert res in ("A", "B") and not log  # Erfolgspfad des echten Judges
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
+    log2 = []
+    j2 = ev.make_llm_pairwise_judge(log=log2)
+    assert j2(a, b) == "B" and log2[0]["fallback"] == "rule_length"  # Regel: längerer Text
+    j3 = ev.make_llm_pairwise_judge(log=None)
+    assert j3(b, a) == "A"
 
 
 def test_parse_pair_winner():

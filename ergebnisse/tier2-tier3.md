@@ -31,8 +31,14 @@ episodic_graph.json (Episoden, verbatim)
                                         ABOUT_CONCEPT/DERIVED_FROM_FACT)  # KEINE Erfindung
    └─ lru_cache.hybrid_scores(query, items, edges)   # Seeds → beidseitig → d=2 → PPR
    └─ WorkingMemory.fill_from_graph(...)  -> Tier 3 (search-before-store)
+   └─ WorkingMemory.fill_from_tier2(...)  -> Tier 3 aus tier2-index/concept-index.md
    └─ gaama_extract.route_extracted_facts(facts)      # §10.1: Fast Write Router zuerst
 ```
+
+**Ladepfad aus dem Concept-Index:** `fill_from_tier2(query, concepts_path)` liest die
+Konzepte aus `data/memory/tier2-index/concept-index.md` (`parse_concept_index`) und lädt
+die top-k per Hybrid-Retrieval in Tier 3. Der Index ist **flach** → Knoten = Konzepte,
+`edges` optional (echte GAAMA-Kanten); es werden **keine** Kanten erfunden.
 
 `hybrid_scores` folgt GAAMA §3.4: Seeds = Top-Cosine → **beidseitige** Kanten
 (`_bidirectional`) → **Subgraph-Expansion d=2** (`expand_subgraph`) → `edge_type_aware_ppr`

@@ -4,15 +4,15 @@ digraph Aufbau {
   fontname="DejaVu Sans";
   labelloc="t";
   fontsize=16;
-  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-02 · HEAD cd05bb5)";
+  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-03 · HEAD 237641a)";
   node [shape=folder, style=filled, fillcolor="#E8F0FE", color="#2E75B6", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.07"];
   edge [color="#7F7F7F", arrowsize=0.6];
 
   root [label="knowledge-agent/", fillcolor="#F8CBAD", color="#C55A11", fontsize=13];
 
-  agents [shape=note, label="AGENTS.md (392 Zeilen)\nGesetz §1–§8 · §9/§9.1–9.3 · §10/§10.1–10.7 · §11/§11.1–11.4", fillcolor="#FFF2CC", color="#BF8F00"];
+  agents [shape=note, label="AGENTS.md (411 Zeilen)\nGesetz §1–§8 · §9/§9.1–9.3 · §10/§10.1–10.7 · §11/§11.1–11.4", fillcolor="#FFF2CC", color="#BF8F00"];
   docs [shape=note, label="README.md · CONTRIBUTING.md · LICENSE\n(MIT, c 2026 batnini)", fillcolor="#F2F2F2", color="#808080"];
-  git [shape=note, label="git HEAD: cd05bb5 (gepusht)\nprivat: abatn/Ata3lm", fillcolor="#F2F2F2", color="#808080"];
+  git [shape=note, label="git HEAD: 237641a (gepusht)\nprivat: abatn/Ata3lm", fillcolor="#F2F2F2", color="#808080"];
 
   knowledge [label="knowledge/", fillcolor="#E2EFDA", color="#548235"];
   kn_life [label="lifecycle/\n8 Stufen-Dateien", fillcolor="#E2EFDA", color="#548235"];
@@ -21,13 +21,13 @@ digraph Aufbau {
   kn_cog [label="cognition/\nREADME + inference-001..003", fillcolor="#D5E8D4", color="#548235"];
   kn_shell [label="5 README-Schalen\naction · expansion\nnon-cognitive · raw · reflection", fillcolor="#EDEDED", color="#808080"];
 
-  conn [label="connectors/  ·  16 Dateien\n(15 referenziert in AGENTS.md-Tabelle)", fillcolor="#FBE5D6", color="#ED7D31"];
+  conn [label="connectors/  ·  17 Dateien\n(in AGENTS.md-Tabelle referenziert)", fillcolor="#FBE5D6", color="#ED7D31"];
 
   data [label="data/memory/", fillcolor="#FFF2CC", color="#BF8F00"];
-  t1 [label="tier1-base/\n4 Dateien + versions/v1–v4", fillcolor="#FFF2CC", color="#BF8F00"];
+  t1 [label="tier1-base/\n4 Dateien + versions/v1–v9", fillcolor="#FFF2CC", color="#BF8F00"];
   t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
   t3 [label="tier3-working/\nlru_cache.py + README", fillcolor="#FFF2CC", color="#BF8F00"];
-  py [label="Prozesse (11)\nfast_write_router · reflective_agent · ingestion_hook\ntrust · approval · bias_monitor · bi_temporal\nshared_memory · lru_cache · evaluator_version (Red-Queen)\nmandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (14)\nfast_write_router · reflective_agent · ingestion_hook · gaama_extract\ntrust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server\nshared_memory · lru_cache · evaluator_version (Red-Queen)\nmandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
   shared [label="shared/\nSharedTier (ACL + Sync)", fillcolor="#FFF2CC", color="#BF8F00"];
   mandate [shape=note, label="mandate.md\nIdentität · Aktionen · Limits · Approval-Schwellen\n(§9: kein self-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
 
@@ -35,11 +35,11 @@ digraph Aufbau {
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  tests [label="tests/  ·  13 Testdateien · 201 Tests\n100 % Line+Branch (1753/396 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz", fillcolor="#E1D5E7", color="#9673A6"];
+  tests [label="tests/  ·  21 Testdateien · 265 Tests\n100 % Line+Branch (2203/550 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten", fillcolor="#E1D5E7", color="#9673A6"];
 
-  ci [label="CI & Qualität\n.github/workflows/ci.yml (lint + test 3.9/3.12)\npyproject.toml (Ruff) · .pre-commit-config.yaml\nrequirements-dev.txt · Makefile (make test)", fillcolor="#D5E8D4", color="#375623"];
+  ci [label="CI & Qualität (ein verify-Job, Python 3.12)\nRuff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)\nPreflight · echte Tests · .gitleaks.toml · .pymarkdown.json\npyproject.toml (Ruff) · requirements-dev.txt · Makefile (make test)", fillcolor="#D5E8D4", color="#375623"];
 
-  res [label="ergebnisse/  ·  83 MD (top-level) / 143 rekursiv\nrekursion/ 000–034 (35) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme", fillcolor="#E2EFDA", color="#375623"];
+  res [label="ergebnisse/  ·  285 MD gesamt\nrekursion/ 000–042 (43) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration", fillcolor="#E2EFDA", color="#375623"];
 
   root -> agents;
   root -> docs;
