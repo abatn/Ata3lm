@@ -61,6 +61,7 @@ cp data/memory/tier1-base/versions/v1/episodic_graph.json data/memory/tier1-base
 | Push nach `origin/main` | `2bf32b8..75b0a89` |
 | Datei-Snapshot Tier-1 | `data/memory/tier1-base/versions/v1/` |
 | Snapshot zu Iteration 031 (Gesetz-Änderung §10.2, `approved` 2026-10-01) | `data/memory/tier1-base/versions/v4/` |
+| Snapshot 2026-10-03 (EOL-Modell-Fix §10.2 super-120b→ultra-550b, `approved` Batnini) | `data/memory/tier1-base/versions/v5/` (+ `AGENTS.md`) |
 
 ## 5. Regel für neue Versionen
 

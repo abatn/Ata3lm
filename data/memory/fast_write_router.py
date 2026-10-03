@@ -20,7 +20,7 @@ from typing import Optional
 from openai import OpenAI
 
 SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")
-LARGE_MODEL = os.environ.get("FWR_LARGE_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+LARGE_MODEL = os.environ.get("FWR_LARGE_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
 
 _client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY", ""),

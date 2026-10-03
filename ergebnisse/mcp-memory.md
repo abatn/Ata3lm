@@ -94,14 +94,24 @@ umgestellt. Beleg: direkter Endpoint-Test (410 vs 200).
 `503 ResourceExhausted` (react) und ein `uvx`-Startfehler (cognee) — im Einzeltest
 beide **OK** (react init 0.9 s; `uvx --from cognee-mcp cognee-mcp --help` lädt).
 
-## 9. Offener Punkt (Human-Gate nötig, NICHT geändert)
+## 9. EOL-Modell-Fix in ALLEN Elementen (2026-10-03, `approved` Batnini)
 
-Die **Repo-Defaults** zeigen weiter auf das EOL-Modell:
-`fast_write_router.LARGE_MODEL`, `evaluator_version.GRADER_MODEL`,
-`reflective_agent` `HELA_MODEL` = `nvidia/nemotron-3-super-120b-a12b` → live **410**.
-Fix wäre `nemotron-3-nano-30b`, aber **AGENTS.md §10.2 nennt diesen Default** →
-Änderung berührt das Gesetz (§9.1b Versionierung + §9 Human-Gate). Daher hier nur
-**dokumentiert**, nicht umgesetzt — wartet auf Freigabe.
+Freigabe erteilt → EOL-Modell `nvidia/nemotron-3-super-120b-a12b` (HTTP 410)
+**überall** ersetzt durch das verifizierte Live-Modell
+**`nvidia/nemotron-3-ultra-550b-a55b`** (200, 2,1 s):
+
+| Element | Datei | neu |
+|---|---|---|
+| FWR Stufe 2 | `data/memory/fast_write_router.py:23` | ultra-550b |
+| Grader (RQGM) | `data/memory/evaluator_version.py:440` | ultra-550b |
+| HeLa-Destillation | `data/memory/reflective_agent.py:90,316` | ultra-550b |
+| Gesetz §10.2 | `AGENTS.md:253` | ultra-550b |
+| Test | `tests/test_fwr.py:94` | ultra-550b |
+| MCP-Env | opencode.json (adas/mars/react/reflexion/graphiti) | ultra-550b |
+
+**§9.1b Versionierung:** Snapshot `data/memory/tier1-base/versions/v5/` (tier1-base
++ `AGENTS.md`); Zeile in `ergebnisse/versionierung.md` §4; `data/memory/README.md`
++ `README.md` auf `v1–v5`. Live-Beleg: Endpoint-Test (410 vs 200).
 
 ## 10. Venv-Setup (Option A, offizielles mcp-SDK)
 

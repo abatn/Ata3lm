@@ -87,7 +87,7 @@ def parse_transition_delta(text: str, k: int):
             f"Reflection:\n{text}"
         )
         resp = client.chat.completions.create(
-            model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+            model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000,
             temperature=0.0,
@@ -313,7 +313,7 @@ def distill(graph: dict, hub: str) -> dict:
                 f"semantic entry (common themes + causal relationships):\n{cluster}"
             )
             resp = client.chat.completions.create(
-                model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+                model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
                 temperature=0.0,

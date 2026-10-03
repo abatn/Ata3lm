@@ -36,7 +36,7 @@ Das Gedächtnis ist als **dreischichtige Pipeline** aufgebaut — ergänzt um
 
 ## Status (Auftrag)
 
-- **Tier 1:** angelegt (Identität, Ontologie, Kernbeziehungen, episodischer Graph; `versions/v1`,`v2`,`v3`,`v4`).
+- **Tier 1:** angelegt (Identität, Ontologie, Kernbeziehungen, episodischer Graph; `versions/v1`,`v2`,`v3`,`v4`,`v5`).
 - **Tier 2:** angelegt (Concept Index, Hub-Index, Evicted-Index).
 - **Tier 3:** angelegt (Working Memory, max 15).
 - **L4 Procedural:** `skills/` (14 aktive + `versions/vN/`, `AUDIT.md`).

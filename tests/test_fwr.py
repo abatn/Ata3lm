@@ -89,9 +89,9 @@ def test_large_korrekt_aber_small_falsch_wird_nicht_geschrieben(monkeypatch):
 
 # ------------------------------------------------------------- Konstanten
 def test_modelle_defaults_ohne_ausgemustertes_modell():
-    """AGENTS.md:252 – Defaults = nano-30b / super-120b (gemma-2b ist 404)."""
+    """AGENTS.md:252 – Defaults = nano-30b / ultra-550b (gemma-2b ist 404)."""
     assert SMALL == "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
-    assert LARGE == "nvidia/nemotron-3-super-120b-a12b"
+    assert LARGE == "nvidia/nemotron-3-ultra-550b-a55b"
     assert "gemma" not in SMALL and "gemma" not in LARGE
 
 

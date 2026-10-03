@@ -47,7 +47,7 @@ knowledge-agent/
 ## Gedächtnis (3-Tier + L4 Procedural + Shared Tier)
 
 - **tier1-base/** — Identität, Ontologie, Kernbeziehungen, episodischer Graph
-  (`episodic_graph.json`) + `versions/v1`–`v4`
+  (`episodic_graph.json`) + `versions/v1`–`v5`
 - **tier2-index/** — concept-index, hub-index, evicted-index
 - **tier3-working/** — Working Memory (`lru_cache.py`, max. 15; Default wertbewusste Eviction)
 - **L4** — Prozeduren (`skills/`, versioniert) · **Shared** — Multi-Agent-Store (`data/memory/shared/`)

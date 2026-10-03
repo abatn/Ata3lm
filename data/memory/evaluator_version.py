@@ -437,7 +437,7 @@ class RedQueenLoop:
 #    Quellen: arXiv:2606.26294 §5 (Grader-Evolution) ·
 #    OpenAI Structured Outputs (https://platform.openai.com/docs/guides/structured-outputs)
 # ---------------------------------------------------------------------------
-GRADER_MODEL = os.environ.get("RQGM_GRADER_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+GRADER_MODEL = os.environ.get("RQGM_GRADER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
 GRADER_MAX_TOKENS = int(os.environ.get("RQGM_GRADER_MAX_TOKENS", "1024"))  # fest (Auftrag)
 GRADER_TEMPERATURE = 0.0  # deterministisch (Auftrag)
 
