@@ -108,3 +108,11 @@ def test_build_server_registriert_5_tools(monkeypatch):
     server = m.build_server()
     assert isinstance(server, FakeMCP)
     assert calls["tools"] == ["memory.read", "memory.write", "memory.search", "memory.consolidate", "memory.link"]
+
+
+def test_build_server_mit_echtem_mcp_sdk():
+    """Nur mit installiertem offiziellem mcp-SDK (Python >=3.10); sonst skip."""
+    pytest.importorskip("mcp")
+    server = m.build_server()
+    tools = set(server._tool_manager._tools.keys())
+    assert {"memory.read", "memory.write", "memory.search", "memory.consolidate", "memory.link"} <= tools

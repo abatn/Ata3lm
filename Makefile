@@ -1,6 +1,7 @@
 # Knowledge-Agent – minimales Test-Setup
 # `test` fuehrt pytest aus (docs.pytest.org); die Mindest-Coverage steht in pytest.ini.
-PYTHON ?= python3
+# venv bevorzugen (offizielles mcp-SDK braucht Python >=3.10)
+PYTHON ?= $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 
 .PHONY: test clean
 

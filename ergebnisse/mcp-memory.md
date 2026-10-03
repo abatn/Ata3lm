@@ -73,3 +73,43 @@ tests/test_mcp_memory.py: read/write/search/link/consolidate, Scope-/Key-Validie
   (confirmed) ist menschlich; `red` wird **abgelehnt** — Quelle: „AI can only propose".
 - Ehrliche Grenze: `mcp`-SDK ist im System-Python nicht installiert → Modul importiert
   es **lazy**; Tests decken `build_server()` mit Fake-SDK, der echte Lauf nutzt das Venv.
+
+## 8. MCP-Status nach Fix (2026-10-03, Harness)
+
+```text
+MCP-Einträge: 19 · aktiv: 16 · aktiv OK: 16/16 · nicht_ok: 0
+```
+
+| Status | Server |
+|---|---|
+| **OK (16)** | memory (neu) · adas · graphiti · mars · react · reflexion · trace · hela-mem · cognee · obsidian · kubernetes · livekit-docs · n8n · godel-agent · agent-dice · **governance-mcp** |
+| **deaktiviert (3)** | context7 (per Design) · sqlalchemy-mcp · visuals-mcp (**Binary nicht öffentlich**: nicht auf PyPI/npm → nicht installierbar; `enabled:false` + Grund) |
+
+**EOL-Modell gefixt:** `nvidia/nemotron-3-super-120b-a12b` liefert jetzt **HTTP 410
+(Gone)** — MCP-Env (`ADAS_MODEL`, `MARS_MODEL`, `REACT_MODEL`, `REFLEXION_MODEL`,
+`MODEL_NAME`) auf das live `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` (200)
+umgestellt. Beleg: direkter Endpoint-Test (410 vs 200).
+
+**Transient (kein Defekt):** bei 19 parallel gestarteten Servern einmalig
+`503 ResourceExhausted` (react) und ein `uvx`-Startfehler (cognee) — im Einzeltest
+beide **OK** (react init 0.9 s; `uvx --from cognee-mcp cognee-mcp --help` lädt).
+
+## 9. Offener Punkt (Human-Gate nötig, NICHT geändert)
+
+Die **Repo-Defaults** zeigen weiter auf das EOL-Modell:
+`fast_write_router.LARGE_MODEL`, `evaluator_version.GRADER_MODEL`,
+`reflective_agent` `HELA_MODEL` = `nvidia/nemotron-3-super-120b-a12b` → live **410**.
+Fix wäre `nemotron-3-nano-30b`, aber **AGENTS.md §10.2 nennt diesen Default** →
+Änderung berührt das Gesetz (§9.1b Versionierung + §9 Human-Gate). Daher hier nur
+**dokumentiert**, nicht umgesetzt — wartet auf Freigabe.
+
+## 10. Venv-Setup (Option A, offizielles mcp-SDK)
+
+```text
+uv venv --python 3.12 .venv
+uv pip install -r requirements-dev.txt      # mcp[cli] per Marker (>=3.10)
+make test  → PYTHON ?= .venv/bin/python (Fallback python3)
+venv (3.12): 210 passed · 1839/1839 Statements · 426/426 Branches = 100,00 % (echter SDK)
+3.9 (system): 209 passed + 1 skip (mcp fehlt) · Coverage 100,00 %
+CI: 3.12-Job installiert mcp -> echter SDK-Test; 3.9-Job überspringt (Marker)
+```
