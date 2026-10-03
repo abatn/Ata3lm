@@ -9,5 +9,6 @@ datasets==4.5.0
 openai==2.36.0
 json-repair==0.44.1  # Python-3.9-kompatibel (0.63.5 braucht >3.9)
 ruff==0.16.10
+pymarkdownlnt  # Markdown-Lint (CI)
 # MCP-SDK (offiziell: PyPI `mcp`, requires-python >=3.10; Marker -> 3.9 ueberspringt)
 mcp[cli]; python_version >= "3.10"

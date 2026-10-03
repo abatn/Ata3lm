@@ -60,6 +60,31 @@ def test_versionierung_v1_bis_v4():
         assert (MEM / "tier1-base" / "versions" / v).is_dir(), f"Version {v} fehlt"
 
 
+def test_versionierung_alle_vN():
+    """§9.1b: alle versionierten Stände sind lückenlos ab v1 vorhanden."""
+    versions = sorted(
+        (p.name for p in (MEM / "tier1-base" / "versions").glob("v[0-9]*") if p.is_dir() and p.name[1:].isdigit()),
+        key=lambda n: int(n[1:]),
+    )
+    assert versions, "keine Versionsverzeichnisse gefunden"
+    nummern = [int(n[1:]) for n in versions]
+    assert nummern[0] == 1, f"Versionierung beginnt nicht bei v1: {versions}"
+    assert nummern == list(range(1, max(nummern) + 1)), f"Lücke in Versionierung: {versions}"
+    for n in nummern:
+        assert (MEM / "tier1-base" / "versions" / f"v{n}").is_dir(), f"Version v{n} fehlt"
+
+
+def test_rekursion_index_vollstaendig():
+    """§3/Provenienz: jede Rekursion (außer Template) ist im README-Index gelistet."""
+    index = (REK / "README.md").read_text(encoding="utf-8")
+    files = sorted(REK.glob("0[0-9][0-9]-*.md"))
+    assert files, "keine Rekursions-Dateien gefunden"
+    for f in files:
+        if f.name.startswith("000-"):
+            continue
+        assert f.name in index, f"Rekursion nicht im Index gelistet: {f.name}"
+
+
 def test_tiers_connectors_und_mcp_basis():
     for p in ("tier1-base", "tier2-index", "tier3-working", "shared"):
         assert (MEM / p).is_dir(), f"Tier fehlt: {p}"

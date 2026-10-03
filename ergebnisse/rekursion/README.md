@@ -66,6 +66,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 039 | `039-gaama-mechanik-fwr.md` | System-Iteration (d=2, Hub-Dampening, §10.1-FWR) | approved: Batnini, 2026-10-03 | siehe File |
 | 040 | `040-write-kette.md` | System-Iteration (Write-Kette §9.2c/a + §10.1) | approved: Batnini, 2026-10-03 | siehe File |
 | 041 | `041-echte-verifikation.md` | System-Iteration (Fakes ersetzt, Guardrail 7) | approved: Batnini, 2026-10-03 | siehe File |
+| 042 | `042-ci-integration.md` | System-Iteration (CI-Integration A–O) | approved: Batnini, 2026-10-03 | siehe File |
 
 ## Guardrail
 

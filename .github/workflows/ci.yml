@@ -1,5 +1,6 @@
-# CI für den Knowledge-Agenten: Lint (Ruff) + Tests (pytest, 100 % Line+Branch).
+# CI für den Knowledge-Agenten: Lint · Doku · Artefakte · Security · Endpoint · Tests.
 # Quellen: https://docs.astral.sh/ruff/ · https://docs.pytest.org/ · AGENTS.md
+# Eine Umgebung (Python 3.12): `mcp` braucht >=3.10, daher keine 3.9-Matrix.
 name: ci
 
 on:
@@ -8,38 +9,49 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  verify:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Ruff installieren
-        run: pip install ruff==0.16.10
-      - name: Ruff check
-        run: ruff check .
-      - name: Ruff format --check
-        run: ruff format --check .
-
-  test:
-    runs-on: ubuntu-latest
-    # AGENTS.md Guardrail 7: echte Verifikation -> Endpoint-Key als GitHub-Secret.
+    # AGENTS.md Guardrail 7 (echte Verifikation): Endpoint-Key als GitHub-Secret.
     # Secret anlegen: Settings -> Secrets and variables -> Actions -> OPENAI_API_KEY
     # (optional OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1).
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
       - name: Abhängigkeiten installieren
         run: pip install -r requirements-dev.txt
-      - name: Tests + Coverage (Line+Branch, 100 %)
+
+      - name: Ruff (Lint + Format)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Markdown-Lint (advisory)
+        continue-on-error: true
+        run: pymarkdown --config .pymarkdown.json scan .
+
+      - name: Doku-Links + Artefakte + Secrets
+        run: |
+          python scripts/check_md_links.py
+          python scripts/check_artifacts.py
+          python scripts/check_secrets.py
+
+      - name: "Endpoint-Preflight (§11: extern optional, lokal = Pflicht-Basis)"
+        id: preflight
+        continue-on-error: true
+        run: python scripts/ci_preflight.py
+
+      - name: Tests + Coverage (echt, 100 %)
+        if: steps.preflight.outcome == 'success'
         run: make test
+
+      - name: Tests blockiert (Endpoint nicht erreichbar)
+        if: steps.preflight.outcome != 'success'
+        run: |
+          echo "Endpoint nicht erreichbar -> echte Tests blockiert (Guardrail 7)."
+          echo "Kein Fake-Fallback (§11: lokale Basis ist Pflicht, extern optional)."
+          exit 1

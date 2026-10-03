@@ -1,0 +1,14 @@
+# gitleaks-Konfiguration (Repo-Wurzel)
+# Nutzt die eingebauten Regeln und erlaubt ausschliesslich die MASKIERTEN
+# Key-Erwaehnungen in der Doku (Form `nvapi-…`), NICHT echte Keys.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Maskierte Key-Erwaehnungen in der Doku"
+paths = ['''ergebnisse/.*\.md''']
+regexTarget = "match"
+# Nur die maskierte Form `nvapi-…` (Unicode-Ellipse) ist erlaubt.
+# Ein echter Key `nvapi-<40+ Zeichen>` enthaelt keine Ellipse und wird
+# daher weiterhin von den Default-Regeln erkannt (nicht allowlisted).
+regexes = ['''nvapi-…''']

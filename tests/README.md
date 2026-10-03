@@ -65,13 +65,17 @@ Endpoint-Ausfälle können einzelne Läufe scheitern lassen (Retry mildert).
 | `test_fwr_write.py` | Write-Aktion (§10.7): non-write→Historie, write-new→structured+tier3, write-update→tier1-Supersede | 6 |
 | `test_tier2_tier3.py` | Ladepfad tier2→tier3: GAAMA-Hybrid (Cosine+PPR, d=2, Hub-Dampening), Validation-Gate | 15 |
 | `test_gaama_extract.py` | GAAMA-Extraktion: Schema/Kanten (5 Typen), **realer LLM**, Graph, §10.1-Routing, §9.2c-Write-Kette | 10 |
-| `test_mappings.py` | Doku-Enforcement: Skill→Prozess + Connector→Prozess | 3 |
+| `test_mappings.py` | Doku-Enforcement: Skill→Prozess + Connector→Prozess + Connector-Konsistenz | 4 |
 | `test_mcp_memory.py` | MCP-Memory-Server: 5 Tools + Tri-Color-Trust (echtes mcp-SDK, skip sonst) | 8 |
 | `test_mandate.py` | Mandat: attenuate-nie-expand, ALLOW/REVIEW/DENY, Grant, Evidence | 9 |
-| `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI) | 8 |
+| `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI) | 10 |
+| `test_invariants.py` | Snapshots `versions/vN` lückenlos, neuester = aktuell, Skills-Versionen, `structured/`-Pflichtfelder | 4 |
+| `test_models_live.py` | Modell-IDs live (HTTP 200) — Marker `network` | 2 |
 | `../pytest.ini` · `../.coveragerc` · `../Makefile` | Konfiguration, Mindest-Score, Coverage, `make test` | – |
+| `../scripts/*.py` | CI-Checks: `check_md_links`, `check_artifacts`, `check_secrets`, `ci_preflight`, `ci_drift` | – |
 
-Gesamt: **255 Tests (venv 3.12), 100 %** – real gegen Endpoint + HF-Anker.
+Gesamt: **264 Tests (venv 3.12), 100 %** – real gegen Endpoint + HF-Anker.
+CI-Details: `ergebnisse/ci-integration.md` (ein Job `verify`, Python 3.12).
 
 ## Was NICHT abgedeckt ist
 
