@@ -6,13 +6,13 @@
 
 ## 0. Kernbefund (ehrlich, vorab)
 
-- **Code-Kanten (wirklich verdrahtet): 7** — alle über Datei-Pfade in `data/memory/**`.
+- **Code-Kanten (wirklich verdrahtet): 7 + Pipeline-Kanten** — alle über Datei-Pfade in `data/memory/**`.
 - **MCP-Server sind NICHT im Code angebunden** — ihre Namen kommen nur in
   Kommentaren/Docstrings vor (`grep` ohne Treffer auf echte Aufrufe). §11 sagt:
   MCP = *optional über* der lokalen Memory → konzeptionell, nicht verdrahtet.
 - **Cross-Import in `data/memory/`: genau 1** (`reflective_agent → evaluator_version`).
-- Alles „X → alle" (trust/approval/bias_monitor/bi_temporal/mandate) hat **keine
-  Aufrufer** → LÜCKE.
+- Alles „X → alle" (trust/approval/bias_monitor/bi_temporal/mandate) wird seit
+  2026-10-03 von `data/memory/pipeline.py` **aufgerufen** → GESCHLOSSEN.
 
 ## 1. Diagramm (Mermaid) — solide = Code, gepunktet = Doku, rot = LÜCKE
 
@@ -108,7 +108,7 @@ Legende Quelle: `Datei:Zeile` = Code-Beleg · `AGENTS.md §` = Doku/Auftrag ·
 | von → nach | was | Bedingung | Quelle |
 |---|---|---|---|
 | tier1-base → tier2-index | Hub → Konzept-Index | Hub erkannt (`D(v) > δ_hub`) | **Code**: `reflective_agent.py:24,351-353` |
-| tier2-index → tier3-working | Konzept in Cache laden | — | **LÜCKE** (lru lädt aus `knowledge/structured`, nicht aus tier2) |
+| tier2-index → tier3-working | Konzept in Cache laden | — | **GESCHLOSSEN 2026-10-03**: `pipeline.load_from_tier2()` |
 | tier3-working → tier2-index | Eviction | Kapazität > 15 bzw. Forgetting | **Code**: `lru_cache.py:26,228-229` |
 | knowledge/structured → tier3-working | Initialbefüllung | `relevance ≥ min_relevance` | **Code**: `lru_cache.py:146` |
 | tier1-base (Hub) → knowledge/structured | Destillation | `detect_hubs` | **Code**: `reflective_agent.py:25,334-336` |
@@ -119,18 +119,18 @@ Legende Quelle: `Datei:Zeile` = Code-Beleg · `AGENTS.md §` = Doku/Auftrag ·
 
 | von → nach | was | Bedingung | Quelle |
 |---|---|---|---|
-| fast_write_router → tier3-working | Klassen-Aktion | write-new | **LÜCKE** (Code liefert nur `class`, kein Write) |
-| fast_write_router → tier1-base | Supersede | write-update | **LÜCKE** (nur `AGENTS.md §10.7`) |
+| fast_write_router → tier3-working | Klassen-Aktion | write-new | **GESCHLOSSEN 2026-10-03**: `pipeline.route_and_store` schreibt (classify injiziert) |
+| fast_write_router → tier1-base | Supersede | write-update | **GESCHLOSSEN**: `pipeline` + `bi_temporal.assert_fact` |
 | reflective_agent → tier1-base | liest Graph (Hub-Destillation) | immer | **Code**: `reflective_agent.py:24,203,369` |
 | ingestion_hook → tier3-working | Lifecycle-Log | jedes Event | **Code**: `ingestion_hook.py:47,386-389` |
 | lru_cache → tier2-index | Eviction | Kapazität/Forgetting | **Code**: `lru_cache.py:228-229` |
-| trust → alle | PII-Filter vor Write | — | **LÜCKE** (kein Aufrufer; `ingestion_hook` hat eigenen `PrivacyFilter`) |
-| approval → alle | §9.3-Gate vor Commit | — | **LÜCKE** (Prozessregel, kein Code-Aufruf) |
-| bias_monitor → alle | Drift-Erkennung | `DI > τ` | **LÜCKE** (kein Aufrufer) |
-| bi_temporal → alle | valid × transaction time | — | **LÜCKE** (kein Aufrufer) |
+| trust → alle | PII-Filter vor Write | **GESCHLOSSEN**: `pipeline.py` | — | **LÜCKE** (kein Aufrufer; `ingestion_hook` hat eigenen `PrivacyFilter`) |
+| approval → alle | §9.3-Gate vor Commit | **GESCHLOSSEN**: `pipeline.py` | — | **LÜCKE** (Prozessregel, kein Code-Aufruf) |
+| bias_monitor → alle | Drift-Erkennung | **GESCHLOSSEN**: `pipeline.py` | `DI > τ` | **LÜCKE** (kein Aufrufer) |
+| bi_temporal → alle | valid × transaction time | **GESCHLOSSEN**: `pipeline.py` | — | **LÜCKE** (kein Aufrufer) |
 | shared_memory → tier1-base | ACL + Trust + Sync | `dump(path)` | **LÜCKE** (Pfad wird vom Aufrufer gegeben, keine Bindung) |
 | evaluator_version → reflective_agent | Red-Queen-Loop | `RQGM_LOOP != 0` | **Code**: `reflective_agent.py:395` |
-| mandate → alle | Erweiterungs-Gate `ask` | Erweiterungsversuch | **LÜCKE** (kein Aufrufer) |
+| mandate → alle | Erweiterungs-Gate `ask` | **GESCHLOSSEN**: `pipeline.py` | Erweiterungsversuch | **LÜCKE** (kein Aufrufer) |
 
 ### 2.4 Skill-Verbindungen (14 Skills)
 
@@ -155,12 +155,11 @@ Legende Quelle: `Datei:Zeile` = Code-Beleg · `AGENTS.md §` = Doku/Auftrag ·
 
 1. ~~**MCP ↔ alles**: keine Code-Anbindung.~~ → **GESCHLOSSEN 2026-10-03** durch
    `data/memory/mcp_memory_server.py` (5 Tools, Tri-Color-Gate); Details `ergebnisse/mcp-memory.md`.
-2. **„→ alle"-Module** (trust, approval, bias_monitor, bi_temporal, mandate):
-   existieren, haben aber **keine Aufrufer**.
-3. **fast_write_router → Memory**: Klassifikation vorhanden, **Write-Aktion fehlt**.
-4. **tier2 → tier3**: kein Ladepfad (lru lädt aus `knowledge/structured`).
-5. **skills → Prozesse**: keine Prozessnamen in den Skills.
-6. **connectors → Prozesse**: Connectoren sind reine Dokumentation.
+2. ~~„→ alle"-Module ohne Aufrufer.~~ → **GESCHLOSSEN 2026-10-03** via `pipeline.py`.
+3. ~~fast_write_router → Memory: Write fehlt.~~ → **GESCHLOSSEN** via `pipeline.route_and_store`.
+4. ~~tier2 → tier3: kein Ladepfad.~~ → **GESCHLOSSEN** via `pipeline.load_from_tier2`.
+5. **skills → Prozesse**: → **GESCHLOSSEN (Doku/Auftrag)** in `skills/README.md`.
+6. **connectors → Prozesse**: → **GESCHLOSSEN (Doku)** in §5.
 
 ## 4. Quellen (geprüft)
 
@@ -170,3 +169,32 @@ Legende Quelle: `Datei:Zeile` = Code-Beleg · `AGENTS.md §` = Doku/Auftrag ·
 - Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:378-392`),
   `skills/store-memory/SKILL.md`, `data/memory/README.md`
 - Methode: `grep -rn` über `data/memory/**`, `skills/**`, `connectors/**`
+
+
+## 5. Update 2026-10-03: Pipeline schließt die Code-LÜCKEN
+
+Neu: `data/memory/pipeline.py` verbindet die Prozesse zu einer Kette
+(Mandat → FWR → Trust → Approval → Write → Drift) und lädt tier2 → tier3.
+
+| Kante | was | Quelle (Code) |
+|---|---|---|
+| pipeline → mandate | Mandat-Gate | `mandate.assess` |
+| pipeline → trust | PII vor Store | `trust.PIIFilter().minimize` |
+| pipeline → approval | §9.3-Gate (self_update) | `approval.TwoPersonApproval` |
+| pipeline → bi_temporal | Supersede | `bi_temporal.BiTemporalStore.assert_fact` |
+| pipeline → bias_monitor | Drift-Gate | `bias_monitor.BiasDriftMonitor.observe` |
+| pipeline → structured/tier3 | Write (write-new) | Dateipfade |
+| pipeline.load_from_tier2 → tier3 | Ladepfad | Dateikopie |
+
+### Connector → Prozess (Doku-Zuordnung, Status: Auftrag)
+
+| Connector | Prozess/Stufe | Quelle |
+|---|---|---|
+| fast-write-routing | `fast_write_router` | `AGENTS.md §10` |
+| cognee-memory · cognee-validation | `reflective_agent` | `AGENTS.md:382` |
+| hela-semantic · hela-evolution | `reflective_agent` | `AGENTS.md:381,388` |
+| mars-seaa | `bias_monitor` (HMM) | `AGENTS.md:384-385` |
+| governance-mcp | `bias_monitor` + Lyapunov (§9) | `AGENTS.md:392` |
+| affective-signals | `trust` (Nicht-Kognition) | `AGENTS.md:390` |
+| agento-ariadne | `shared_memory` (Tier 1) | `AGENTS.md:378-379` |
+| (übrige) | Phase/Stufe laut Tabelle | `AGENTS.md:378-392` |

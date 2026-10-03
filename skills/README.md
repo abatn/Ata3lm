@@ -89,3 +89,19 @@ skills/
 - https://arxiv.org/abs/2512.13564 (Memory in the Age of AI Agents)
 - https://arxiv.org/abs/2602.06052 (Survey: Self-Evolving Agents)
 - https://arxiv.org/abs/2602.05665 (Graph-based Agent Memory)
+
+## Skill → Prozess (Zuordnung, Status: Auftrag)
+
+| Stufen-Skill | Prozess (data/memory) |
+|---|---|
+| collect-experience | `ingestion_hook.py` (Lifecycle-Events) |
+| structure-knowledge | `fast_write_router.py` (3-Klassen) |
+| store-memory | `lru_cache.py` + `pipeline.py` (Write) |
+| cognize | `reflective_agent.py` (Konsolidierung) |
+| reflect | `bias_monitor.py` (Drift) |
+| non-cognitive | `trust.py` (Guards) |
+| act | `pipeline.py` (Kette) |
+| expand-knowledge | `shared_memory.py` (Shared Tier) |
+
+Umsetzung: `data/memory/pipeline.py` verbindet diese Prozesse zu einer Kette
+(Mandat → FWR → Trust → Approval → Write → Drift). Status **Auftrag** (Zuordnung).
