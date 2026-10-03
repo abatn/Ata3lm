@@ -1,6 +1,6 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-03 (konsolidiert) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Datum: 2026-10-03 (konsolidiert + CI-Integration 042) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
 > Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
 > `skills/**`, `connectors/**`, `AGENTS.md`.
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
@@ -23,6 +23,11 @@
   verdrahtet, shared_memory exportiert, Mappings CI-enforced.
 - **Stand 2026-10-03 (D):** Datei ↔ Code abgeglichen; LÜCKEN (`shared_memory`,
   `connectors`) korrigiert, tote Knoten (`MAND`, `MCP`) verdrahtet.
+- **Stand 2026-10-03 (CI-Integration, Rekursion 042):** ein `verify`-Job (Python 3.12,
+  keine 3.9-Matrix) prüft Code + Doku (interne Links) + Artefakte + Secrets + Endpoint
+  (Preflight) + Modell-IDs + Snapshots (`vN`) + Connector-Konsistenz + Provenienz.
+  **Offen (nicht verdrahtet):** `ci_drift`, `pre-commit`, `gitleaks`-Action, Live-MCPs,
+  Branch-Protection, Windows/macOS.
 
 ## 1. Diagramm (Mermaid)
 
@@ -61,9 +66,10 @@ flowchart TB
   end
   KS["knowledge/structured/"]:::code
   SK["skills/ (14)"]:::docu
-  CN["connectors/ (16)"]:::docu
+  CN["connectors/ (17)"]:::docu
   MCP["MCP-Server (19/16 aktiv)"]:::code
-  TST["tests/ + CI (244 Tests, 100 %)"]:::code
+  TST["tests/ + CI (264 Tests, 100 %)"]:::code
+  CIC["CI verify (Python 3.12, ein Job)"]:::code
 
   %% CODE-Kanten (verdrahtet)
   REF -->|"CODE: liest Graph"| T1
@@ -95,6 +101,9 @@ flowchart TB
   MCPSRV -->|"CODE: 5 Tools"| CN
   MCPSRV -->|"CODE: 5 Tools"| SK
   TST -.->|"CODE: prüft"| PIPE
+  CIC -->|"CODE: ruff · scripts/* · make test"| TST
+  CIC -->|"CODE: ci_preflight (§11-Gate)"| MCP
+  CIC -.->|"OFFEN: ci_drift nicht verdrahtet"| BM
 
   %% DOKU-Kanten (Auftrag)
   LAW -.->|"DOKU: §10.7 write-new/update"| FWR
@@ -168,7 +177,7 @@ flowchart TB
 | 8 Stufen-Skills → Prozesse | **DOKU**: `skills/README.md` (Zuordnung, Status Auftrag) |
 | recursive-improve → Phasen konstrukt/akt/observe/compare/revise | **DOKU**: `skills/recursive-improve/*/SKILL.md` |
 
-### 2.5 Connector-Verbindungen (16)
+### 2.5 Connector-Verbindungen (17)
 
 | Connector → Stufe | Quelle (Doku) |
 |---|---|
@@ -263,3 +272,23 @@ ist damit weder durch das Paper noch durch AGENTS.md verboten — aber auch nich
 |---|---|---|
 | `ingestion_hook.route_experience` → pipeline | Experience-Eintritt, echter Router | **CODE**: `ingestion_hook.py` (`route_experience`) |
 | Hub (`reflective_agent`, PIPELINE_ROUTE) → pipeline | feste Klasse `write-new` | **Abweichung/Auslegung** (dokumentiert) |
+
+
+## 7. CI-Verbindungen (Rekursion 042)
+
+Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md §4/§6/
+§9.1b/c/d/§9.2a/c/§10.2/§11, Guardrails 3/6/7. Doku: `ergebnisse/ci-integration.md`.
+
+| CI-Schritt | prüft | Element | Status |
+|---|---|---|---|
+| `ruff check` / `ruff format --check` | Python-Lint/Format | — | **CODE** |
+| `pymarkdown` (advisory) | Markdown-Lint | A | **CODE** (nicht blockierend) |
+| `scripts/check_md_links.py` | interne Doku-Links | A | **CODE** |
+| `scripts/check_artifacts.py` | JSON/YAML/TOML + `.dot`-Syntax | C | **CODE** |
+| `scripts/check_secrets.py` | Secret-Muster (+Allowlist) | G | **CODE** |
+| `scripts/ci_preflight.py` | Endpoint erreichbar | E | **CODE** |
+| `make test` | 264 Tests / 100 %, real | — | **CODE** |
+| `scripts/ci_drift.py` | Drift vs. Vorcommit | N | **OFFEN** (Skript da, nicht verdrahtet) |
+| `pre-commit` | Hooks | J | **OFFEN** |
+| `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |
+| Live-MCPs (Graphiti/Cognee/…) | externe Server | D | **OFFEN** (Nightly-Option) |

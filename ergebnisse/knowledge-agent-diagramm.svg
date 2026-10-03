@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 1173)">
 <title>KnowledgeAgent</title>
 <polygon fill="white" stroke="transparent" points="-4,4 -4,-1173 1742,-1173 1742,4 -4,4"/>
-<text text-anchor="middle" x="869" y="-1149" font-family="DejaVu Sans" font-size="20.00">Knowledge&#45;Agent &#160;— &#160;alle Stufen × alle Phasen × alle Schichten (2026&#45;10&#45;02 · HEAD cd05bb5)</text>
+<text text-anchor="middle" x="869" y="-1149" font-family="DejaVu Sans" font-size="20.00">Knowledge&#45;Agent &#160;— &#160;alle Stufen × alle Phasen × alle Schichten (2026&#45;10&#45;03 · HEAD 237641a)</text>
 <text text-anchor="middle" x="869" y="-1127" font-family="DejaVu Sans" font-size="20.00">Quelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/</text>
 <g id="clust1" class="cluster">
 <title>cluster_law</title>
@@ -39,12 +39,12 @@
 <g id="clust6" class="cluster">
 <title>cluster_conn</title>
 <path fill="#fbe5d6" stroke="#ed7d31" d="M1035,-586C1035,-586 1535,-586 1535,-586 1541,-586 1547,-592 1547,-598 1547,-598 1547,-661 1547,-661 1547,-667 1541,-673 1535,-673 1535,-673 1035,-673 1035,-673 1029,-673 1023,-667 1023,-661 1023,-661 1023,-598 1023,-598 1023,-592 1029,-586 1035,-586"/>
-<text text-anchor="middle" x="1285" y="-657.8" font-family="DejaVu Sans" font-size="14.00">Schicht 4 · Connectoren (16) — connectors/</text>
+<text text-anchor="middle" x="1285" y="-657.8" font-family="DejaVu Sans" font-size="14.00">Schicht 4 · Connectoren (17) — connectors/</text>
 </g>
 <g id="clust7" class="cluster">
 <title>cluster_mcp</title>
 <path fill="#e4dfec" stroke="#7030a0" d="M974,-471C974,-471 1718,-471 1718,-471 1724,-471 1730,-477 1730,-483 1730,-483 1730,-546 1730,-546 1730,-552 1724,-558 1718,-558 1718,-558 974,-558 974,-558 968,-558 962,-552 962,-546 962,-546 962,-483 962,-483 962,-477 968,-471 974,-471"/>
-<text text-anchor="middle" x="1346" y="-542.8" font-family="DejaVu Sans" font-size="14.00">Schicht 5 · MCP&#45;Server (18 konfiguriert · 17 aktiv)</text>
+<text text-anchor="middle" x="1346" y="-542.8" font-family="DejaVu Sans" font-size="14.00">Schicht 5 · MCP&#45;Server (19 konfiguriert · 16 aktiv)</text>
 </g>
 <g id="clust8" class="cluster">
 <title>cluster_skills</title>
@@ -58,14 +58,14 @@
 </g>
 <g id="clust10" class="cluster">
 <title>cluster_tests</title>
-<path fill="#e1d5e7" stroke="#9673a6" d="M850,-78C850,-78 1204,-78 1204,-78 1210,-78 1216,-84 1216,-90 1216,-90 1216,-153 1216,-153 1216,-159 1210,-165 1204,-165 1204,-165 850,-165 850,-165 844,-165 838,-159 838,-153 838,-153 838,-90 838,-90 838,-84 844,-78 850,-78"/>
-<text text-anchor="middle" x="1027" y="-149.8" font-family="DejaVu Sans" font-size="14.00">Schicht 8 · Tests &amp; CI — tests/ + .github/workflows/</text>
+<path fill="#e1d5e7" stroke="#9673a6" d="M708,-78C708,-78 1204,-78 1204,-78 1210,-78 1216,-84 1216,-90 1216,-90 1216,-153 1216,-153 1216,-159 1210,-165 1204,-165 1204,-165 708,-165 708,-165 702,-165 696,-159 696,-153 696,-153 696,-90 696,-90 696,-84 702,-78 708,-78"/>
+<text text-anchor="middle" x="956" y="-149.8" font-family="DejaVu Sans" font-size="14.00">Schicht 8 · Tests &amp; CI — tests/ + .github/workflows/</text>
 </g>
 <!-- law -->
 <g id="node1" class="node">
 <title>law</title>
 <path fill="#f8cbad" stroke="#c55a11" d="M789.5,-1078C789.5,-1078 28.5,-1078 28.5,-1078 22.5,-1078 16.5,-1072 16.5,-1066 16.5,-1066 16.5,-1054 16.5,-1054 16.5,-1048 22.5,-1042 28.5,-1042 28.5,-1042 789.5,-1042 789.5,-1042 795.5,-1042 801.5,-1048 801.5,-1054 801.5,-1054 801.5,-1066 801.5,-1066 801.5,-1072 795.5,-1078 789.5,-1078"/>
-<text text-anchor="middle" x="409" y="-1057.2" font-family="DejaVu Sans" font-size="11.00">AGENTS.md (392 Zeilen) &#160;&#160;§1–§8 Prinzipien &#160;&#160;· &#160;&#160;§9 Gate (§9.1–§9.3) &#160;&#160;· &#160;&#160;§10 Fast Write Routing (§10.1–10.7) &#160;&#160;· &#160;&#160;§11 MCP&#45;Layer (§11.1–11.4)</text>
+<text text-anchor="middle" x="409" y="-1057.2" font-family="DejaVu Sans" font-size="11.00">AGENTS.md (411 Zeilen) &#160;&#160;§1–§8 Prinzipien &#160;&#160;· &#160;&#160;§9 Gate (§9.1–§9.3) &#160;&#160;· &#160;&#160;§10 Fast Write Routing (§10.1–10.7) &#160;&#160;· &#160;&#160;§11 MCP&#45;Layer (§11.1–11.4)</text>
 </g>
 <!-- s1 -->
 <g id="node2" class="node">
@@ -305,7 +305,7 @@
 <title>mcp</title>
 <path fill="#d9d2e9" stroke="#7030a0" d="M1709.5,-527C1709.5,-527 982.5,-527 982.5,-527 976.5,-527 970.5,-521 970.5,-515 970.5,-515 970.5,-491 970.5,-491 970.5,-485 976.5,-479 982.5,-479 982.5,-479 1709.5,-479 1709.5,-479 1715.5,-479 1721.5,-485 1721.5,-491 1721.5,-491 1721.5,-515 1721.5,-515 1721.5,-521 1715.5,-527 1709.5,-527"/>
 <text text-anchor="middle" x="1346" y="-512.2" font-family="DejaVu Sans" font-size="11.00">Projekt (11): graphiti · cognee · hela&#45;mem · reflexion · react · mars · trace · godel&#45;agent · agent&#45;dice · adas · governance&#45;mcp(stdio)</text>
-<text text-anchor="middle" x="1346" y="-500.2" font-family="DejaVu Sans" font-size="11.00">Umgebung (7): n8n · obsidian · kubernetes · livekit&#45;docs · sqlalchemy* · visuals* · context7(aus)</text>
+<text text-anchor="middle" x="1346" y="-500.2" font-family="DejaVu Sans" font-size="11.00">Umgebung (8): n8n · obsidian · kubernetes · livekit&#45;docs · memory · sqlalchemy* · visuals* · context7(aus)</text>
 <text text-anchor="middle" x="1346" y="-488.2" font-family="DejaVu Sans" font-size="11.00">* = Binary fehlt → inaktiv</text>
 </g>
 <!-- conn&#45;&gt;mcp -->
@@ -332,8 +332,8 @@
 <g id="node21" class="node">
 <title>res</title>
 <path fill="#c6e0b4" stroke="#375623" d="M1494.5,-318C1494.5,-318 1197.5,-318 1197.5,-318 1191.5,-318 1185.5,-312 1185.5,-306 1185.5,-306 1185.5,-282 1185.5,-282 1185.5,-276 1191.5,-270 1197.5,-270 1197.5,-270 1494.5,-270 1494.5,-270 1500.5,-270 1506.5,-276 1506.5,-282 1506.5,-282 1506.5,-306 1506.5,-306 1506.5,-312 1500.5,-318 1494.5,-318"/>
-<text text-anchor="middle" x="1346" y="-303.2" font-family="DejaVu Sans" font-size="11.00">rekursion/NNN&#45;*.md (Provenienz je Iteration, 000–034)</text>
-<text text-anchor="middle" x="1346" y="-291.2" font-family="DejaVu Sans" font-size="11.00">83 MD (top&#45;level) / 143 rekursiv</text>
+<text text-anchor="middle" x="1346" y="-303.2" font-family="DejaVu Sans" font-size="11.00">rekursion/NNN&#45;*.md (Provenienz je Iteration, 000–042)</text>
+<text text-anchor="middle" x="1346" y="-291.2" font-family="DejaVu Sans" font-size="11.00">285 MD gesamt</text>
 <text text-anchor="middle" x="1346" y="-279.2" font-family="DejaVu Sans" font-size="11.00">Pläne · Testberichte · Analysen · Diagramme</text>
 </g>
 <!-- sk&#45;&gt;res -->
@@ -346,17 +346,17 @@
 <!-- tst -->
 <g id="node22" class="node">
 <title>tst</title>
-<path fill="#d5c6e0" stroke="#9673a6" d="M1196,-134C1196,-134 858,-134 858,-134 852,-134 846,-128 846,-122 846,-122 846,-98 846,-98 846,-92 852,-86 858,-86 858,-86 1196,-86 1196,-86 1202,-86 1208,-92 1208,-98 1208,-98 1208,-122 1208,-122 1208,-128 1202,-134 1196,-134"/>
-<text text-anchor="middle" x="1027" y="-119.2" font-family="DejaVu Sans" font-size="11.00">tests/ 13 Dateien · 201 Tests · 100 % Line+Branch (1753/396)</text>
-<text text-anchor="middle" x="1027" y="-107.2" font-family="DejaVu Sans" font-size="11.00">CI ci.yml: lint (Ruff) + test (Python 3.9 &amp; 3.12)</text>
-<text text-anchor="middle" x="1027" y="-95.2" font-family="DejaVu Sans" font-size="11.00">pyproject.toml (Ruff) · .pre&#45;commit&#45;config.yaml · make test</text>
+<path fill="#d5c6e0" stroke="#9673a6" d="M1195.5,-134C1195.5,-134 716.5,-134 716.5,-134 710.5,-134 704.5,-128 704.5,-122 704.5,-122 704.5,-98 704.5,-98 704.5,-92 710.5,-86 716.5,-86 716.5,-86 1195.5,-86 1195.5,-86 1201.5,-86 1207.5,-92 1207.5,-98 1207.5,-98 1207.5,-122 1207.5,-122 1207.5,-128 1201.5,-134 1195.5,-134"/>
+<text text-anchor="middle" x="956" y="-119.2" font-family="DejaVu Sans" font-size="11.00">tests/ 21 Dateien · 264 Tests · 100 % Line+Branch (2203/550)</text>
+<text text-anchor="middle" x="956" y="-107.2" font-family="DejaVu Sans" font-size="11.00">CI verify (Python 3.12, ein Job): Ruff · Markdown(adv) · scripts/* · Preflight · echte Tests</text>
+<text text-anchor="middle" x="956" y="-95.2" font-family="DejaVu Sans" font-size="11.00">scripts/ · .gitleaks.toml · .pymarkdown.json · pyproject.toml (Ruff) · make test</text>
 </g>
 <!-- res&#45;&gt;tst -->
 <g id="edge24" class="edge">
 <title>res&#45;&gt;tst</title>
-<path fill="none" stroke="#9673a6" stroke-dasharray="5,2" d="M1275.61,-262C1257.27,-253.4 1237.7,-243.73 1220,-234 1184.92,-214.72 1147.56,-191.56 1115.15,-170.57"/>
-<polygon fill="#9673a6" stroke="#9673a6" points="1116.88,-167.52 1106.59,-165 1113.06,-173.38 1116.88,-167.52"/>
-<text text-anchor="middle" x="1285" y="-244.8" font-family="DejaVu Sans" font-size="9.00">geprüft durch</text>
+<path fill="none" stroke="#9673a6" stroke-dasharray="5,2" d="M1279.58,-262C1225.28,-236.66 1146.99,-200.13 1081.02,-169.34"/>
+<polygon fill="#9673a6" stroke="#9673a6" points="1082.26,-166.06 1071.71,-165 1079.3,-172.4 1082.26,-166.06"/>
+<text text-anchor="middle" x="1283" y="-244.8" font-family="DejaVu Sans" font-size="9.00">geprüft durch</text>
 </g>
 <!-- map -->
 <g id="node23" class="node">
