@@ -93,12 +93,12 @@ Legende Quelle: `Datei:Zeile` = Code-Beleg · `AGENTS.md §` = Doku/Auftrag ·
 
 | von → nach | was fließt | Bedingung | Quelle |
 |---|---|---|---|
-| MCP graphiti → tier1-base | — | — | **LÜCKE** (kein Code; §11 nennt Graphiti nur als optionales externes Memory) |
-| MCP cognee → tier2-index | — | — | **LÜCKE** |
-| MCP hela-mem → tier3-working | — | — | **LÜCKE** |
-| MCP → knowledge/structured | — | — | **LÜCKE** |
-| MCP → connectors/ | — | — | **LÜCKE** |
-| MCP → skills/ | — | — | **LÜCKE** |
+| MCP → tier1/2/3 · structured · connectors · skills | lesen/suchen/schreiben/linken | Scope + Tri-Color-Trust | **GESCHLOSSEN 2026-10-03**: `data/memory/mcp_memory_server.py` (5 Tools: memory.read/write/search/consolidate/link; `ergebnisse/mcp-memory.md`) |
+
+> Die früheren 6 MCP-LÜCKEN sind durch den MCP-Memory-Server geschlossen
+> (Rekursion/Feature 2026-10-03): MCP exponiert tier1/2/3 + knowledge/structured +
+> connectors + skills über die 5 Kern-Tools. Quelle: Atomic (MCP-Interface) +
+> ATHENA (Tri-Color Trust).
 
 > Beleg für die LÜCKE: `grep -riE "graphiti\|cognee\|hela" data/memory/*.py` →
 > nur Docstrings/Kommentare, **keine** Aufrufe.
@@ -153,7 +153,8 @@ Legende Quelle: `Datei:Zeile` = Code-Beleg · `AGENTS.md §` = Doku/Auftrag ·
 
 ## 3. Zusammenfassung der LÜCKEN
 
-1. **MCP ↔ alles**: keine Code-Anbindung (nur §11 konzeptionell). 6 LÜCKEN.
+1. ~~**MCP ↔ alles**: keine Code-Anbindung.~~ → **GESCHLOSSEN 2026-10-03** durch
+   `data/memory/mcp_memory_server.py` (5 Tools, Tri-Color-Gate); Details `ergebnisse/mcp-memory.md`.
 2. **„→ alle"-Module** (trust, approval, bias_monitor, bi_temporal, mandate):
    existieren, haben aber **keine Aufrufer**.
 3. **fast_write_router → Memory**: Klassifikation vorhanden, **Write-Aktion fehlt**.
