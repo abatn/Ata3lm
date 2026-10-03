@@ -5,7 +5,7 @@ digraph KnowledgeAgent {
   fontname="DejaVu Sans";
   labelloc="t";
   fontsize=20;
-  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/";
+  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten (2026-10-02 · HEAD cd05bb5)\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/";
   node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, margin="0.14,0.09"];
   edge [fontname="DejaVu Sans", fontsize=9, color="#595959"];
 
@@ -13,7 +13,7 @@ digraph KnowledgeAgent {
   subgraph cluster_law {
     label="Schicht 0 · Gesetz";
     style="filled,rounded"; fillcolor="#FCE4D6"; color="#C55A11"; fontsize=14;
-    law [label="AGENTS.md   §1–§8 Prinzipien   ·   §9 Gate (§9.1–§9.3)   ·   §10 Fast Write Routing   ·   §11 MCP-Layer", fillcolor="#F8CBAD", color="#C55A11"];
+    law [label="AGENTS.md (392 Zeilen)   §1–§8 Prinzipien   ·   §9 Gate (§9.1–§9.3)   ·   §10 Fast Write Routing (§10.1–10.7)   ·   §11 MCP-Layer (§11.1–11.4)", fillcolor="#F8CBAD", color="#C55A11"];
   }
 
   // ================= Schicht 1 · Lifecycle (8 Stufen) =================
@@ -59,16 +59,16 @@ digraph KnowledgeAgent {
 
   // ================= Schicht 4 · Connectoren =================
   subgraph cluster_conn {
-    label="Schicht 4 · Connectoren (15) — connectors/";
+    label="Schicht 4 · Connectoren (16) — connectors/";
     style="filled,rounded"; fillcolor="#FBE5D6"; color="#ED7D31"; fontsize=14;
-    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · goedel-agent · hela-evolution · hela-semantic\nhtac-agentdice · mars-seaa · observer-agent · react · reflexion-trace", fillcolor="#F8CBAD", color="#ED7D31"];
+    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · goedel-agent · governance-mcp · hela-evolution\nhela-semantic · htac-agentdice · mars-seaa · observer-agent · react · reflexion-trace", fillcolor="#F8CBAD", color="#ED7D31"];
   }
 
   // ================= Schicht 5 · MCP =================
   subgraph cluster_mcp {
-    label="Schicht 5 · MCP-Server (16 konfiguriert · 14 aktiv)";
+    label="Schicht 5 · MCP-Server (18 konfiguriert · 17 aktiv)";
     style="filled,rounded"; fillcolor="#E4DFEC"; color="#7030A0"; fontsize=14;
-    mcp [label="Projekt (10): graphiti · cognee · hela-mem · reflexion · react · mars · trace · godel-agent · agent-dice · adas\nUmgebung (6): n8n · obsidian · kubernetes · livekit-docs · sqlalchemy* · visuals*\n* = Binary fehlt → inaktiv", fillcolor="#D9D2E9", color="#7030A0"];
+    mcp [label="Projekt (11): graphiti · cognee · hela-mem · reflexion · react · mars · trace · godel-agent · agent-dice · adas · governance-mcp(stdio)\nUmgebung (7): n8n · obsidian · kubernetes · livekit-docs · sqlalchemy* · visuals* · context7(aus)\n* = Binary fehlt → inaktiv", fillcolor="#D9D2E9", color="#7030A0"];
   }
 
   // ================= Schicht 6 · Skills =================
@@ -82,7 +82,14 @@ digraph KnowledgeAgent {
   subgraph cluster_res {
     label="Schicht 7 · Ergebnisse — ergebnisse/";
     style="filled,rounded"; fillcolor="#E2EFDA"; color="#375623"; fontsize=14;
-    res [label="rekursion/NNN-*.md (Provenienz je Iteration)\nPläne · Testberichte · Analysen · Diagramme", fillcolor="#C6E0B4", color="#375623"];
+    res [label="rekursion/NNN-*.md (Provenienz je Iteration, 000–034)\n83 MD (top-level) / 143 rekursiv\nPläne · Testberichte · Analysen · Diagramme", fillcolor="#C6E0B4", color="#375623"];
+  }
+
+  // ================= Schicht 8 · Tests & CI =================
+  subgraph cluster_tests {
+    label="Schicht 8 · Tests & CI — tests/ + .github/workflows/";
+    style="filled,rounded"; fillcolor="#E1D5E7"; color="#9673A6"; fontsize=14;
+    tst [label="tests/ 13 Dateien · 201 Tests · 100 % Line+Branch (1753/396)\nCI ci.yml: lint (Ruff) + test (Python 3.9 & 3.12)\npyproject.toml (Ruff) · .pre-commit-config.yaml · make test", fillcolor="#D5C6E0", color="#9673A6"];
   }
 
   // ================= Schicht-Spine (von oben nach unten) =================
@@ -93,6 +100,7 @@ digraph KnowledgeAgent {
   conn -> mcp [ltail=cluster_conn, lhead=cluster_mcp, style=dashed, color="#7030A0", label="optional über lokaler Memory"];
   mcp -> sk [ltail=cluster_mcp, lhead=cluster_skills, style=dashed, color="#1F4E79"];
   sk -> res [ltail=cluster_skills, lhead=cluster_res, style=dashed, color="#375623", label="dokumentiert"];
+  res -> tst [ltail=cluster_res, lhead=cluster_tests, style=dashed, color="#9673A6", label="geprüft durch"];
 
   // ================= Mapping-Tabelle (das "×") =================
   subgraph cluster_map {
