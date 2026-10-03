@@ -28,6 +28,19 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
 
 
+def _default_classify(question: str, fact: str, correct: str) -> dict:
+    """Hart verdrahteter Fast Write Router (lazy import – kein Key beim Import nötig)."""
+    import fast_write_router
+
+    return fast_write_router.classify(question, fact, correct)
+
+
+def export_shared(tier, tier1_dir: Path) -> str:
+    """SharedTier → tier1-base persistieren (schließt shared_memory → tier1)."""
+    Path(tier1_dir).mkdir(parents=True, exist_ok=True)
+    return str(tier.dump(Path(tier1_dir) / "shared_store.jsonl"))
+
+
 def drift_gate(distribution: dict, baseline: dict, tau: float = 0.10) -> dict:
     """Drift-Gate über `bias_monitor` (bias_monitor → alle, §9.1c)."""
     return bias_monitor.BiasDriftMonitor(baseline=baseline, tau=tau).observe(distribution, step=1)
@@ -60,6 +73,7 @@ def route_and_store(
 ) -> dict:
     """Eine Erfahrung durch die ganze Kette schicken (alle Elemente reden mit)."""
     steps: list[tuple] = []
+    classify_fn = classify_fn or _default_classify  # B) feste FWR-Verdrahtung
 
     # 1) Mandat-Gate (mandate → alle)
     dec = mandate.assess(mandate_obj, action="write:memory", resource="data/memory", amount=0.0, now=now)

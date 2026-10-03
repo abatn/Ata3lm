@@ -17,6 +17,8 @@
 - **MCP-Server** werden **extern** gestartet (opencode), nicht importiert; der
   MCP-Memory-Server exponiert die Tiers über 5 Tools → geschlossen.
 - **MCP-Registry: 19 Einträge · 16 aktiv** (context7, sqlalchemy-mcp, visuals-mcp deaktiviert).
+- **A–D geschlossen:** pipeline hat Aufrufer, FWR hart verdrahtet, shared_memory exportiert,
+  Mappings CI-enforced.
 
 ## 1. Diagramm (Mermaid)
 
@@ -40,7 +42,7 @@ flowchart TB
     APP["approval"]:::code
     BM["bias_monitor"]:::code
     BT["bi_temporal"]:::code
-    SH["shared_memory"]:::gap
+    SH["shared_memory"]:::code
     EV["evaluator_version"]:::code
     MPY["mandate.py"]:::code
     PIPE["pipeline"]:::code
@@ -92,9 +94,10 @@ flowchart TB
   SK -.->|"DOKU: Skill→Prozess (README)"| PIPE
 
   %% LÜCKEN (offen)
-  PIPE -.->|"LÜCKE: classify injiziert"| FWR
-  SH -.->|"LÜCKE: dump ohne Bindung"| T1
-  CN -.->|"LÜCKE: kein Code-Pfad"| PROC
+  PIPE -->|"CODE: _default_classify"| FWR
+  PIPE -->|"CODE: export_shared"| SH
+  REF -.->|"CODE: PIPELINE_ROUTE=1"| PIPE
+  CN -.->|"DOKU: enforced by test_mappings"| TST
 ```
 
 ## 2. Tabelle aller Verbindungen
@@ -163,11 +166,11 @@ flowchart TB
 5. skills → Prozesse — `skills/README.md` (Doku/Auftrag).
 6. connectors → Prozesse — §5 (Doku).
 
-**Offen (echt):**
-- A. `pipeline.py` hat **0 Aufrufer** → Kette wird nicht automatisch ausgelöst.
-- B. `pipeline → fast_write_router` nur **injiziert** (`classify_fn`), nicht hart verdrahtet.
-- C. `shared_memory → tier1-base`: **0 Aufrufer** (dump ohne Bindung).
-- D. `skills`/`connectors` → Prozesse: nur **DOKU** (kein Code-Enforcement).
+**Geschlossen 2026-10-03 (A–D):**
+- A. ~~pipeline 0 Aufrufer~~ → **Aufrufer** `reflective_agent.run_once` (opt-in `PIPELINE_ROUTE=1`).
+- B. ~~FWR nur injiziert~~ → `pipeline._default_classify` ruft **fast_write_router** (lazy).
+- C. ~~shared_memory 0 Aufrufer~~ → `pipeline.export_shared(tier, tier1)` → `SharedTier.dump`.
+- D. ~~skills/connectors nur Doku~~ → **enforced** durch `tests/test_mappings.py` (CI).
 
 ## 4. Quellen (geprüft)
 

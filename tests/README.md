@@ -16,7 +16,7 @@ Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
 Installation: `python3 -m pip install --user pytest pytest-cov`.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-02: **100,00 %** – 1900/1900 Statements **und 442/442 Branches**
+Gemessen 2026-10-02: **100,00 %** – 1920/1920 Statements **und 446/446 Branches**
 über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
 `ergebnisse/rekursion/solver/**`).
 
@@ -43,7 +43,8 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 | `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
 | `test_evaluator_version.py` | Red-Queen: ε-Best-Belief-Gate, HF-Anker, Selective Erasure, Loop, LLM-Grader (json-repair/Retry/Schema), Statistik, Bootstrap-KI, κ-Statistik | 56 |
 | `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
-| `test_pipeline.py` | Element-Pipeline: Mandat→FWR→Trust→Approval→Write→Drift, tier2→tier3 | 11 |
+| `test_pipeline.py` | Element-Pipeline: Mandat→FWR→Trust→Approval→Write→Drift, tier2→tier3, FWR-Default, export_shared | 13 |
+| `test_mappings.py` | Doku-Enforcement: Skill→Prozess + Connector→Prozess | 2 |
 | `test_mcp_memory.py` | MCP-Memory-Server: 5 Tools + Tri-Color-Trust (+ echter SDK, skip auf 3.9) | 10 |
 | `test_mandate.py` | Mandat: attenuate-nie-expand, ALLOW/REVIEW/DENY, Grant, Evidence | 9 |
 | `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI-Verdrahtung) | 8 |
@@ -51,7 +52,7 @@ unerreichbare Verzweigung, markiert mit der coverage-Direktive
 | `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
 | `../Makefile` | `make test` → `python3 -m pytest` | – |
 
-Gesamt: **221 Tests (venv 3.12) / 220+1 skip (3.9), 100 %**
+Gesamt: **226 Tests (venv 3.12) / 225+1 skip (3.9), 100 %**
 
 ## Netzwerk-Policy
 
@@ -83,7 +84,7 @@ unbenannte Marker).
 
 ## Branch-Abdeckung (neu 2026-10-01)
 
-`--cov-branch` + `branch = True`: 442/442 Branches abgedeckt. Fünf partielle
+`--cov-branch` + `branch = True`: 446/446 Branches abgedeckt. Fünf partielle
 Zweige gab es anfangs – vier wurden mit echten Pfaden getestet, einer ist
 strukturell unerreichbar:
 

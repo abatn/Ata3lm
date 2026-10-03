@@ -286,3 +286,27 @@ def test_lyapunov_check_und_simulate(no_key):
     ly = ra.simulate_lyapunov()
     assert ly["stable"]["stable"] is True and ly["stable"]["gate"] == "ok"
     assert ly["unstable"]["stable"] is False and ly["unstable"]["gate"] == "ask"
+
+
+def test_run_once_mit_pipeline_route(tmp_path, monkeypatch):
+    """A) pipeline hat einen Aufrufer (opt-in PIPELINE_ROUTE=1)."""
+    graph = _graph()
+    monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
+    (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
+    monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
+    monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
+    monkeypatch.setattr(ra, "ROOT", tmp_path)
+    monkeypatch.setattr(ra, "HMMInertia", lambda: _NullHMM())
+    monkeypatch.setenv("RQGM_LOOP", "0")
+    monkeypatch.setenv("PIPELINE_ROUTE", "1")
+    out = ra.run_once()
+    assert out["pipeline"] and out["pipeline"][0]["action"] == "write-new"
+    assert (tmp_path / "data/memory/tier3-working").exists()
+
+
+class _NullHMM:
+    K = 4
+    lr = 0.05
+
+    def update_from_reflection(self, text):
+        return {"before": [], "after": [], "delta": None, "skipped": True, "note": "test"}

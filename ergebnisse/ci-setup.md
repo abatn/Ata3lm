@@ -28,9 +28,10 @@
 | `.pre-commit-config.yaml` | Ruff + Ruff-Format (Rev v0.16.10) |
 | `.github/workflows/ci.yml` | CI: Job `lint` (Ruff) + Job `test` (pytest 3.9/3.12) |
 | `requirements-dev.txt` | Gepinnte Dev-/CI-Abhängigkeiten (+ json-repair) |
-| `tests/test_pipeline.py` (11) | Element-Pipeline: Mandat→FWR→Trust→Approval→Write→Drift + tier2→tier3 |
+| `tests/test_pipeline.py` (13) | Element-Pipeline: Mandat→FWR→Trust→Approval→Write→Drift + tier2→tier3 |
 | `tests/test_mcp_memory.py` (10) | MCP-Memory-Server: 5 Tools + Tri-Color-Trust (blue/green/red) |
 | `tests/test_mandate.py` (9) | Mandat: attenuate-nie-expand, ALLOW/REVIEW/DENY, Grant, Evidence |
+| `tests/test_mappings.py` (2) | Skill→Prozess + Connector→Prozess (Doku-Enforcement) |
 | `tests/test_agents_law.py` (8) | AGENTS.md-Konformität: §1–§11, Guardrails, Provenienz, Versionierung, CI-Verdrahtung |
 | `.gitignore` | `.pytest_cache/`, `.coverage`, `coverage.xml`, `htmlcov/` |
 
@@ -38,13 +39,13 @@
 
 | Score | Definition | Quelle | Umsetzung |
 |---|---|---|---|
-| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 221/221 = 100 % |
-| **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1900/1900 Statements, 442/442 Branches) |
+| **§9-Test-Score** | bestandene Tests / Gesamttests (≥95 allow, 70–94 ask, <70 deny) | `AGENTS.md` §9 | pytest Exit-Code ≠ 0 bei **jedem** fehlgeschlagenen Test; 226/226 = 100 % |
+| **Mindest-Score (Coverage)** | abgedeckte Statements **und Branches** des gesamten Repo-Codes | pytest-cov `--cov-fail-under` + `--cov-branch` | `pytest.ini`: **100 %** (gemessen: 1920/1920 Statements, 446/446 Branches) |
 
 **Gemessener Umfang (2026-10-01):** `data/memory/**` (9 Module: approval,
 bi_temporal, bias_monitor, fast_write_router, ingestion_hook, reflective_agent,
 shared/shared_memory, tier3-working/lru_cache, trust), `skills/procedural_memory.py`
-und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1900 Statements / 442 Branches, 0 nicht abgedeckt**
+und `ergebnisse/rekursion/solver/**` (10 Snapshots) = **1920 Statements / 446 Branches, 0 nicht abgedeckt**
 (Line + Branch, `branch = True`).
 
 **100 ist das Maximum:** `--cov-fail-under=101` wird abgelehnt
@@ -168,7 +169,7 @@ https://coverage.readthedocs.io/en/latest/branch.html). Eine strukturell
 unerreichbare Verzweigung ist mit der dokumentierten Direktive
 `# pragma: no branch` markiert (`lru_cache.py:175`, Begründung:
 `ergebnisse/branch-coverage.md` §4). Ausgenommen sind ausschließlich die
-`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1900 Statements,
+`if __name__ == "__main__":`-Blöcke (gemessen: mit Ausnahme 1920 Statements,
 mit `--cov-config=/dev/null` 1301 → **106 Statements** in `__main__`-Blöcken,
 die ein Import nie erreicht). Die Ausnahme steht sichtbar in `.coveragerc`, es
 wird keine weitere Zeile versteckt.
@@ -223,7 +224,7 @@ Coroutine erzeugt werden, sonst: „Future attached to a different loop".
 1. ~~**IndexError-Bug** in `reflective_agent.py:99`~~ → **behoben in Rekursion 032**
    (`ergebnisse/rekursion/032-fix-reflective-agent.md`); Tests angepasst.
 2. ~~**Branch-Coverage ist aus**~~ → **aktiviert 2026-10-01** (`--cov-branch`,
-   `branch = True`): 442/442 Branches abgedeckt, siehe `ergebnisse/branch-coverage.md`.
+   `branch = True`): 446/446 Branches abgedeckt, siehe `ergebnisse/branch-coverage.md`.
 3. Kein GitHub-Actions-/CI-Runner-Workflow (`.github/` existiert nicht) –
    Interface-/CI-Änderung → vorher Human-Gate (§9/§10.4).
 4. Kein Lint/Formatter (z. B. ruff/black) – nicht beauftragt.

@@ -198,3 +198,35 @@ def test_drift_gate_funktion():
     assert ok["gate"] == "ok"
     bad = pipeline.drift_gate({"a": 1.0, "b": 0.0}, {"a": 0.5, "b": 0.5}, tau=0.01)
     assert bad["gate"] == "ask" and bad["DI"] > 0.01
+
+
+def test_default_classify_verdrahtet_fwr(tmp_path, monkeypatch):
+    """B) pipeline → fast_write_router fest verdrahtet (lazy import)."""
+    import sys
+    from types import SimpleNamespace
+
+    fake = SimpleNamespace(classify=lambda q, f, c: {"class": "non-write"})
+    monkeypatch.setitem(sys.modules, "fast_write_router", fake)
+    s, t3 = _dirs(tmp_path)
+    out = pipeline.route_and_store(
+        question="Q",
+        fact="F",
+        correct="C",
+        classify_fn=None,
+        mandate_obj=_mandate(),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert out["action"] == "none"  # Default-FWR wurde benutzt
+
+
+def test_export_shared_nach_tier1(tmp_path):
+    """C) shared_memory → tier1-base (SharedTier.dump)."""
+    import shared_memory
+
+    tier = shared_memory.SharedTier({"agentA": {"read": {"*"}, "write": {"*"}}}, {"agentA": 0.5})
+    tier.write("agentA", "k", "v")
+    path = pipeline.export_shared(tier, tmp_path / "tier1")
+    assert (tmp_path / "tier1" / "shared_store.jsonl").exists()
+    assert path.endswith("shared_store.jsonl")

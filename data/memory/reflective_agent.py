@@ -371,12 +371,49 @@ def run_once() -> dict:
     forgotten = detect_forgetting(graph)
     hmm = HMMInertia()  # SEAA-HMM-Trägheitsmatrix
     results = []
+    routed: list = []
+    # Pipeline-Aufrufer (A): opt-in, verbindet die Prozess-Kette (pipeline.py).
+    route_pipeline = os.environ.get("PIPELINE_ROUTE") == "1"
+    _pipe = None
+    if route_pipeline:
+        import time
+
+        import mandate as _md
+        import pipeline as _pl
+
+        now = time.time()
+        _reg = _md.MandateRegistry()
+        _mandate = _reg.issue(
+            principal="Batnini",
+            agent="knowledge-agent",
+            actions={"write:memory"},
+            resources={"data/memory"},
+            amount_limit=100.0,
+            max_uses=1000,
+            valid_from=0.0,
+            valid_until=now + 31_536_000,
+            approval_threshold=50.0,
+        )
+        _pipe = _pl
     for hub in hubs:
         entry = distill(graph, hub)
         sem = write_semantic(entry)
         idx = update_index(entry)
         # SEAA: Reflexion ändert die HMM-Übergangswahrscheinlichkeiten (Eq. 2)
         p_change = hmm.update_from_reflection(entry["summary"])
+        if route_pipeline:  # destillierter Hub = neues semantisches Wissen → write-new
+            routed.append(
+                _pipe.route_and_store(
+                    question=f"hub-{hub}",
+                    fact=entry["summary"],
+                    correct="",
+                    classify_fn=lambda q, f, c: {"class": "write-new"},
+                    mandate_obj=_mandate,
+                    now=now,
+                    structured_dir=STRUCTURED,
+                    tier3_dir=ROOT / "data/memory/tier3-working",
+                )
+            )
         results.append(
             {
                 "hub": hub,
@@ -404,6 +441,7 @@ def run_once() -> dict:
         "hmm_states": hmm.K,
         "hmm_lr": hmm.lr,
         "rqgm": rqgm,
+        "pipeline": routed if route_pipeline else None,
     }
 
 
