@@ -29,6 +29,21 @@ Ein billiger Klassifikator (kleine-zu-große Kaskade) entscheidet, ob ein Fact i
 - Das Modell nutzt sowohl parametrisches als auch externes Gedächtnis für Antworten.
 - Die externe Speicherklasse wird dynamisch angepasst, je nachdem, welche Fakten internisiert wurden.
 
+## Write-Aktion (Implementierung, AGENTS.md §10.7)
+
+`data/memory/fast_write_router.py::apply_write_action(cls, ...)` schreibt die Ziele real:
+
+| Klasse | Ziel | Gate |
+|---|---|---|
+| **non-write** | nur `ergebnisse/` (Historie), **kein** Memory-Write | none |
+| **write-new** | `knowledge/structured/` + `data/memory/tier3-working/` | ask (neue Quelle) |
+| **write-update** | `knowledge/structured/` + tier1 **Supersede** (alt archiviert `<key>.superseded-<ts>.md`, **nicht gelöscht**) | ask (`self_update`) |
+
+**Caveat (ehrlich):** Das Paper routet operational **binär** „write or discard"
+(§3.3); die 3 Klassen sind Trainings-**Labels**. Die 3-Klassen-**Aktionen** sind
+Projekt-**Auftrag** (AGENTS.md §10.7), kein Paper-Claim.
+Test: `tests/test_fwr_write.py` · Doku: `ergebnisse/fwr-write.md`.
+
 ## Verbindungen zu anderen Komponenten
 
 - **AGENTS.md §9 (Automatisches Gate):** Fast Write Routing arbeitet unterhalb des automatischen Gates (Score ≥ 95 % → erlaubt). Es entscheidet innerhalb der Entscheidung, ob ein Fact gespeichert wird.

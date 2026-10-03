@@ -1,106 +1,80 @@
 # tests/ – pytest-Setup für den gesamten Knowledge-Agenten
 
-> Stand: 2026-10-01 · Aufruf: `make test` (oder `python3 -m pytest`) ·
+> Stand: 2026-10-03 · Aufruf: `make test` (oder `python3 -m pytest`) ·
 > Quelle: Python-Standard **pytest** – https://docs.pytest.org/en/stable/
 
 ## Ausführen
 
 ```bash
-make test                 # Makefile → python3 -m pytest
+make test                 # Makefile → python3 -m pytest (bevorzugt .venv)
 python3 -m pytest         # dasselbe, ohne make
 python3 -m pytest tests/test_reflective.py -v
 ```
 
-Voraussetzungen (am 2026-10-01 gemessen): `pytest 8.4.2`, `pytest-cov 7.1.0`,
-`coverage 7.10.7`, `numpy 2.0.2`, Python 3.9.25.
-Installation: `python3 -m pip install --user pytest pytest-cov`.
+Voraussetzungen (gemessen 2026-10-03): `pytest 8.4.2`, `pytest-cov`, `coverage`,
+`numpy`, `datasets` (HF), `scipy`, `openai`; **Repo-venv `.venv` (Python 3.12)**.
 
 **Mindest-Score:** `pytest.ini` → `--cov-fail-under=100`.
-Gemessen 2026-10-02: **100,00 %** – 1920/1920 Statements **und 446/446 Branches**
-über **den gesamten Repo-Code** (`data/memory/**`, `skills/**`,
+Gemessen 2026-10-03: **100,00 %** – 2203/2203 Statements **und 550/550 Branches**
+über den gesamten Repo-Code (`data/memory/**`, `skills/**`,
 `ergebnisse/rekursion/solver/**`).
 
 **Was „100 %" heißt:** **Line + Branch**-Coverage (`branch = True` in
-`.coveragerc`, `--cov-branch` in `pytest.ini`). Ausgenommen sind nur die
-`__main__`-Blöcke (erreicht ein Import nie) und **eine** strukturell
-unerreichbare Verzweigung, markiert mit der coverage-Direktive
-`# pragma: no branch` (`lru_cache.py:175`; Begründung:
-`ergebnisse/branch-coverage.md` §4). Details: `ergebnisse/ci-setup.md` §2/§4.
+`.coveragerc`, `--cov-branch` in `pytest.ini`). Ausgenommen sind nur
+`__main__`-Blöcke und einzelne, begründete `# pragma: no cover`-Zeilen
+(optionale reale Dependency wie GLiNER sowie Fault-Injection-Pfade, die
+Guardrail 7 verbietet). Details: `ergebnisse/ci-setup.md`, `ergebnisse/branch-coverage.md`.
+
+## Echte Verifikation (AGENTS.md Guardrail 7, Auftrag 2026-10-03)
+
+**Keine Fakes, keine skripteten Antworten.** Tests/Compare laufen gegen das
+**echte** NVIDIA-Endpoint und **echte** HF-Anker:
+
+- `conftest.py` liest Key/BaseURL aus `~/.config/opencode/opencode.json`
+  (Provider `nvidia-llama-nemotron`) → kein Platzhalter, keine Netz-Sperre.
+- `_live.py::call(fn, ...)` ruft die echte Funktion und wiederholt **nur
+  transiente** Fehler (503/429/…) mit Backoff.
+- Fehlerpfade werden mit **echten** Fehlerbedingungen getestet (z. B.
+  `OPENAI_BASE_URL=http://127.0.0.1:9` → echter Verbindungsfehler).
+- Parsing ist als **reine Funktion** abgetrennt (mit echten Strings testbar):
+  `fast_write_router._decide`, `reflective_agent._matrix_from_raw`/`_summary_from_raw`,
+  `evaluator_version._parse_grader_verdict`/`_parse_pair_winner`/`_parse_class_grade`.
+- Schreibpfade (Logs, Tier 2/3, `knowledge/structured`) zeigen in `tmp_path`.
+
+**Konsequenz:** Der Lauf braucht Netz + Endpoint und dauert ~15 Min. Transiente
+Endpoint-Ausfälle können einzelne Läufe scheitern lassen (Retry mildert).
 
 ## Dateien
 
 | Datei | Inhalt | Tests |
 |---|---|---|
-| `conftest.py` | `sys.path` für `data/memory`, `shared/`, `tier3-working/`, `skills`; Netzwerk-Sperre (Platzhalter-Key + Base-URL `127.0.0.1:9`), `FWR_*_MODEL` entfernt | – |
-| `test_fwr.py` | FWR-Kaskade + Gate, `_ask` (Fake-Client), `MemRouter`, `compare_router_10` | 12 |
+| `conftest.py` | `sys.path`; **echtes** Endpoint aus `opencode.json` | – |
+| `_live.py` | `call(fn, ...)` – echte Calls + Retry transienter Fehler | – |
+| `test_fwr.py` | FWR-Kaskade real (non-write/write-new/write-update/uncertain), `_ask` real, `_decide` (rein), MemRouter | 11 |
 | `test_governance.py` | Zwei-Personen-Flow (§9.3) inkl. Diff-Bindung + Gesetzestext §9/§9.1 | 13 |
 | `test_memory.py` | 3 Tiers, v1–v4, PII/Poisoning/Bias-Guards, JSD/Drift | 14 |
 | `test_bi_temporal.py` | valid time × transaction time, Supersede statt Löschen | 5 |
-| `test_shared_memory.py` | ACL, Trust-Konflikt (superseded/contested), Schema, Sync, Dump | 8 |
+| `test_shared_memory.py` | ACL, Trust-Konflikt, Schema, Sync, Dump | 8 |
 | `test_lru_cache.py` | LRU-/Value-Eviction, Adaptive Forgetting, Tier-2-Auslagerung | 10 |
-| `test_ingestion.py` | Privacy/Secret-Filter, Encoding-Gate, GLiNER-Pfade, Graph-Konflikte, Konsolidierung, async Enrichment, Lifecycle | 17 |
-| `test_reflective.py` | HMM-Trägheit (SEAA) inkl. NOOP, Hub/Forgetting, Destillation, Dual-Path-Retrieval, Lyapunov | 20 |
-| `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (alles in `tmp_path`) | 7 |
-| `test_evaluator_version.py` | Red-Queen: ε-Best-Belief-Gate, HF-Anker, Selective Erasure, Loop, LLM-Grader (json-repair/Retry/Schema), Statistik, Bootstrap-KI, κ-Statistik | 56 |
-| `test_solvers.py` | 9 historische Solver-Snapshots (Ist-Verhalten inkl. bekannter Schwächen) | 20 |
-| `test_pipeline.py` | Element-Pipeline: Mandat→FWR→Trust→Approval→Write→Drift, tier2→tier3, FWR-Default, export_shared | 13 |
-| `test_mappings.py` | Doku-Enforcement: Skill→Prozess + Connector→Prozess | 2 |
-| `test_mcp_memory.py` | MCP-Memory-Server: 5 Tools + Tri-Color-Trust (+ echter SDK, skip auf 3.9) | 10 |
+| `test_ingestion.py` | Privacy/Secret-Filter, Encoding-Gate, GLiNER (real geprüft), Graph, Enrichment, Lifecycle, `route_experience` (real) | 18 |
+| `test_reflective.py` | HMM-Trägheit (SEAA) real + NOOP, Hub/Forgetting, Destillation (real), Dual-Path-Retrieval, Lyapunov | 24 |
+| `test_procedural_memory.py` | Skill-Snapshots, Human-Gate-Update, Rollback (`tmp_path`) | 7 |
+| `test_evaluator_version.py` | Red-Queen: ε-Best-Belief, **echte HF-Anker**, Selective Erasure, Loop, **realer LLM-Grader** (json-repair/Retry/Schema), Statistik, Bootstrap-κ | 53 |
+| `test_solvers.py` | 9 historische Solver-Snapshots | 20 |
+| `test_pipeline.py` | Element-Pipeline: Mandat→FWR→Trust→Approval→Write→Drift, tier2→tier3, export_shared | 13 |
+| `test_fwr_write.py` | Write-Aktion (§10.7): non-write→Historie, write-new→structured+tier3, write-update→tier1-Supersede | 6 |
+| `test_tier2_tier3.py` | Ladepfad tier2→tier3: GAAMA-Hybrid (Cosine+PPR, d=2, Hub-Dampening), Validation-Gate | 15 |
+| `test_gaama_extract.py` | GAAMA-Extraktion: Schema/Kanten (5 Typen), **realer LLM**, Graph, §10.1-Routing, §9.2c-Write-Kette | 10 |
+| `test_mappings.py` | Doku-Enforcement: Skill→Prozess + Connector→Prozess | 3 |
+| `test_mcp_memory.py` | MCP-Memory-Server: 5 Tools + Tri-Color-Trust (echtes mcp-SDK, skip sonst) | 8 |
 | `test_mandate.py` | Mandat: attenuate-nie-expand, ALLOW/REVIEW/DENY, Grant, Evidence | 9 |
-| `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI-Verdrahtung) | 8 |
-| `../pytest.ini` | Konfiguration + Mindest-Score + Marker | – |
-| `../.coveragerc` | Coverage-Konfiguration (Statement-Coverage, `__main__`-Ausnahme) | – |
-| `../Makefile` | `make test` → `python3 -m pytest` | – |
+| `test_agents_law.py` | AGENTS.md-Konformität (§1–§11, Guardrails, Provenienz, Versionierung, CI) | 8 |
+| `../pytest.ini` · `../.coveragerc` · `../Makefile` | Konfiguration, Mindest-Score, Coverage, `make test` | – |
 
-Gesamt: **226 Tests (venv 3.12) / 225+1 skip (3.9), 100 %**
-
-## Netzwerk-Policy
-
-Es wird **kein** LLM/Endpoint aufgerufen:
-
-- `fast_write_router.py` legt beim Import den OpenAI-Client an; deshalb setzt
-  `conftest.py` eine Platzhalter-Key und eine nicht erreichbare Base-URL.
-- LLM-Aufrufe werden ersetzt: `_ask` per Fake-Client (`test_fwr.py`), die
-  optionalen LLM-Schritte in `ingestion_hook`/`reflective_agent` per Fake-Modul
-  `openai` in `sys.modules` (`monkeypatch`).
-- Der GLiNER-Pfad wird mit einem Fake-Modell geprüft; `gliner_available()`
-  wird für beide Ausgänge getestet.
-- Schreibpfade (Logs, Tier 2, `knowledge/structured`, Skill-Versionen) zeigen
-  in `tmp_path` – das Repo bleibt während der Tests unverändert.
-
-Marker `network` ist in `pytest.ini` deklariert und für künftige Live-Tests
-reserviert; aktuell existiert kein Live-Test (`--strict-markers` verhindert
-unbenannte Marker).
-
-## Befunde
-
-- **`reflective_agent.py:99` (behoben in Rekursion 032):** lieferte das LLM eine
-  Matrix falscher Form (z. B. 2×2 bei k=4), überschrieb `delta` die frische
-  K×K-Matrix und die Heuristik warf `IndexError`. Fix: die LLM-Matrix wird erst
-  als `candidate` geprüft und nur bei K×K übernommen, sonst verworfen.
-  Tests: `test_parse_transition_delta_falsche_form_wird_verworfen` +
-  `test_parse_transition_delta_4x4_wird_uebernommen`; Beleg:
-  `ergebnisse/rekursion/032-fix-reflective-agent.md`.
-
-## Branch-Abdeckung (neu 2026-10-01)
-
-`--cov-branch` + `branch = True`: 446/446 Branches abgedeckt. Fünf partielle
-Zweige gab es anfangs – vier wurden mit echten Pfaden getestet, einer ist
-strukturell unerreichbar:
-
-| Datei:Zeile | Bogen | Abdeckung |
-|---|---|---|
-| `bias_monitor.py:61` | `61->74` (Schleife läuft 0×) | `test_capped_simplex_ohne_iterationen` (`iters=0`) |
-| `ingestion_hook.py:246` | `246->244` (Entity schon im Graph) | `test_update_graph_knoten_bereits_vorhanden` |
-| `shared_memory.py:142` | `142->140` (Key ohne Konflikt) | `test_sync_ohne_konflikt_bei_gleichem_wert` |
-| `lru_cache.py:152` | `152->144` (Item sofort verdrängt) | `test_fill_from_structured_ohne_aufnahme_bei_vollem_cache` |
-| `lru_cache.py:175` | `175->167` (`freq*crit >= 0.8` immer wahr) | `# pragma: no branch` (unerreichbar, begründet) |
-
-Volle Analyse: `ergebnisse/branch-coverage.md`.
+Gesamt: **255 Tests (venv 3.12), 100 %** – real gegen Endpoint + HF-Anker.
 
 ## Was NICHT abgedeckt ist
 
-- Der Live-Endpoint (bewusst, Netzwerk).
 - Nicht-Python-Dateien (Markdown/Docs/JSON) – Coverage misst Code.
-- Kein Lint/Formatter, kein GitHub-Actions-Workflow (Interface/CI-Änderung →
-  Human-Gate nach `AGENTS.md` §9).
+- Fault-Injection-Pfade (skriptete Antworten) – per Guardrail 7 verboten;
+  betroffene Zweige sind begründet als `# pragma: no cover` markiert.

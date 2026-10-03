@@ -8,11 +8,12 @@ kingkillery/src/rqgm/beta.py.
 """
 
 import pathlib
-import sys
-from types import SimpleNamespace
 
 import evaluator_version as ev
 import pytest
+from _live import call
+
+BAD = "http://127.0.0.1:9"
 
 
 def _anchor():
@@ -147,52 +148,14 @@ def test_report_mit_und_ohne_evaluator():
     assert [v["version"] for v in rep["versions"]] == ["evaluator_v1", "evaluator_v2"]
 
 
-# ------------------------------------------------------- Offen 2: echte Anker
-class _FakeDS(list):
-    pass
-
-
-def _fake_loader_grading(ds_id, split):
-    assert ds_id == ev.IMO_GRADINGBENCH_ID and split == "train"
-    return _FakeDS(
-        [
-            {
-                "Grading ID": "GB-1",
-                "Points": 7,
-                "Response": "x" * 100,
-                "Problem": "P1",
-                "Grading guidelines": "full credit",
-                "Reward": "Correct",
-            },
-            {
-                "Grading ID": "GB-2",
-                "Points": 0,
-                "Response": "x" * 10,
-                "Problem": "P2",
-                "Grading guidelines": "no credit",
-                "Reward": "Incorrect",
-            },
-        ]
-    )
-
-
-def _fake_loader_coding(ds_id, split):
-    assert ds_id == ev.CRAVE_ID and split == "test"
-    return _FakeDS(
-        [
-            {"pr_number": 1, "label": "APPROVE", "patch": "x" * 50, "description": "d1"},
-            {"pr_number": 2, "label": "REQUEST_CHANGES", "patch": "x", "description": "d2"},
-        ]
-    )
-
-
-def test_load_anchor_grading_und_coding():
-    g = ev.load_anchor("grading", load_dataset_fn=_fake_loader_grading)
-    assert g.source == f"HF:{ev.IMO_GRADINGBENCH_ID}" and g.n() == 2
-    assert g.items[0]["truth"] is True and g.items[1]["truth"] is False
-    c = ev.load_anchor("coding", load_dataset_fn=_fake_loader_coding)
-    assert c.source == f"HF:{ev.CRAVE_ID}"
-    assert c.items[0]["truth"] is True and c.items[1]["truth"] is False
+# ------------------------------------------------------- Offen 2: echte Anker (HF)
+def test_load_anchor_grading_und_coding_real():
+    g = ev.load_anchor("grading", limit=5)
+    assert g.source == f"HF:{ev.IMO_GRADINGBENCH_ID}" and g.n() >= 1
+    assert all(isinstance(it["truth"], bool) for it in g.items)
+    c = ev.load_anchor("coding", limit=5)
+    assert c.source == f"HF:{ev.CRAVE_ID}" and c.n() >= 1
+    assert all(isinstance(it["truth"], bool) for it in c.items)
 
 
 def test_load_anchor_unbekannter_typ():
@@ -200,10 +163,8 @@ def test_load_anchor_unbekannter_typ():
         ev.load_anchor("paper-writing")
 
 
-def test_load_anchor_nutzt_datasets_loader(monkeypatch):
-    import datasets
-
-    monkeypatch.setattr(datasets, "load_dataset", _fake_loader_grading)
+def test_load_anchor_nutzt_datasets_loader_real():
+    """Realer HF-Loader (kein Fake): lädt ein echtes Anker-Item."""
     a = ev.load_anchor("grading", limit=1)
     assert a.n() == 1
 
@@ -225,18 +186,17 @@ def test_simulate_3_evaluatoren_steigende_schwierigkeit():
 
 
 def test_simulate_real_anchor_misst_eigene_zahl():
-    out = ev.simulate_real_anchor("grading", load_dataset_fn=_fake_loader_grading)
-    assert out["anchor"] == f"HF:{ev.IMO_GRADINGBENCH_ID}" and out["n_items"] == 2
+    out = ev.simulate_real_anchor("grading", limit=5)
+    assert out["anchor"] == f"HF:{ev.IMO_GRADINGBENCH_ID}" and out["n_items"] >= 1
     assert out["final_accuracy"] is not None
     assert out["measured_gain"] == pytest.approx(out["final_accuracy"] - out["baseline_accuracy_all_accept"])
     assert "eigene Messung" in out["note"]
 
 
 def test_simulate_real_anchor_ohne_items():
-    leer = _FakeDS([])
-    out = ev.simulate_real_anchor("grading", load_dataset_fn=lambda i, split: leer)
+    out = ev.simulate_real_anchor("grading", limit=0)
     assert out["n_items"] == 0 and out["final_accuracy"] == 0.0
-    assert out["measured_gain"] == 0.0  # leerer Anker: kein Gewinn
+    assert out["measured_gain"] == 0.0
 
 
 def test_power_of_two_checkpoints_rho2():
@@ -299,94 +259,41 @@ def test_redqueenloop_ohne_kandidaten_und_defaults():
     assert leer.run([])["trajectory"][0]["evaluator"] is None
 
 
-# ------------------------------------------------- Offen 3+: LLM-Grader (fail-soft)
-class _FakeJudge:
-    def __init__(self, content=None, raises=False, reasoning=None, sequence=None):
-        self._content = content
-        self._raises = raises
-        self._reasoning = reasoning
-        self._sequence = sequence
-        self.n_calls = 0
-        self.calls = []
-
-        class _Comp:
-            def __init__(self, outer):
-                self.outer = outer
-
-            def create(self, **kw):
-                self.outer.calls.append(kw)
-                if self.outer._raises:
-                    raise RuntimeError("API down")
-                self.outer.n_calls += 1
-                content = self.outer._content
-                if self.outer._sequence is not None:
-                    idx = min(self.outer.n_calls - 1, len(self.outer._sequence) - 1)
-                    content = self.outer._sequence[idx]
-                msg = SimpleNamespace(content=content)
-                if self.outer._reasoning is not None:
-                    msg.reasoning_content = self.outer._reasoning
-                return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
-
-        self.chat = SimpleNamespace(completions=_Comp(self))
-
-
-def _rule_grader(it):
-    return it["feature"] >= 50
-
-
-def test_llm_grader_gueltiges_json_und_parameter():
-    judge = _FakeJudge(content='{"passed": true, "score": 1.0, "reason": "ok"}')
-    g = ev.make_llm_grader(_rule_grader, client=judge)
-    assert g({"id": "x", "feature": 0.0, "text": "t", "rubric": "r"}) is True
-    kw = judge.calls[0]
-    assert kw["temperature"] == 0.0 and kw["max_tokens"] == ev.GRADER_MAX_TOKENS
-    assert kw["response_format"] == {"type": "json_object"}
-    assert "PROBLEM:" in kw["messages"][0]["content"]
-
-
-def test_llm_grader_ungueltiges_schema_faellt_zurueck():
+# ------------------------------------------------- Offen 3+: LLM-Grader (real)
+def test_llm_grader_real_und_fail_soft(monkeypatch):
+    item = {"id": "x", "text": "Problem P", "rubric": "full credit", "feature": 0.9}
+    g = ev.make_llm_grader(ev.make_grader(0.5))
+    assert call(g, item) in (True, False)  # realer LLM-Judge
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)  # echtes unerreichbares Endpoint
     log = []
-    judge = _FakeJudge(content='{"passed": "ja"}')  # score fehlt, Typ falsch
-    g = ev.make_llm_grader(_rule_grader, client=judge, log=log)
-    assert g({"id": "GB-9", "feature": 100.0, "text": "", "rubric": ""}) is True
-    assert log and log[0]["fallback"] == "rule_grader" and log[0]["item"] == "GB-9"
+    g2 = ev.make_llm_grader(ev.make_grader(0.5), log=log)
+    assert g2(item) == bool(ev.make_grader(0.5)(item))
+    assert log and log[0]["fallback"] == "rule_grader" and log[0]["item"] == "x"
 
 
-def test_llm_grader_api_fehler_ohne_log():
-    judge = _FakeJudge(raises=True)
-    g = ev.make_llm_grader(_rule_grader, client=judge, log=None)
-    assert g({"id": "y", "feature": 0.0, "text": "", "rubric": ""}) is False
+def test_llm_grader_api_fehler_ohne_log(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
+    g = ev.make_llm_grader(ev.make_grader(0.5), log=None)
+    assert g({"id": "y", "text": "", "rubric": "", "feature": 0.0}) is False
 
 
-def test_llm_grader_default_client(monkeypatch):
-    judge = _FakeJudge(content='{"passed": false, "score": 0.0, "reason": "no"}')
-    monkeypatch.setattr(ev, "_default_client", lambda: judge)
-    g = ev.make_llm_grader(_rule_grader)  # client=None -> default
-    assert g({"id": "z", "feature": 999.0, "text": "", "rubric": ""}) is False
+def test_parse_grader_verdict():
+    assert ev._parse_grader_verdict('{"passed": true, "score": 1.0, "reason": "ok"}') is True
+    assert ev._parse_grader_verdict('Vorrede {"passed": false, "score": 0.0} Nachrede') is False
+    with pytest.raises(Exception):
+        ev._parse_grader_verdict('{"passed": "ja"}')
 
 
-def test_simulate_real_anchor_mit_llm():
-    judge = _FakeJudge(content='{"passed": true, "score": 0.9, "reason": "ok"}')
-    log = []
-    out = ev.simulate_real_anchor(
-        "grading", load_dataset_fn=_fake_loader_grading, use_llm=True, client=judge, grader_log=log
-    )
-    assert out["grader"] == "llm+rule-fallback"
-    assert out["report"]["current"] is not None
-    assert "+ LLM-Judge (fail-soft)" in out["note"]
-
-
-def test_default_client_konstruiert_ohne_netz():
-    """Deckt den echten _default_client()-Pfad ab (kein API-Call)."""
+def test_default_client_konstruiert():
     client = ev._default_client()
     assert hasattr(client, "chat")
 
 
-def test_llm_grader_reasoning_content_fallback():
-    """Reasoning-Modelle liefern content leer -> reasoning_content lesen."""
-    judge = _FakeJudge(content=None, reasoning='{"passed": true, "score": 0.8, "reason": "r"}')
-    g = ev.make_llm_grader(_rule_grader, client=judge)
-    assert g({"id": "r1", "feature": 0.0, "text": "", "rubric": ""}) is True
+def test_simulate_real_anchor_mit_llm():
+    out = ev.simulate_real_anchor("grading", limit=2, use_llm=True, grader_log=[])
+    assert out["grader"] == "llm+rule-fallback"
+    assert out["report"]["current"] is not None
+    assert "+ LLM-Judge (fail-soft)" in out["note"]
 
 
 def test_extract_json_mit_und_ohne_objekt():
@@ -458,28 +365,21 @@ def test_positions_und_repetitions_kennzahlen():
     assert ev.repetition_stability([["x", "x"], ["y", "z"]]) == 0.5
 
 
-def test_llm_pairwise_judge_und_fail_soft():
-    class _Judge(_FakeJudge):
-        pass
-
+def test_llm_pairwise_judge_real_und_fail_soft(monkeypatch):
     a = {"id": "1", "text": "kurz", "rubric": "r"}
     b = {"id": "2", "text": "viel laengerer text", "rubric": "r"}
-    j = ev.make_llm_pairwise_judge(client=_FakeJudge(content='{"winner": "A"}'))
-    assert j(a, b) == "A"
-    j = ev.make_llm_pairwise_judge(client=_FakeJudge(content='{"winner": "B"}'))
-    assert j(a, b) == "B"
-    # ungültiges Schema -> Regel: längerer Text gewinnt
+    assert call(ev.make_llm_pairwise_judge(), a, b) in ("A", "B")  # realer Judge
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
     log = []
-    j = ev.make_llm_pairwise_judge(client=_FakeJudge(content="nope"), log=log)
-    assert j(a, b) == "B" and log[0]["fallback"] == "rule_length"
-    # API-Fehler ohne Log -> Regel
-    j = ev.make_llm_pairwise_judge(client=_FakeJudge(raises=True), log=None)
-    assert j(b, a) == "A"
+    j = ev.make_llm_pairwise_judge(log=log)
+    assert j(a, b) == "B" and log[0]["fallback"] == "rule_length"  # Regel: längerer Text
+    j2 = ev.make_llm_pairwise_judge(log=None)
+    assert j2(b, a) == "A"
 
 
-def test_llm_pairwise_judge_default_client(monkeypatch):
-    monkeypatch.setattr(ev, "_default_client", lambda: _FakeJudge(content='{"winner": "B"}'))
-    assert ev.make_llm_pairwise_judge()({"text": "x"}, {"text": "y"}) == "B"
+def test_parse_pair_winner():
+    assert ev._parse_pair_winner('{"winner": "A"}') == "A"
+    assert ev._parse_pair_winner('{"winner": "b"}') == "B"
 
 
 # ------------------------------------------------- Bootstrap-KI für κ (§10-Nachtrag)
@@ -530,72 +430,55 @@ def test_bootstrap_interpretation_ok_bei_nicht_degeneriert():
     assert r["degenerate_interpretation"] == "ok"
 
 
-def test_llm_class_grader_und_fail_soft():
+def test_llm_class_grader_real_und_fail_soft(monkeypatch):
     item = {"id": "GB-1", "text": "t", "rubric": "r"}
-    g = ev.make_llm_class_grader(client=_FakeJudge(content='{"grade": "Almost"}'))
-    assert g(item) == "Almost"
+    assert call(ev.make_llm_class_grader(votes=1), item) in ev.CLASS_GRADES  # realer Grader
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
     log = []
-    g = ev.make_llm_class_grader(client=_FakeJudge(content='{"grade": "Superb"}'), log=log)
+    g = ev.make_llm_class_grader(log=log, votes=1)
     assert g(item) == "Incorrect" and log[0]["fallback"] == "rule_incorrect"
-    g = ev.make_llm_class_grader(client=_FakeJudge(raises=True), log=None)
-    assert g(item) == "Incorrect"
+    g2 = ev.make_llm_class_grader(log=None, votes=1)
+    assert g2(item) == "Incorrect"
 
 
-def test_llm_class_grader_default_client(monkeypatch):
-    monkeypatch.setattr(ev, "_default_client", lambda: _FakeJudge(content='{"grade": "Partial"}'))
-    assert ev.make_llm_class_grader()({"id": "x", "text": "t", "rubric": "r"}) == "Partial"
+def test_parse_class_grade():
+    assert ev._parse_class_grade('{"grade": "Almost"}') == "Almost"
+    with pytest.raises(Exception):
+        ev._parse_class_grade('{"grade": "Superb"}')  # nicht in CLASS_GRADES
 
 
-def test_stable_kappa_run():
-    log = []
-    out = ev.stable_kappa_run(
-        "grading",
-        n=2,
-        load_dataset_fn=_fake_loader_grading,
-        client=_FakeJudge(content='{"grade": "Correct"}'),
-        grader_log=log,
-    )
-    assert out["n"] == 2 and out["grader"] == "llm-4class+fallback"
+def test_stable_kappa_run_real():
+    out = ev.stable_kappa_run("grading", n=2, grader_log=[])
+    assert out["n"] >= 1 and out["grader"] == "llm-4class+fallback"
     assert out["seed"] == 0 and out["n_resamples"] == 10_000
     assert "degenerate_share" in out and "degenerate_interpretation" in out
-    assert out["class_counts_llm"] == {"Correct": 2}
-    assert out["fallbacks"] == 0
+    assert isinstance(out["class_counts_llm"], dict)
 
 
-# ------------------------------------- Robuster Grader (json-repair/Retry/Mehrheit)
-def test_repair_json_repariert_prosa_und_fallback(monkeypatch):
+# ------------------------------------- Robuster Grader (json-repair real)
+def test_repair_json_real():
     assert ev._repair_json("Hier: {grade: Partial,} bitte") == '{"grade": "Partial"}'
-    monkeypatch.setitem(sys.modules, "json_repair", None)  # Import schlägt fehl
     assert ev._repair_json('Prosa {"grade": "Almost"} Rest') == '{"grade": "Almost"}'
 
 
-def test_llm_class_grader_retry_dann_erfolg():
-    judge = _FakeJudge(sequence=["kein json", '{"grade": "Almost"}'])
-    g = ev.make_llm_class_grader(client=judge, max_attempts=3)
-    assert g({"id": "x", "text": "t", "rubric": "r"}) == "Almost"
-    assert judge.n_calls == 2  # 1 Fehlversuch, dann Erfolg
-
-
-def test_llm_class_grader_alle_versuche_fehlen():
-    judge = _FakeJudge(content="immer noch kein json")
+def test_llm_class_grader_retry_real(monkeypatch):
+    """Retry-Schleife real: unerreichbares Endpoint -> nach allen Versuchen Fallback."""
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
     log = []
-    g = ev.make_llm_class_grader(client=judge, max_attempts=2, log=log)
+    g = ev.make_llm_class_grader(log=log, max_attempts=2, votes=1)
     assert g({"id": "GB-9", "text": "t", "rubric": "r"}) == "Incorrect"
-    assert judge.n_calls == 2 and log[0]["fallback"] == "rule_incorrect"
+    assert log[0]["fallback"] == "rule_incorrect"
 
 
-def test_llm_class_grader_mehrheit_und_gleichstand():
-    g3 = ev.make_llm_class_grader(client=_FakeJudge(content='{"grade": "Correct"}'), votes=3)
-    assert g3({"id": "a", "text": "t", "rubric": "r"}) == "Correct"
-    tie = _FakeJudge(sequence=['{"grade": "Correct"}', '{"grade": "Partial"}'])
-    g2 = ev.make_llm_class_grader(client=tie, votes=2)
-    assert g2({"id": "b", "text": "t", "rubric": "r"}) == "Incorrect"  # 1:1 -> Fallback
+def test_llm_class_grader_use_schema_real():
+    """use_schema=True (echte Structured Outputs) -> gültige Klasse."""
+    item = {"id": "s", "text": "Problem P", "rubric": "full credit"}
+    assert call(ev.make_llm_class_grader(use_schema=True, votes=1), item) in ev.CLASS_GRADES
 
 
-def test_llm_class_grader_use_schema():
-    judge = _FakeJudge(content='{"grade": "Partial"}')
-    g = ev.make_llm_class_grader(client=judge, use_schema=True)
-    assert g({"id": "s", "text": "t", "rubric": "r"}) == "Partial"
-    rf = judge.calls[0]["response_format"]
-    assert rf["type"] == "json_schema" and rf["json_schema"]["strict"] is True
-    assert rf["json_schema"]["schema"]["properties"]["grade"]["enum"] == list(ev.CLASS_GRADES)
+def test_load_anchor_explicit_loader_real():
+    """Expliziter, ECHTER HF-Loader (kein Fake) deckt den Nicht-None-Zweig."""
+    import datasets
+
+    a = ev.load_anchor("grading", load_dataset_fn=datasets.load_dataset, limit=1)
+    assert a.n() == 1

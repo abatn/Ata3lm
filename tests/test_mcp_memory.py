@@ -1,10 +1,8 @@
 """MCP-Memory-Server (data/memory/mcp_memory_server.py) – 5 Tools + Tri-Color Trust.
 
-Offline: ROOT/Scopes auf tmp_path; MCP-SDK per Fake (lazy import).
+Echte Verifikation (Guardrail 7): ROOT/Scopes auf tmp_path; `build_server` mit dem
+**echten** mcp-SDK (skip, falls nicht installiert) – kein Fake.
 """
-
-import sys
-from types import SimpleNamespace
 
 import mcp_memory_server as m
 import pytest
@@ -91,27 +89,8 @@ def test_consolidate_zaehlt_und_schreibt(tmp_path, monkeypatch):
     assert "| tier1 | 2 |" in written
 
 
-def test_build_server_registriert_5_tools(monkeypatch):
-    calls = {}
-
-    class FakeMCP:
-        def __init__(self, name):
-            calls["name"] = name
-
-        def add_tool(self, fn, name=None, description=None):
-            calls.setdefault("tools", []).append(name)
-
-    fake = SimpleNamespace(FastMCP=FakeMCP)
-    monkeypatch.setitem(sys.modules, "mcp", SimpleNamespace(server=SimpleNamespace(fastmcp=fake)))
-    monkeypatch.setitem(sys.modules, "mcp.server", SimpleNamespace(fastmcp=fake))
-    monkeypatch.setitem(sys.modules, "mcp.server.fastmcp", fake)
-    server = m.build_server()
-    assert isinstance(server, FakeMCP)
-    assert calls["tools"] == ["memory.read", "memory.write", "memory.search", "memory.consolidate", "memory.link"]
-
-
 def test_build_server_mit_echtem_mcp_sdk():
-    """Nur mit installiertem offiziellem mcp-SDK (Python >=3.10); sonst skip."""
+    """Reales offizielles mcp-SDK (Python >=3.10); sonst skip (Guardrail 7: kein Fake)."""
     pytest.importorskip("mcp")
     server = m.build_server()
     tools = set(server._tool_manager._tools.keys())

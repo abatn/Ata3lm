@@ -59,6 +59,13 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 032 | `032-fix-reflective-agent.md` | System-Iteration (Robustheit/HMM) | approved: Batnini, 2026-10-01 (Auftrag „Rekursion 032") | siehe File |
 | 033 | `033-robuster-grader.md` | System-Iteration (Grader/JSON) | approved: Batnini, 2026-10-02 (Auftrag „nach AGENTS.md") | siehe File |
 | 034 | `034-externer-grader-test.md` | System-Iteration (Grader/externer Endpoint) | approved: Batnini, 2026-10-02 (Auftrag „test und führe dein Plan") | siehe File |
+| 035 | `035-experience-route.md` | System-Iteration (FWR/Experience-Route, A+D) | approved: Batnini, 2026-10-03 (A+D) | siehe File |
+| 036 | `036-fwr-write-action.md` | System-Iteration (FWR-Write-Aktion §10.7) | approved: Batnini, 2026-10-03 (Human-Gate §9) | siehe File |
+| 037 | `037-tier2-tier3.md` | System-Iteration (tier2→tier3 Hybrid, GAAMA) | approved: Batnini, 2026-10-03 (Human-Gate §9) | siehe File |
+| 038 | `038-gaama-ladepfad.md` | System-Iteration (GAAMA-Ladepfad, Erfindung entfernt) | approved: Batnini, 2026-10-03 | siehe File |
+| 039 | `039-gaama-mechanik-fwr.md` | System-Iteration (d=2, Hub-Dampening, §10.1-FWR) | approved: Batnini, 2026-10-03 | siehe File |
+| 040 | `040-write-kette.md` | System-Iteration (Write-Kette §9.2c/a + §10.1) | approved: Batnini, 2026-10-03 | siehe File |
+| 041 | `041-echte-verifikation.md` | System-Iteration (Fakes ersetzt, Guardrail 7) | approved: Batnini, 2026-10-03 | siehe File |
 
 ## Guardrail
 

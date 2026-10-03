@@ -26,3 +26,9 @@ def test_connector_mapping_vorhanden():
     assert "Connector → Prozess" in s
     for c in ["fast-write-routing", "cognee-memory", "mars-seaa", "governance-mcp"]:
         assert c in s
+
+
+def test_hub_abweichung_dokumentiert():
+    """D) Die bekannte Hub-Abweichung (fester write-new) ist dokumentiert."""
+    s = (ROOT / "ergebnisse/verbindungen-diagramm.md").read_text(encoding="utf-8")
+    assert "Abweichung" in s or "Auslegung" in s

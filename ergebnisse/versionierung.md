@@ -62,6 +62,10 @@ cp data/memory/tier1-base/versions/v1/episodic_graph.json data/memory/tier1-base
 | Datei-Snapshot Tier-1 | `data/memory/tier1-base/versions/v1/` |
 | Snapshot zu Iteration 031 (Gesetz-Änderung §10.2, `approved` 2026-10-01) | `data/memory/tier1-base/versions/v4/` |
 | Snapshot 2026-10-03 (EOL-Modell-Fix §10.2 super-120b→ultra-550b, `approved` Batnini) | `data/memory/tier1-base/versions/v5/` (+ `AGENTS.md`) |
+| Snapshot 2026-10-03 (Write-Aktion §10.2/§10.7 `apply_write_action`, `approved` Batnini A+D) | `data/memory/tier1-base/versions/v6/` (+ `AGENTS.md`) |
+| Snapshot 2026-10-03 (GAAMA/Kairos-Connector, `approved` Batnini) | `data/memory/tier1-base/versions/v7/` (+ `AGENTS.md`) |
+| Snapshot 2026-10-03 (Git-Sperre Guardrail 6: kein `add`/`commit`/`push` ohne Erlaubnis) | `data/memory/tier1-base/versions/v8/` (+ `AGENTS.md`) |
+| Snapshot 2026-10-03 (Guardrail 7: echte Verifikation, Fakes verboten) | `data/memory/tier1-base/versions/v9/` (+ `AGENTS.md`) |
 
 ## 5. Regel für neue Versionen
 

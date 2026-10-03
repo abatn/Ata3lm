@@ -48,6 +48,22 @@ def _row_normalize(P):
     return P / P.sum(axis=1, keepdims=True)
 
 
+def _matrix_from_raw(raw: str, k: int):
+    """LLM-Rohtext -> K×K-Matrix oder None (reine Funktion; mit echten Strings testbar)."""
+    import re
+
+    import numpy as np
+
+    m = re.search(r"\[[\s\S]*\]", raw or "")
+    if not m:
+        return None  # NOOP: kein JSON im Text
+    try:
+        candidate = np.array(json.loads(m.group(0)), dtype=float)
+    except Exception:
+        return None
+    return candidate if candidate.shape == (k, k) else None  # NOOP: falsche Form
+
+
 def parse_transition_delta(text: str, k: int):
     """Δ(R_t): Richtungsmatrix aus dem Reflexionstext (SEAA Eq. 2).
 
@@ -65,8 +81,6 @@ def parse_transition_delta(text: str, k: int):
         stores confident, plausible-sounding but wrong beliefs is worse than no
         memory at all" → hier: lieber NOOP als eine erfundene Matrix.
     """
-    import numpy as np
-
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         return None  # NOOP: ohne LLM keine Matrix
@@ -94,15 +108,7 @@ def parse_transition_delta(text: str, k: int):
         )
         msg = resp.choices[0].message
         raw = msg.content or getattr(msg, "reasoning_content", None) or ""
-        import re
-
-        m = re.search(r"\[[\s\S]*\]", raw)
-        if not m:
-            return None  # NOOP: kein JSON im Text
-        candidate = np.array(json.loads(m.group(0)), dtype=float)
-        if candidate.shape != (k, k):
-            return None  # NOOP: falsche Form (SEAA: K×K)
-        return candidate
+        return _matrix_from_raw(raw, k)
     except Exception:
         return None  # NOOP: Fehler -> überspringen
 
@@ -147,14 +153,16 @@ class HMMInertia:
             ]
         )
 
-    def update_from_reflection(self, text: str):
+    def update_from_reflection(self, text: str, delta=None):
         """Eq. 2 (LLM): Reflexion ändert die Übergangswahrscheinlichkeiten.
 
         NOOP: liefert `parse_transition_delta` keine gültige K×K-Matrix, wird
         NICHTS geändert (`P_t` bleibt), und das Ergebnis trägt
-        `skipped=True` + `note=HMM_NOOP_NOTE`.
+        `skipped=True` + `note=HMM_NOOP_NOTE`. `delta` kann als echte Matrix
+        vorab übergeben werden (dann kein LLM-Call).
         """
-        delta = parse_transition_delta(text, self.K)
+        if delta is None:
+            delta = parse_transition_delta(text, self.K)
         if delta is None:
             return {
                 "before": self.P.tolist(),
@@ -319,15 +327,19 @@ def distill(graph: dict, hub: str) -> dict:
                 temperature=0.0,
             )
             msg = resp.choices[0].message
-            summary = (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
-            if not summary:
-                summary = f"(LLM leer) {cluster}"
+            summary = _summary_from_raw(msg.content or getattr(msg, "reasoning_content", None), cluster)
         except Exception as e:
             summary = f"(LLM nicht verfügbar: {e}) {cluster}"
     else:
         summary = cluster
 
     return {"hub": hub, "neighbors": ns, "summary": summary, "hub_score": hub_score(graph, hub)}
+
+
+def _summary_from_raw(raw, cluster: str) -> str:
+    """LLM-Rohtext -> Summary; leer -> „(LLM leer) …" (reine Funktion, real testbar)."""
+    s = (raw or "").strip()
+    return s if s else f"(LLM leer) {cluster}"
 
 
 def write_semantic(entry: dict) -> Path:

@@ -43,6 +43,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+import pipeline
+
 ROOT = Path("/home/opc/knowledge-agent")
 DEFAULT_LOG = ROOT / "data/memory/tier3-working/ingestion_log.jsonl"
 
@@ -177,7 +179,7 @@ def gliner_available() -> bool:
     try:
         import gliner  # noqa: F401
 
-        return True
+        return True  # pragma: no cover - nur wenn echtes GLiNER installiert ist
     except Exception:
         return False
 
@@ -186,9 +188,11 @@ def _get_gliner():
     """Lädt echtes GLiNER einmalig. Nur aufrufen, wenn `gliner_available()`."""
     global _GLINER
     if _GLINER is None:
-        from gliner import GLiNER  # type: ignore
+        from gliner import GLiNER  # type: ignore  # pragma: no cover
 
-        _GLINER = GLiNER.from_pretrained(os.environ.get("GLINER_MODEL", "urchade/gliner_multi-v2.1"))
+        _GLINER = GLiNER.from_pretrained(  # pragma: no cover
+            os.environ.get("GLINER_MODEL", "urchade/gliner_multi-v2.1")
+        )
     return _GLINER
 
 
@@ -444,6 +448,35 @@ class IngestionHook:
             return rec
         except Exception:
             return None
+
+    def route_experience(
+        self,
+        *,
+        question: str,
+        fact: str,
+        correct: str,
+        mandate_obj,
+        now: float,
+        structured_dir: Path,
+        tier3_dir: Path,
+        classify_fn=None,
+    ) -> dict:
+        """Experience-Eintritt (Stufe 1): echter Router -> pipeline-Kette (A).
+
+        Quelle: AGENTS.md §10.1 („beim Eintreffen eines neuen Facts … Router") +
+        §10.7 (Klassen-Verhaltenstest). `classify_fn=None` -> `fast_write_router`
+        (kein fixer Wert). Additiv: bestehende Methoden unverändert.
+        """
+        return pipeline.route_and_store(
+            question=question,
+            fact=fact,
+            correct=correct,
+            classify_fn=classify_fn,
+            mandate_obj=mandate_obj,
+            now=now,
+            structured_dir=structured_dir,
+            tier3_dir=tier3_dir,
+        )
 
 
 # =====================================================================

@@ -11,10 +11,21 @@ Quelle: Dual-Layer Agentic Memory, arXiv:2608.22215 §3.3 (wörtlich).
 Lab-Prinzip: keine Erfindung – Logik + Klassen wörtlich aus der Quelle.
 Hinweis (ehrlich): qwen3-1.7B/8B sind auf dem Endpoint nicht verfügbar;
 es werden die nächstliegenden verfügbaren Modelle genutzt (per ENV konfigurierbar).
+
+Write-Aktion (§10.7 AGENTS.md, wörtlich – die *Zuordnung* ist Projekt-Auftrag):
+  - non-write    -> nur `ergebnisse/` (Historie), KEIN Memory-Write.
+  - write-new    -> `knowledge/structured/` + `data/memory/tier3-working/`.
+  - write-update -> `knowledge/structured/` aktualisieren + alten Eintrag in
+                    `data/memory/tier1-base/` **supersedieren** (invalidieren, NICHT löschen).
+Caveat (ehrlich): Das Paper (arXiv:2608.22215 §3.3) macht operational eine
+**binäre** Entscheidung „write or discard"; die 3 Klassen sind Trainings-Labels.
+Die 3-Klassen-*Aktionen* stammen daher aus AGENTS.md §10.7 (Auftrag), nicht aus dem Paper.
 """
 
 import json
 import os
+import re
+from pathlib import Path
 from typing import Optional
 
 from openai import OpenAI
@@ -66,6 +77,15 @@ def _matches(answer: str, correct: str) -> bool:
     return correct.lower() in answer.lower()
 
 
+def _decide(refusal: bool, large_ok: bool, mem_ok: bool):
+    """Klassen-Entscheidung (rein, Paper §3.1/§10.7) – ohne LLM testbar."""
+    if refusal and mem_ok:
+        return "write-new", "ask"
+    if (not refusal) and (not large_ok) and mem_ok:
+        return "write-update", "ask"
+    return "uncertain", "ask"
+
+
 def classify(question: str, fact: str, correct: str) -> dict:
     """3-Klassen-Kaskade (arXiv:2608.22215 §3.1/§3.3).
 
@@ -94,12 +114,7 @@ def classify(question: str, fact: str, correct: str) -> dict:
     large_ok = _matches(a_large, correct)
     mem_ok = _matches(a_mem, correct)
 
-    if refusal and mem_ok:
-        cls, gate = "write-new", "ask"
-    elif (not refusal) and (not large_ok) and mem_ok:
-        cls, gate = "write-update", "ask"
-    else:
-        cls, gate = "uncertain", "ask"
+    cls, gate = _decide(refusal, large_ok, mem_ok)
 
     return {
         "class": cls,
@@ -113,8 +128,77 @@ def classify(question: str, fact: str, correct: str) -> dict:
     }
 
 
-# --- MemRouter (arXiv:2605.00356) ---
-# Embedding-basierter Router: frozen Backbone + ~12M trainierbare Parameter,
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
+
+
+def _supersede(tier1_dir, key: str, new_fact: str, now: float) -> dict:
+    """Alten tier1-Eintrag invalidieren (archivieren), NICHT löschen (§10.7)."""
+    tier1_dir = Path(tier1_dir)
+    tier1_dir.mkdir(parents=True, exist_ok=True)
+    old_file = tier1_dir / f"{key}.md"
+    old_found = old_file.exists()
+    archived = None
+    if old_found:
+        archived = tier1_dir / f"{key}.superseded-{int(now)}.md"
+        archived.write_text(old_file.read_text(encoding="utf-8"), encoding="utf-8")
+    old_file.write_text(new_fact, encoding="utf-8")
+    log = tier1_dir / "supersede.jsonl"
+    rec = {"key": key, "archived": str(archived) if archived else None, "new": new_fact, "at": now}
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    return {"key": key, "old_found": old_found, "archived": str(archived) if archived else None, "log": str(log)}
+
+
+def apply_write_action(
+    cls: str,
+    *,
+    question: str,
+    fact: str,
+    structured_dir,
+    tier3_dir,
+    tier1_dir=None,
+    results_dir=None,
+    now: float = 0.0,
+    supersede_fn=None,
+) -> dict:
+    """Write-Aktion der 3 Klassen (AGENTS.md §10.7, wörtlich).
+
+    - non-write    -> nur `results_dir/` (Historie), kein Memory-Write.
+    - write-new    -> `structured_dir/` + `tier3_dir/`.
+    - write-update -> `structured_dir/` + tier1-Supersede (`supersede_fn` injizierbar).
+    - unbekannt    -> `gate=ask`, keine Writes (§10.4).
+    Gate (§9/§10.4): write-new = neue Quelle -> ask · write-update = self_update -> ask.
+    """
+    if cls not in ("non-write", "write-new", "write-update"):
+        return {"ok": False, "action": cls, "gate": "ask", "written": [], "reason": "unbekannte Klasse"}
+    name = _slug(question) + ".md"
+    written: list = []
+    if cls == "non-write":
+        results_dir = Path(results_dir or "ergebnisse/rekursion")
+        results_dir.mkdir(parents=True, exist_ok=True)
+        hist = results_dir / f"{_slug(question)}.non-write.jsonl"
+        hist.write_text(
+            json.dumps({"question": question, "class": cls, "at": now}, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        written.append(str(hist))
+        return {"ok": True, "action": cls, "gate": "none", "written": written, "superseded": None}
+    structured_dir = Path(structured_dir)
+    structured_dir.mkdir(parents=True, exist_ok=True)
+    (structured_dir / name).write_text(fact, encoding="utf-8")
+    written.append(str(structured_dir / name))
+    superseded = None
+    if cls == "write-new":
+        tier3_dir = Path(tier3_dir)
+        tier3_dir.mkdir(parents=True, exist_ok=True)
+        (tier3_dir / name).write_text(fact, encoding="utf-8")
+        written.append(str(tier3_dir / name))
+    else:  # write-update
+        superseded = (supersede_fn or _supersede)(tier1_dir, _slug(question), fact, now)
+    return {"ok": True, "action": cls, "gate": "ask", "written": written, "superseded": superseded}
+
+
+# --- MemRouter (arXiv:2605.00356) ---# Embedding-basierter Router: frozen Backbone + ~12M trainierbare Parameter,
 # Forward-Only-Klassifikation (NICHT autoregressive Generierung).
 # Ziel (Paper): p50 Latenz 58 ms (statt 970 ms), F1 52.0 (statt 45.6), ~17x schneller.
 MEMROUTER_PARAMS = 12_000_000  # ~12M (Paper)

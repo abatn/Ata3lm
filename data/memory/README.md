@@ -24,7 +24,7 @@ Das Gedächtnis ist als **dreischichtige Pipeline** aufgebaut — ergänzt um
 
 | Datei | Aufgabe |
 |---|---|
-| `fast_write_router.py` | 3-Klassen-Kaskade (non-write/write-new/write-update) + MemRouter |
+| `fast_write_router.py` | 3-Klassen-Kaskade (non-write/write-new/write-update) + `apply_write_action` (Write-Ziele) + MemRouter |
 | `reflective_agent.py` | Konsolidierung (Hub-Distillation), Adaptive Forgetting (3 Bed.), Konfliktlösung, HMM-Trägheit, Spreading Activation |
 | `ingestion_hook.py` | Lifecycle-Events, Encoding-Gate, asynchrone Enrichment-Queue |
 | `trust.py` | Privacy (PII-Löschung), Poisoning-Guard, Bias-Check |
@@ -32,7 +32,8 @@ Das Gedächtnis ist als **dreischichtige Pipeline** aufgebaut — ergänzt um
 | `bias_monitor.py` | JSD-basierter Bias-Drift-Index (DI) + Capped-Simplex + Lyapunov-Damping |
 | `bi_temporal.py` | Bi-temporaler Faktenspeicher (valid time × transaction time; supersede statt löschen) |
 | `shared/shared_memory.py` | SharedTier (ACL, Trust, Versionierung, Supersession, Sync) |
-| `tier3-working/lru_cache.py` | Working Memory (Default wertbewusste Eviction; reine LRU = Baseline) |
+| `tier3-working/lru_cache.py` | Working Memory (Default wertbewusste Eviction; reine LRU = Baseline) + `fill_from_graph` (GAAMA-Hybrid: Cosine+PPR) + Validation-Gated Consolidation |
+| `gaama_extract.py` | GAAMA-Extraktion (Facts/Concepts/Reflections + 5 typisierte Kanten), LLM injizierbar |
 
 ## Status (Auftrag)
 

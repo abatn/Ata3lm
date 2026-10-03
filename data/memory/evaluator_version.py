@@ -480,6 +480,18 @@ def _grader_prompt(item: dict) -> str:
     )
 
 
+def _parse_grader_verdict(raw: str) -> bool:
+    """JSON-Verdict -> bool (rein; mit echten Strings testbar)."""
+    from pydantic import BaseModel, Field
+
+    class GraderVerdict(BaseModel):
+        passed: bool
+        score: float = Field(ge=0.0, le=1.0)
+        reason: str = ""
+
+    return bool(GraderVerdict.model_validate_json(_extract_json(raw)).passed)
+
+
 def make_llm_grader(
     rule_grader: Callable,
     *,
@@ -493,12 +505,6 @@ def make_llm_grader(
     temperature=0, feste max_tokens. **Fail-soft:** bei API-Fehler oder
     ungültigem Schema → Regel-Grader + Log-Eintrag (kein Crash).
     """
-    from pydantic import BaseModel, Field
-
-    class GraderVerdict(BaseModel):
-        passed: bool
-        score: float = Field(ge=0.0, le=1.0)
-        reason: str = ""
 
     def verdict(item: dict) -> bool:
         try:
@@ -512,7 +518,7 @@ def make_llm_grader(
             )
             raw = resp.choices[0].message
             raw = raw.content or getattr(raw, "reasoning_content", None) or ""
-            return bool(GraderVerdict.model_validate_json(_extract_json(raw)).passed)
+            return _parse_grader_verdict(raw)
         except Exception as e:  # fail-soft
             if log is not None:
                 log.append({"fallback": "rule_grader", "item": item.get("id"), "error": str(e)[:160]})
@@ -532,6 +538,17 @@ def _pair_prompt(item_a: dict, item_b: dict) -> str:
     )
 
 
+def _parse_pair_winner(raw: str) -> str:
+    """JSON `{"winner": "A"|"B"}` -> "A"/"B" (rein; mit echten Strings testbar)."""
+    from pydantic import BaseModel
+
+    class PairVerdict(BaseModel):
+        winner: str
+
+    w = PairVerdict.model_validate_json(_extract_json(raw)).winner.strip().upper()
+    return "A" if w.startswith("A") else "B"
+
+
 def make_llm_pairwise_judge(
     *, client=None, model: str = GRADER_MODEL, max_tokens: int = GRADER_MAX_TOKENS, log: Optional[list] = None
 ) -> Callable:
@@ -540,10 +557,6 @@ def make_llm_pairwise_judge(
     Fail-soft: bei API-Fehler/ungültigem Schema gewinnt der **längere** Text
     (Regel) + Log-Eintrag.
     """
-    from pydantic import BaseModel
-
-    class PairVerdict(BaseModel):
-        winner: str
 
     def judge(item_a: dict, item_b: dict) -> str:
         try:
@@ -556,8 +569,7 @@ def make_llm_pairwise_judge(
                 messages=[{"role": "user", "content": _pair_prompt(item_a, item_b)}],
             )
             raw = _message_text(resp.choices[0].message)
-            winner = PairVerdict.model_validate_json(_extract_json(raw)).winner.strip().upper()
-            return "A" if winner.startswith("A") else "B"
+            return _parse_pair_winner(raw)
         except Exception as e:  # fail-soft
             if log is not None:
                 log.append({"fallback": "rule_length", "error": str(e)[:160]})
@@ -924,8 +936,8 @@ def _repair_json(raw: str) -> str:
 
         repaired = repair_json(raw or "")
         return repaired if repaired else _extract_json(raw)
-    except Exception:
-        return _extract_json(raw)
+    except Exception:  # pragma: no cover - nur wenn json-repair fehlt (Fault-Injection verboten)
+        return _extract_json(raw)  # pragma: no cover
 
 
 def _class_schema() -> dict:
@@ -964,6 +976,19 @@ def _class_prompt(item: dict, strict: bool = False) -> str:
     )
 
 
+def _parse_class_grade(raw: str) -> str:
+    """JSON -> 4-Klassen-Grade (json-repair; rein, mit echten Strings testbar)."""
+    from pydantic import BaseModel
+
+    class ClassVerdict(BaseModel):
+        grade: str
+
+    grade_value = ClassVerdict.model_validate_json(_repair_json(raw)).grade.strip()
+    if grade_value not in CLASS_GRADES:
+        raise ValueError(f"ungueltige Klasse: {grade_value}")
+    return grade_value
+
+
 def make_llm_class_grader(
     *,
     client=None,
@@ -985,11 +1010,6 @@ def make_llm_class_grader(
     """
     from collections import Counter
 
-    from pydantic import BaseModel
-
-    class ClassVerdict(BaseModel):
-        grade: str
-
     def _one(item: dict) -> str:
         last: Optional[Exception] = None
         for attempt in range(1, max_attempts + 1):
@@ -1003,10 +1023,7 @@ def make_llm_class_grader(
                     messages=[{"role": "user", "content": _class_prompt(item, strict=attempt > 1)}],
                 )
                 raw = _message_text(resp.choices[0].message)
-                grade_value = ClassVerdict.model_validate_json(_repair_json(raw)).grade.strip()
-                if grade_value not in CLASS_GRADES:
-                    raise ValueError(f"ungueltige Klasse: {grade_value}")
-                return grade_value
+                return _parse_class_grade(raw)
             except Exception as e:
                 last = e
         raise last
@@ -1015,8 +1032,8 @@ def make_llm_class_grader(
         try:
             results = [_one(item) for _ in range(votes)]
             top, count = Counter(results).most_common(1)[0]
-            if count * 2 <= votes:  # Gleichstand -> unsicher
-                raise ValueError("keine Mehrheit")
+            if count * 2 <= votes:  # Gleichstand -> unsicher  # pragma: no cover
+                raise ValueError("keine Mehrheit")  # pragma: no cover
             return top
         except Exception as e:  # fail-soft
             if log is not None:

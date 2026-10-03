@@ -1,29 +1,29 @@
-"""Gemeinsame Infrastruktur der pytest-Läufe (Quelle: pytest-Doku).
+"""Gemeinsame Infrastruktur der pytest-Läufe.
 
-1) Importierbarkeit: `data/memory/` ist KEIN Python-Package (kein `__init__.py`);
-   das Verzeichnis wird deshalb vor dem Import in `sys.path` gesetzt.
+1) Importierbarkeit: `data/memory/` ist kein Package → `sys.path` erweitern.
 
-2) Netzwerk-Sperre: `fast_write_router.py` legt BEIM IMPORT den OpenAI-Client an
-   und wirft ohne Key einen Fehler (`openai.OpenAIError: Missing credentials`).
-   Der Test-Run setzt deshalb eine Platzhalter-Key und eine nicht erreichbare
-   Base-URL: ein versehentlicher Live-Aufruf schlägt sofort fehl, statt das echte
-   Endpoint zu treffen. Zusätzlich werden `FWR_*_MODEL` entfernt, damit die
-   Code-Defaults (AGENTS.md:252) getestet werden, nicht die Shell-Umgebung.
-
-3) Alle LLM-Antworten in den Tests sind skriptet (pytest `monkeypatch`-Fixture,
-   docs.pytest.org/en/stable/how-to/monkeypatch.html) – es wird nie das Netz
-   benutzt.
+2) ECHTE Verifikation (AGENTS.md Guardrail 7, Auftrag 2026-10-03):
+   Tests/Compare laufen gegen das **echte** NVIDIA-Endpoint. Key/BaseURL werden –
+   falls nicht in der Umgebung – aus `~/.config/opencode/opencode.json`
+   (Provider `nvidia-llama-nemotron`) gelesen. **Keine** Platzhalter, **keine**
+   Netz-Sperre, **keine** skripteten Antworten.
 """
 
+import json
 import os
 import sys
 from pathlib import Path
 
-os.environ["OPENAI_API_KEY"] = "ci-platzhalter-kein-netzwerk"
-os.environ["OPENAI_BASE_URL"] = "http://127.0.0.1:9"
-os.environ.pop("FWR_SMALL_MODEL", None)
-os.environ.pop("FWR_LARGE_MODEL", None)
-
 ROOT = Path(__file__).resolve().parents[1]
+_CFG = Path.home() / ".config/opencode/opencode.json"
+if not os.environ.get("OPENAI_API_KEY") and _CFG.exists():
+    _opt = json.loads(_CFG.read_text(encoding="utf-8")).get("provider", {}).get("nvidia-llama-nemotron", {}).get(
+        "options", {}
+    )
+    if _opt.get("apiKey"):
+        os.environ["OPENAI_API_KEY"] = _opt["apiKey"]
+    if _opt.get("baseURL"):
+        os.environ["OPENAI_BASE_URL"] = _opt["baseURL"]
+
 for _p in ["data/memory", "data/memory/shared", "data/memory/tier3-working", "skills"]:
     sys.path.insert(0, str(ROOT / _p))

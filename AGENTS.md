@@ -100,6 +100,11 @@ steuern es nie allein.
 4. Interface-Stabilität: keine Format-/Schnittstellenänderung ohne Freigabe.
 5. Stufen-Disziplin: keine Stufe überspringen (insb. kein Handeln ohne
    Beobachten, kein Revise ohne Compare-Beleg).
+6. Git-Sperre: **kein `git add`, `git commit` oder `git push` ohne Erlaubnis**
+   (Auftrag, 2026-10-03).
+7. Echte Verifikation: **Tests/Compare nur mit echten Quellen/LLM/Endpoint** –
+   Fake- oder skriptete Antworten sind **verboten**; „offline/kein Geld" ist keine
+   Ausrede (Auftrag, 2026-10-03).
 
 ## 9. Automatisches Gate (Zusatz zu Human-Gate)
 
@@ -256,7 +261,10 @@ als erste Entscheidungsinstanz aktiviert:
 - **Belegte Wirkung:** < 50 % der Inputs eskaliert, ≤ 68 % redundante Writes reduziert.
 
 **Operative Implementierung:** `data/memory/fast_write_router.py` (verhaltensbasiert,
-nicht semantisch). Details + Test: `ergebnisse/fast-write-router.md`.
+nicht semantisch). Die **Write-Aktion** ist als `apply_write_action()` umgesetzt
+(§10.7-Ziele: non-write→`ergebnisse/` · write-new→`structured/`+`tier3-working/` ·
+write-update→`structured/`+tier1-Supersede). Details + Test:
+`ergebnisse/fast-write-router.md`, `ergebnisse/fwr-write.md`.
 
 ### 10.3 Write-Back (Slow Consolidation)
 
@@ -313,6 +321,15 @@ Die vollständige technische Spezifikation liegt in:
 | **non-write** | nur in `ergebnisse/rekursion/` (Historie) |
 | **write-new** | `knowledge/structured/` + `data/memory/tier3-working/` |
 | **write-update** | `knowledge/structured/` aktualisieren + alten Eintrag in `data/memory/tier1-base/` supersedieren (invalidieren, nicht löschen) |
+
+**Implementierung (Auftrag):** `fast_write_router.apply_write_action(cls, ...)` schreibt
+die Ziele real; Supersede **archiviert** den alten tier1-Eintrag
+(`<key>.superseded-<ts>.md`) und löscht ihn **nicht**. Test: `tests/test_fwr_write.py`
+(3 Klassen → echte Writes), Doku: `ergebnisse/fwr-write.md`.
+
+**Caveat (ehrlich):** Das Paper routet operational **binär** „write or discard"
+(arXiv:2608.22215 §3.3); die 3 Klassen sind Trainings-**Labels**. Die 3-Klassen-**Aktionen**
+sind daher Projekt-**Auftrag** (hier), kein Paper-Claim.
 
 **Belegte Wirkung (Paper):** ≤ 68 % redundante Writes reduziert, > 98 % QA-EM.
 Details + Simulation: `ergebnisse/fast-write-router.md`.
@@ -371,7 +388,7 @@ Anfrage ─▶ MCP-Layer (Cognee/Graphiti/HeLa-Mem)
 - Plan: `ergebnisse/knowledge-agent-plan.md`
 - Lauf-Protokoll: `ergebnisse/lebenszyklus-8-phasen.md`
 
-## Connectors (10 hier referenzierte Connector-Dateien mit Quellen; 16 Dateien insgesamt in `connectors/`)
+## Connectors (12 hier referenzierte Connector-Dateien mit Quellen; 17 Dateien insgesamt in `connectors/`)
 
 | Connector | Phase/Stufe | Connector-Datei | Kern-Referenz | Quellen-Link |
 |---|---|---|---|---|
@@ -389,4 +406,6 @@ Anfrage ─▶ MCP-Layer (Cognee/Graphiti/HeLa-Mem)
 | Bi-Temporal Modelle | Wissen+ (8) | `knowledge/lifecycle/wissen-plus.md:31-40` | AGENTS.md: — | https://github.com/getzep/graphiti |
 | Affective Computing + Psycho-Linguistisch | Nicht-Kognition (6) | `connectors/affective-signals.md:1` | AGENTS.md: — | https://jisem-journal.com/index.php/journal/article/view/12473 |
 | Fast Write Routing | Erfahrung (1) → Gedächtnis (3) | `connectors/fast-write-routing.md` | AGENTS.md: §10 | https://arxiv.org/abs/2608.22215 |
+| GAAMA (Graph-Memory, Hybrid-Retrieval) | Gedächtnis (3) | `connectors/gaama.md` | AGENTS.md: — | https://arxiv.org/abs/2603.27910 |
+| Kairos (Validation-Gated Hebbian Learning) | Gedächtnis (3) | `connectors/gaama.md` | AGENTS.md: — | https://nips.cc/virtual/2025/129852 |
 | Governance-MCP (Drift/Lyapunov/GLiNER) | Gedächtnis (3), Denken (5), Handeln (7) | `connectors/governance-mcp.md:11-15`, `connectors/governance-mcp.md:48-53` | AGENTS.md: §9, §11 | https://github.com/neogenesislab/WhyLab-NeurIPS2026, https://arxiv.org/abs/2605.10108 |

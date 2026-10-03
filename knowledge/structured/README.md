@@ -72,8 +72,11 @@ Jede Erfahrung durchläuft zuerst einen **billigen Klassifikator**:
 
 | Kategorie | Aktion |
 |---|---|
-| **write** (write-new / write-update) | externalisieren → in `knowledge/structured/` oder Graph |
-| **no-write** | nur in Rekursions-Historie (`ergebnisse/rekursion/`) behalten |
+| **write-new** | `knowledge/structured/` **+** `data/memory/tier3-working/` |
+| **write-update** | `knowledge/structured/` aktualisieren + alten `tier1-base/`-Eintrag **supersedieren** (invalidieren, nicht löschen) |
+| **no-write** (non-write) | nur in Rekursions-Historie (`ergebnisse/rekursion/`) behalten |
+
+Implementierung: `fast_write_router.apply_write_action` (AGENTS.md §10.7). Details: `ergebnisse/fwr-write.md`.
 
 Details: `ergebnisse/ingestion-pipeline.md`.
 

@@ -1,15 +1,14 @@
 """Ingestion-Hook (data/memory/ingestion_hook.py) – Gate · Privacy · Graph · Enrichment.
 
-Kein Netz: der optionale GLiNER-Pfad wird mit einem Fake-Modell geprüft, das
-Log wird auf `tmp_path` umgebogen (kein Repo-Schreibzugriff).
+Echte Verifikation (Guardrail 7): GLiNER real geprüft (nicht installiert → ImportError),
+Router real (`_live.call`); Log auf `tmp_path` (kein Repo-Schreibzugriff).
 """
 
 import asyncio
 import json
-import sys
-import types
 
 import ingestion_hook as ih
+import pytest
 
 
 # --------------------------------------------------------------- PrivacyFilter
@@ -53,29 +52,18 @@ def test_gate_alle_ablehnungsgruende():
 
 
 # ---------------------------------------------------------- Entity-Resolution
-def test_gliner_available_true_und_false(monkeypatch):
-    monkeypatch.setitem(sys.modules, "gliner", types.ModuleType("gliner"))
-    assert ih.gliner_available() is True
-    monkeypatch.setitem(sys.modules, "gliner", None)  # import -> ImportError
-    assert ih.gliner_available() is False
+def test_gliner_available_und_get_gliner_real():
+    """Echtes GLiNER (Guardrail 7, kein Fake): Verfügbarkeit real prüfen.
 
-
-def test_get_gliner_laedt_einmal(monkeypatch):
-    calls = []
-
-    class FakeGLiNER:
-        @staticmethod
-        def from_pretrained(name):
-            calls.append(name)
-            return {"model": name}
-
-    fake = types.ModuleType("gliner")
-    fake.GLiNER = FakeGLiNER
-    monkeypatch.setitem(sys.modules, "gliner", fake)
-    monkeypatch.setattr(ih, "_GLINER", None)
-    first = ih._get_gliner()
-    assert first == {"model": "urchade/gliner_multi-v2.1"}
-    assert ih._get_gliner() is first and len(calls) == 1  # nur einmal geladen
+    Ist GLiNER nicht installiert (Normalfall) -> `_get_gliner()` wirft ImportError.
+    """
+    avail = ih.gliner_available()
+    assert isinstance(avail, bool)
+    if avail:
+        assert ih._get_gliner() is not None
+    else:
+        with pytest.raises(ImportError):
+            ih._get_gliner()
 
 
 def test_resolve_entities_regelbasiert_und_sortiert():
@@ -241,3 +229,43 @@ def test_update_graph_knoten_bereits_vorhanden():
     g.add_node("a")
     d = ih.update_graph(g, [{"span": "a"}, "b"], [])
     assert d["added_nodes"] == ["b"]  # "a" war bereits vorhanden
+
+
+def test_route_experience_nutzt_echten_router(tmp_path):
+    """A) Experience-Eintritt: pipeline nutzt den **echten** Router (Guardrail 7)."""
+    import mandate
+    from _live import call
+
+    hook = ih.IngestionHook(log_path=tmp_path / "log.jsonl")
+    reg = mandate.MandateRegistry()
+    m = reg.issue(
+        principal="P",
+        agent="a",
+        actions={"write:memory"},
+        resources={"data/memory"},
+        amount_limit=10.0,
+        max_uses=10,
+        valid_from=0.0,
+        valid_until=10**12,
+        approval_threshold=5.0,
+    )
+    out = call(
+        hook.route_experience,
+        question="What is the capital of Xylophonia?",
+        fact="The capital of Xylophonia is Zentaria.",
+        correct="Zentaria",
+        mandate_obj=m,
+        now=1.0,
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t3",
+    )
+    assert out["steps"][0][0] == "mandate"
+    assert any(step[0] == "fwr" for step in out["steps"])  # echter Router gelaufen
+    assert out["action"] in {"write-new", "write-update", "none"}
+
+
+def test_get_gliner_cache_hit(monkeypatch):
+    """Realer Cache-Pfad: bereits geladenes GLiNER wird ohne Import zurückgegeben."""
+    sentinel = object()
+    monkeypatch.setattr(ih, "_GLINER", sentinel)
+    assert ih._get_gliner() is sentinel

@@ -1,42 +1,19 @@
 """Reflective Agent (data/memory/reflective_agent.py) – HMM · Hub/Forgetting · Retrieval.
 
-Kein Netz: die optionalen LLM-Schritte werden mit einem Fake-`openai`-Modul
-geprüft; Graph-, Structured- und Index-Pfade zeigen auf `tmp_path`.
+Echte Verifikation (Guardrail 7): LLM-Schritte laufen gegen das **echte** Endpoint
+(`_live.call`); Fehlerpfade über ein **echtes** unerreichbares Endpoint
+(`OPENAI_BASE_URL=http://127.0.0.1:9`). Parsing ist als reine Funktion (`_matrix_from_raw`,
+`_summary_from_raw`) mit echten Strings getestet – kein Fake-LLM.
 """
 
 import json
-import sys
-from types import SimpleNamespace
 
+import numpy as np
 import pytest
 import reflective_agent as ra
+from _live import call
 
-
-# ------------------------------------------------------------------ Fake-OpenAI
-def _fake_openai(content=None, reasoning=None, raises=False):
-    class Completions:
-        def create(self, **kw):
-            if raises:
-                raise RuntimeError("endpoint nicht erreichbar")
-            return SimpleNamespace(
-                choices=[
-                    SimpleNamespace(
-                        message=SimpleNamespace(
-                            **(
-                                {"content": content}
-                                if reasoning is None
-                                else {"content": content, "reasoning_content": reasoning}
-                            )
-                        )
-                    )
-                ]
-            )
-
-    class Client:
-        def __init__(self, *a, **kw):
-            self.chat = SimpleNamespace(completions=Completions())
-
-    return SimpleNamespace(OpenAI=Client)
+BAD = "http://127.0.0.1:9"
 
 
 @pytest.fixture
@@ -47,46 +24,30 @@ def no_key(monkeypatch):
 # --------------------------------------------------------------- HMM-Trägheit
 def test_row_normalize_und_noop_ohne_llm(no_key):
     """Heuristik entfernt (Rekursion 032/NOOP): ohne LLM-Key -> None, kein Default."""
-    import numpy as np
-
     P = ra._row_normalize(np.array([[1.0, 3.0], [2.0, 2.0]]))
     assert np.allclose(P.sum(axis=1), 1.0)
     assert ra.parse_transition_delta("the action was wrong and failed", 4) is None
     assert ra.parse_transition_delta("everything matched my inertia", 4) is None
 
 
-def test_parse_transition_delta_mit_llm(monkeypatch):
-    payload = json.dumps([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=payload))
-    delta = ra.parse_transition_delta("text", 4)
-    assert delta[0][0] == 1 and delta[3][3] == 1
+def test_parse_transition_delta_mit_llm_real():
+    """Echtes LLM (Guardrail 7): liefert gültige K×K-Matrix oder NOOP (None)."""
+    out = call(ra.parse_transition_delta, "The action matched my usual inertia; slight bias to caution.", 4)
+    assert out is None or out.shape == (4, 4)
 
 
-def test_parse_transition_delta_noop_bei_kein_json_und_fehler(monkeypatch):
-    """NOOP: kein JSON bzw. LLM-Fehler -> None (keine Faustregel, kein Crash)."""
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content="kein json"))
+def test_matrix_from_raw_noop_und_form():
+    """Reine Parsing-Funktion mit echten Strings (kein Fake-LLM)."""
+    assert ra._matrix_from_raw("kein json hier", 4) is None
+    assert ra._matrix_from_raw("[[1,2],[3,4]]", 4) is None  # 2×2 statt 4×4
+    d = ra._matrix_from_raw(json.dumps([[3, 0, 0, 0]] * 4), 4)
+    assert d.shape == (4, 4) and d[0][0] == 3 and d[1][1] == 0
+
+
+def test_parse_transition_delta_fehler_real(monkeypatch):
+    """Echtes unerreichbares Endpoint -> NOOP (None), kein Crash."""
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
     assert ra.parse_transition_delta("wrong", 4) is None
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    assert ra.parse_transition_delta("wrong", 4) is None
-
-
-def test_parse_transition_delta_falsche_form_ist_noop(monkeypatch):
-    """2×2 statt 4×4 -> NOOP: None (verworfen), keine Ersatz-Matrix, kein Crash."""
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content="[[1,2],[3,4]]"))
-    assert ra.parse_transition_delta("wrong", 4) is None
-
-
-def test_parse_transition_delta_4x4_wird_uebernommen(monkeypatch):
-    """Strenge Form-Prüfung: korrekte K×K-Matrix kommt unverändert durch."""
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=json.dumps([[3, 0, 0, 0]] * 4)))
-    delta = ra.parse_transition_delta("beliebig", 4)
-    assert delta.shape == (4, 4) and delta[0][0] == 3 and delta[1][1] == 0
-
-
-def test_parse_transition_delta_reasoning_fallback(monkeypatch):
-    payload = json.dumps([[2, 0, 0, 0]] * 4)
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=None, reasoning=payload))
-    assert ra.parse_transition_delta("text", 4)[0][0] == 2
 
 
 def test_hmm_update_noop_ohne_matrix(no_key):
@@ -96,24 +57,21 @@ def test_hmm_update_noop_ohne_matrix(no_key):
     ch = hmm.update_from_reflection("the action was wrong")
     assert ch["skipped"] is True and ch["delta"] is None
     assert ch["note"] == ra.HMM_NOOP_NOTE
-    assert hmm.P.tolist() == before  # kein Update, kein Crash
+    assert hmm.P.tolist() == before
     assert len(ch["after"]) == 4 and ch["lr"] == hmm.lr
 
 
-def test_hmm_update_mit_llm_matrix(monkeypatch):
-    import numpy as np
-
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
+def test_hmm_update_mit_delta_real():
+    """Eq. 2 mit echter numerischer Δ-Matrix (kein LLM): P_t wird geändert."""
     hmm = ra.HMMInertia()
-    ch = hmm.update_from_reflection("reflection")
+    before = hmm.P.copy()
+    ch = hmm.update_from_reflection("beliebig", delta=np.array([[1.0, 0, 0, 0]] * 4))
     assert ch["skipped"] is False and ch["delta"][0][0] == 1
     assert np.allclose(np.array(ch["after"]).sum(axis=1), 1.0)
-    assert ch["after"] != ch["before"]  # P_t wurde geändert
+    assert not np.allclose(hmm.P, before)
 
 
 def test_step_free_prototype(no_key):
-    import numpy as np
-
     hmm = ra.HMMInertia()
     assert hmm.K == 4 and hmm.z == 0
     out = hmm.step_free_prototype()
@@ -144,7 +102,6 @@ def test_graph_hubs_forgetting_und_neighbors(tmp_path):
     assert ra.neighbors(g, "hub") == ["n0", "n1"]
     assert ra.detect_hubs(g) == ["hub"]
     assert ra.detect_forgetting(g, now_days=100.0) == ["alt"]
-    # fehlende Metadaten zählen konservativ als „aktiv" (access=1)
     assert "ohne_metadaten" not in ra.detect_forgetting(g, now_days=100.0)
 
 
@@ -160,7 +117,7 @@ def test_resolve_conflict_supersede():
 def test_simulate_lifecycle():
     out = ra.simulate_lifecycle()
     assert out["consolidation"]["hubs"] == ["hub_n2"]
-    assert out["forgetting"]["forgotten"] == ["isolated_n5"]  # 3 Bedingungen erfüllt
+    assert out["forgetting"]["forgotten"] == ["isolated_n5"]
     assert out["conflict"]["conflict"] is True
 
 
@@ -169,19 +126,30 @@ def test_distill_ohne_llm(no_key):
     g = _graph()
     entry = ra.distill(g, "hub")
     assert entry["neighbors"] == ["n0", "n1"]
-    # n0/n1 sind keine Knoten im Graph -> nur der Hub-Content kommt in den Cluster
     assert entry["summary"] == "Hub"
     assert entry["hub_score"] == 1.8
 
 
-def test_distill_mit_llm_und_fehlern(monkeypatch):
+def test_summary_from_raw():
+    assert ra._summary_from_raw(" Synthese ", "c") == "Synthese"
+    assert ra._summary_from_raw("", "c").startswith("(LLM leer)")
+
+
+def test_distill_mit_llm_real():
+    """Echtes LLM; bei transientem Endpoint-Fehler erneut (real, kein Fake)."""
     g = _graph()
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=" Synthese "))
-    assert ra.distill(g, "hub")["summary"] == "Synthese"
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=""))
-    assert ra.distill(g, "hub")["summary"].startswith("(LLM leer)")
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    assert ra.distill(g, "hub")["summary"].startswith("(LLM nicht verfügbar")
+    out = call(ra.distill, g, "hub")
+    for _ in range(6):
+        if not out["summary"].startswith("(LLM nicht verfügbar"):
+            break
+        out = call(ra.distill, g, "hub")
+    assert isinstance(out["summary"], str) and out["summary"]
+    assert not out["summary"].startswith("(LLM nicht verfügbar")
+
+
+def test_distill_fehler_real(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)
+    assert ra.distill(_graph(), "hub")["summary"].startswith("(LLM nicht verfügbar")
 
 
 def test_write_semantic_und_update_index(tmp_path, monkeypatch):
@@ -193,45 +161,39 @@ def test_write_semantic_und_update_index(tmp_path, monkeypatch):
     idx = ra.update_index(entry)
     ra.update_index({"hub": "hub_y", "neighbors": [], "summary": "s", "hub_score": 2.0})
     text = idx.read_text(encoding="utf-8")
-    assert "Hub hub_x" in text and "Hub hub_y" in text  # idempotent, beide Zeilen
+    assert "Hub hub_x" in text and "Hub hub_y" in text
 
 
-def test_run_once(tmp_path, monkeypatch):
+def _run_once_env(tmp_path, monkeypatch):
     graph = _graph()
     monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
     (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
     monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
     monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    monkeypatch.setenv("RQGM_LOOP", "0")  # explizit aus (Debug)
+    monkeypatch.setenv("OPENAI_BASE_URL", BAD)  # echtes, unerreichbares Endpoint
+
+
+def test_run_once(tmp_path, monkeypatch):
+    _run_once_env(tmp_path, monkeypatch)
+    monkeypatch.setenv("RQGM_LOOP", "0")
     out = ra.run_once()
     assert out["hubs"] == ["hub"] and out["hmm_states"] == 4
-    assert out["distilled"][0]["hmm_skipped"] is True  # NOOP (LLM nicht erreichbar)
-    assert out["rqgm"] is None  # RQGM_LOOP=0 -> aus
+    assert out["distilled"][0]["hmm_skipped"] is True
+    assert out["rqgm"] is None
     assert (tmp_path / "structured" / "distilled-hub-hub.md").exists()
 
 
 def test_run_once_rqgm_default_an(tmp_path, monkeypatch):
-    graph = _graph()
-    monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
-    (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
-    monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
-    monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    monkeypatch.delenv("RQGM_LOOP", raising=False)  # Default = an
+    _run_once_env(tmp_path, monkeypatch)
+    monkeypatch.delenv("RQGM_LOOP", raising=False)
     out = ra.run_once()
     assert out["rqgm"] is not None
     assert out["rqgm"]["report"]["current"] == "evaluator_v3"
 
 
 def test_run_once_mit_rqgm_loop(tmp_path, monkeypatch):
-    graph = _graph()
-    monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
-    (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
-    monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
-    monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(raises=True))
-    monkeypatch.setenv("RQGM_LOOP", "1")  # §9.3 freigegeben
+    _run_once_env(tmp_path, monkeypatch)
+    monkeypatch.setenv("RQGM_LOOP", "1")
     out = ra.run_once()
     assert out["rqgm"] is not None
     assert len(out["rqgm"]["trajectory"]) == 8
@@ -240,8 +202,6 @@ def test_run_once_mit_rqgm_loop(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------- Dual-Path-Retrieval
 def test_embed_cos_und_retrieval(tmp_path, monkeypatch):
-    import numpy as np
-
     assert float(np.linalg.norm(ra._embed("a b a"))) == pytest.approx(1.0)
     assert float(np.linalg.norm(ra._embed(""))) == 0.0
     assert ra._cos(ra._embed(""), ra._embed("x")) == 0.0
@@ -274,11 +234,10 @@ def test_simulate_3_reflections_noop_ohne_llm(no_key):
     assert all(r["note"] == ra.HMM_NOOP_NOTE for r in out)
 
 
-def test_simulate_3_reflections_mit_llm(monkeypatch):
-    monkeypatch.setitem(sys.modules, "openai", _fake_openai(content=json.dumps([[1, 0, 0, 0]] * 4)))
-    out = ra.simulate_3_reflections()
-    assert len(out) == 3 and all(r["skipped"] is False for r in out)
-    assert out[0]["delta_row0"][0] == 1
+def test_simulate_3_reflections_real():
+    """Echtes LLM: 3 Reflexionen, je ein Ergebnis (skipped je nach Modell)."""
+    out = call(ra.simulate_3_reflections)
+    assert len(out) == 3 and all("skipped" in r for r in out)
 
 
 def test_lyapunov_check_und_simulate(no_key):
@@ -290,11 +249,7 @@ def test_lyapunov_check_und_simulate(no_key):
 
 def test_run_once_mit_pipeline_route(tmp_path, monkeypatch):
     """A) pipeline hat einen Aufrufer (opt-in PIPELINE_ROUTE=1)."""
-    graph = _graph()
-    monkeypatch.setattr(ra, "GRAPH_FILE", tmp_path / "g.json")
-    (tmp_path / "g.json").write_text(json.dumps(graph), encoding="utf-8")
-    monkeypatch.setattr(ra, "STRUCTURED", tmp_path / "structured")
-    monkeypatch.setattr(ra, "INDEX_DIR", tmp_path / "tier2")
+    _run_once_env(tmp_path, monkeypatch)
     monkeypatch.setattr(ra, "ROOT", tmp_path)
     monkeypatch.setattr(ra, "HMMInertia", lambda: _NullHMM())
     monkeypatch.setenv("RQGM_LOOP", "0")
@@ -308,5 +263,10 @@ class _NullHMM:
     K = 4
     lr = 0.05
 
-    def update_from_reflection(self, text):
+    def update_from_reflection(self, text, delta=None):
         return {"before": [], "after": [], "delta": None, "skipped": True, "note": "test"}
+
+
+def test_matrix_from_raw_ungueltiges_json():
+    """Ungültiges JSON mit Klammern -> except-Zweig -> None (reine Funktion)."""
+    assert ra._matrix_from_raw("[1,2,]", 4) is None

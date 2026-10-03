@@ -24,6 +24,12 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # AGENTS.md Guardrail 7: echte Verifikation -> Endpoint-Key als GitHub-Secret.
+    # Secret anlegen: Settings -> Secrets and variables -> Actions -> OPENAI_API_KEY
+    # (optional OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1).
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
     strategy:
       fail-fast: false
       matrix:

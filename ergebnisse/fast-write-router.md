@@ -58,8 +58,15 @@ Neu geprüft (Iteration 031, `ergebnisse/fwr-test.md`): der frühere Default
 account") – Stufe 1 war damit ohne ENV-Override defekt. Von 15 geprüften kleinen
 Modellen antwortete nur `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`
 (1,2–3,8 s, zero-shot korrekt/Verweigerung korrekt) → **neuer Default** für
-`FWR_SMALL_MODEL`. `FWR_LARGE_MODEL` bleibt `nvidia/nemotron-3-super-120b-a12b`.
+`FWR_SMALL_MODEL`. `FWR_LARGE_MODEL` = `nvidia/nemotron-3-ultra-550b-a55b`
+(früher `…-super-120b-a12b` → HTTP 410 EOL, ersetzt 2026-10-03, `versions/v5`).
 Beide Stufen bleiben per ENV überschreibbar.
+
+**Write-Aktion (2026-10-03):** `apply_write_action(cls, ...)` schreibt die §10.7-Ziele
+real — non-write→`ergebnisse/` (Historie) · write-new→`structured/`+`tier3-working/` ·
+write-update→`structured/`+tier1-**Supersede** (alt archiviert `.superseded-<ts>.md`,
+**nicht gelöscht**). Test: `tests/test_fwr_write.py`; Doku: `ergebnisse/fwr-write.md`.
+**Caveat:** Das Paper routet binär (§3.3); die 3-Klassen-Aktionen sind Auftrag (§10.7).
 
 ---
 
@@ -96,6 +103,7 @@ C: small="…Antarctic Desert…" | large0="…Antarctic Desert." | largeM="…t
 | Kaskade (§3.3) in AGENTS.md §10.2 | ✅ |
 | Operative Implementierung | ✅ `data/memory/fast_write_router.py` |
 | 3 Erfahrungen getestet | ✅ (non-write / write-new / write-update) |
+| Write-Aktion (§10.7) | ✅ `apply_write_action` + `tests/test_fwr_write.py` (`ergebnisse/fwr-write.md`) |
 | Aktionen projektgebunden | ✅ (structured, tier1-base, tier3-working) |
 
 **Ehrlich:** Kaskaden-Logik + Klassen wörtlich aus arXiv:2608.22215. Nur die

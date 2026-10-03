@@ -95,7 +95,7 @@ skills/
 | Stufen-Skill | Prozess (data/memory) |
 |---|---|
 | collect-experience | `ingestion_hook.py` (Lifecycle-Events) |
-| structure-knowledge | `fast_write_router.py` (3-Klassen) |
+| structure-knowledge | `fast_write_router.py` (3-Klassen + `apply_write_action`) |
 | store-memory | `lru_cache.py` + `pipeline.py` (Write) |
 | cognize | `reflective_agent.py` (Konsolidierung) |
 | reflect | `bias_monitor.py` (Drift) |
