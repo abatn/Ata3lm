@@ -7,9 +7,20 @@ Verifikation, keine skriptete Antwort.
 
 import time
 
-_RETRYABLE = ("503", "429", "overloaded", "resourceexhausted", "service unavailable",
-              "timed out", "timeout", "temporarily", "rate limit", "rate_limit",
-              "too many requests", "capacity")
+_RETRYABLE = (
+    "503",
+    "429",
+    "overloaded",
+    "resourceexhausted",
+    "service unavailable",
+    "timed out",
+    "timeout",
+    "temporarily",
+    "rate limit",
+    "rate_limit",
+    "too many requests",
+    "capacity",
+)
 
 
 def call(fn, *args, attempts: int = 12, base_delay: float = 4.0, **kwargs):

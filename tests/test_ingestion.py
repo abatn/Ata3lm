@@ -236,29 +236,35 @@ def test_route_experience_nutzt_echten_router(tmp_path):
     import mandate
     from _live import call
 
-    hook = ih.IngestionHook(log_path=tmp_path / "log.jsonl")
-    reg = mandate.MandateRegistry()
-    m = reg.issue(
-        principal="P",
-        agent="a",
-        actions={"write:memory"},
-        resources={"data/memory"},
-        amount_limit=10.0,
-        max_uses=10,
-        valid_from=0.0,
-        valid_until=10**12,
-        approval_threshold=5.0,
-    )
-    out = call(
-        hook.route_experience,
-        question="What is the capital of Xylophonia?",
-        fact="The capital of Xylophonia is Zentaria.",
-        correct="Zentaria",
-        mandate_obj=m,
-        now=1.0,
-        structured_dir=tmp_path / "s",
-        tier3_dir=tmp_path / "t3",
-    )
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)  # Python 3.9: IngestionHook braucht einen Event-Loop
+    try:
+        hook = ih.IngestionHook(log_path=tmp_path / "log.jsonl")
+        reg = mandate.MandateRegistry()
+        m = reg.issue(
+            principal="P",
+            agent="a",
+            actions={"write:memory"},
+            resources={"data/memory"},
+            amount_limit=10.0,
+            max_uses=10,
+            valid_from=0.0,
+            valid_until=10**12,
+            approval_threshold=5.0,
+        )
+        out = call(
+            hook.route_experience,
+            question="What is the capital of Xylophonia?",
+            fact="The capital of Xylophonia is Zentaria.",
+            correct="Zentaria",
+            mandate_obj=m,
+            now=1.0,
+            structured_dir=tmp_path / "s",
+            tier3_dir=tmp_path / "t3",
+        )
+    finally:
+        asyncio.set_event_loop(None)
+        loop.close()
     assert out["steps"][0][0] == "mandate"
     assert any(step[0] == "fwr" for step in out["steps"])  # echter Router gelaufen
     assert out["action"] in {"write-new", "write-update", "none"}

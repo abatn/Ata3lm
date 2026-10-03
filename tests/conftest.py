@@ -17,8 +17,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 _CFG = Path.home() / ".config/opencode/opencode.json"
 if not os.environ.get("OPENAI_API_KEY") and _CFG.exists():
-    _opt = json.loads(_CFG.read_text(encoding="utf-8")).get("provider", {}).get("nvidia-llama-nemotron", {}).get(
-        "options", {}
+    _opt = (
+        json.loads(_CFG.read_text(encoding="utf-8"))
+        .get("provider", {})
+        .get("nvidia-llama-nemotron", {})
+        .get("options", {})
     )
     if _opt.get("apiKey"):
         os.environ["OPENAI_API_KEY"] = _opt["apiKey"]

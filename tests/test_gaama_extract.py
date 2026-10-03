@@ -28,18 +28,17 @@ def test_build_edges_gueltig_und_ungueltig():
     ids = ["a", "b", "c"]
     specs = [
         {"source_index": 0, "target_index": 1, "edge_type": "NEXT"},
-        {"source_index": 1, "target_index": 2, "edge_type": "bogus"},   # -> DERIVED_FROM
-        {"source_index": 0, "target_index": 0, "edge_type": "NEXT"},    # self-loop -> skip
-        {"source_index": 0, "target_index": 9, "edge_type": "NEXT"},    # out of range -> skip
-        {"source_index": None, "target_index": 1, "edge_type": "NEXT"}, # None -> skip
+        {"source_index": 1, "target_index": 2, "edge_type": "bogus"},  # -> DERIVED_FROM
+        {"source_index": 0, "target_index": 0, "edge_type": "NEXT"},  # self-loop -> skip
+        {"source_index": 0, "target_index": 9, "edge_type": "NEXT"},  # out of range -> skip
+        {"source_index": None, "target_index": 1, "edge_type": "NEXT"},  # None -> skip
     ]
     assert ge.build_edges(ids, specs) == [("a", "b", "NEXT"), ("b", "c", "DERIVED_FROM")]
 
 
 def test_build_graph_alle_kantentypen():
     episodes = [{"id": "ep1", "text": "A"}, {"id": "ep2", "text": "B"}]
-    facts = [{"id": "f1", "fact_text": "F1", "source_episode_ids": ["ep1", "epX"],
-              "concepts": ["c1", "cX"]}]
+    facts = [{"id": "f1", "fact_text": "F1", "source_episode_ids": ["ep1", "epX"], "concepts": ["c1", "cX"]}]
     concepts = [{"concept_label": "c1", "episode_ids": ["ep1", "epX"]}]
     reflections = [{"id": "r1", "reflection_text": "R1", "source_fact_ids": ["f1", "fX"]}]
     g = ge.build_graph(episodes, facts, concepts, reflections)
@@ -56,8 +55,9 @@ def test_build_graph_alle_kantentypen():
 
 
 def test_build_graph_ohne_ids_erzeugt_fallback():
-    g = ge.build_graph([{"id": "ep1", "text": "A"}], [{"fact_text": "F"}],
-                       [{"concept_label": "c"}], [{"reflection_text": "R"}])
+    g = ge.build_graph(
+        [{"id": "ep1", "text": "A"}], [{"fact_text": "F"}], [{"concept_label": "c"}], [{"reflection_text": "R"}]
+    )
     ids = {n["id"] for n in g["nodes"]}
     assert "fact-0" in ids and "reflection-0" in ids
 
@@ -77,8 +77,10 @@ def test_extract_facts_concepts_real():
 
 
 def test_extract_reflections_real():
-    facts = [{"id": "f1", "fact_text": "The capital of Xylophonia is Zentaria."},
-             {"id": "f2", "fact_text": "Zentaria hosts the annual Xylophonia festival."}]
+    facts = [
+        {"id": "f1", "fact_text": "The capital of Xylophonia is Zentaria."},
+        {"id": "f2", "fact_text": "Zentaria hosts the annual Xylophonia festival."},
+    ]
     out = call(ge.extract_reflections, facts)
     assert isinstance(out, list)
 
@@ -93,8 +95,8 @@ def test_route_extracted_facts_real():
 def test_persist_extracted_facts_real(tmp_path):
     facts = [
         {"fact_text": "The capital of Xylophonia is Zentaria.", "source": "user", "verified": True},
-        {"fact_text": "Fakt B", "source": "web:untrusted", "verified": True},   # §9.2c: nicht vertrauenswürdig
-        {"fact_text": "Fakt C", "source": "user", "verified": False},           # §9.2c: nicht verifiziert
+        {"fact_text": "Fakt B", "source": "web:untrusted", "verified": True},  # §9.2c: nicht vertrauenswürdig
+        {"fact_text": "Fakt C", "source": "user", "verified": False},  # §9.2c: nicht verifiziert
     ]
     out = call(ge.persist_extracted_facts, facts, structured_dir=tmp_path / "s", tier3_dir=tmp_path / "t3")
     assert out[0]["admitted"] is True and out[1]["admitted"] is False and out[2]["admitted"] is False

@@ -158,7 +158,7 @@ def consolidate() -> dict:
 # ---------------------------------------------------------------------------
 # MCP-Wiring (lazy – SDK nur im Serverbetrieb nötig)
 # ---------------------------------------------------------------------------
-def build_server():
+def build_server():  # pragma: no cover - nur mit realem mcp-SDK (Python >=3.10)
     """FastMCP-Server mit den 5 Kern-Tools (Atomic-MCP-Interface)."""
     from mcp.server.fastmcp import FastMCP
 
