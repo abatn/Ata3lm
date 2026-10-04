@@ -1,6 +1,6 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL-Inferenz 046 + HeLa-Mem Spreading 047) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + 8-Stufen-Runner 048 + Skill-Interpreter 050) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
 > Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
 > `skills/**`, `connectors/**`, `AGENTS.md`.
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
@@ -8,8 +8,8 @@
 
 ## 0. Kernbefund (Ist-Stand, verifiziert)
 
-- **Module in `data/memory/**`: 16** (14 top-level + `shared/shared_memory.py` +
-  `tier3-working/lru_cache.py` + `mcp_catalog.py` + `shacl_inferenz.py`).
+- **Module in `data/memory/**`: 18** (16 top-level + `shared/shared_memory.py` +
+  `tier3-working/lru_cache.py`).
 - **Code-Kanten: 7 direkte** + **Pipeline-Kanten** (`pipeline.py` ruft 7 Module:
   `mandate`, `trust`, `approval`, `bi_temporal`, `bias_monitor`, `fast_write_router`,
   `shared_memory`).
@@ -42,7 +42,7 @@ flowchart TB
   LAW["AGENTS.md §1–§11"]:::docu
   MAND["mandate.md"]:::docu
 
-  subgraph PROC["Prozesse (16)"]
+  subgraph PROC["Prozesse (18)"]
     FWR["fast_write_router"]:::code
     REF["reflective_agent"]:::code
     ING["ingestion_hook"]:::code
@@ -59,6 +59,8 @@ flowchart TB
     MCPSRV["mcp_memory_server"]:::code
     MCAT["mcp_catalog"]:::code
     SHACL["shacl_inferenz"]:::code
+    LRUN["lifecycle_runner"]:::code
+    SINT["skill_interpreter"]:::code
   end
 
   subgraph TIER["Gedächtnis-Tiers"]
@@ -70,7 +72,7 @@ flowchart TB
   SK["skills/ (14)"]:::docu
   CN["connectors/ (17)"]:::docu
   MCP["MCP-Server (19/16 aktiv)"]:::code
-  TST["tests/ + CI (286 Tests, 100 %)"]:::code
+  TST["tests/ + CI (305 Tests, 100 %)"]:::code
   CIC["CI verify (Python 3.12, ein Job)"]:::code
 
   %% CODE-Kanten (verdrahtet)
@@ -84,6 +86,10 @@ flowchart TB
   LRU -->|"CODE: fill_from_spreading (1 Hop, HeLa-Mem)"| T3
   MCAT -->|"CODE: TTC-Katalog + Lazy-Gating"| MCP
   SHACL -->|"CODE: CONSTRUCT-Fixpunkt → pyshacl"| KS
+  LRUN -->|"CODE: run_cycle (8 Stufen)"| PIPE
+  LRUN -->|"CODE: konsolidiert (Kognition)"| LRU
+  SINT -->|"CODE: ReAct-Loop → pipeline"| PIPE
+  SINT -->|"CODE: memory.write (MCP in-process)"| MCPSRV
   LRU -->|"CODE: evicted-index.md"| T2
   GEX -->|"CODE: build_graph (5 Kantentypen)"| LRU
   GEX -->|"CODE: route_extracted_facts (§10.1)"| FWR
@@ -164,6 +170,8 @@ flowchart TB
 | lru_cache → tier3-working | Dual-Path Spreading Activation (**1 Hop**, lokal) | Base-top-k ∪ Spread-top-m | **CODE**: `lru_cache.spread_activation_scores` / `fill_from_spreading` (HeLa-Mem arXiv:2604.16839) |
 | shacl_inferenz → (cognize) | Inferenz **vor** Validierung | CONSTRUCT-Fixpunkt, dann pyshacl | **CODE**: `shacl_inferenz.pipeline` (swj3959) |
 | mcp_catalog → MCP-Layer | TTC-Katalog + Lazy-Gating | Top-k/Stufe | **CODE**: `mcp_catalog.build_catalog` (TTC Zenodo 19869008) |
+| lifecycle_runner → pipeline/lru_cache | **8 Stufen** ausführen (Stufe 3 = pipeline, Stufe 4 = consolidate) | `run_cycle` | **CODE**: `lifecycle_runner.run_cycle` (AGENTS.md §3) |
+| skill_interpreter → pipeline/mcp_memory_server | **ReAct-Loop**: LLM ruft Tools | Tool-Calling | **CODE**: `skill_interpreter.run_skill_agent` (Agent Skills/ReAct) + `_run_memory_write` (MCP in-process) |
 | lru_cache → tier3-working | Validation-Gated Konsolidierung (LTP) | logical ∧ grounding ∧ alignment ≥ τ | **CODE**: `lru_cache.consolidate_edges` (Kairos, NeurIPS 2025) |
 | trust → alle | PII vor Write | — | **CODE**: `pipeline.py` (`trust.PIIFilter`) |
 | approval → alle | §9.3-Gate | self_update | **CODE**: `pipeline.py` (`approval.TwoPersonApproval`) |
@@ -229,7 +237,7 @@ flowchart TB
 
 ## 4. Quellen (geprüft)
 
-- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz}.py`,
+- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter}.py`,
   `data/memory/tier3-working/lru_cache.py`, `data/memory/shared/shared_memory.py`
 - Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:378-392`),
   `skills/README.md`, `data/memory/README.md`, `ergebnisse/mcp-memory.md`
@@ -301,7 +309,7 @@ Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md 
 | `scripts/check_artifacts.py` | JSON/YAML/TOML + `.dot`-Syntax | C | **CODE** |
 | `scripts/check_secrets.py` | Secret-Muster (+Allowlist) | G | **CODE** |
 | `scripts/ci_preflight.py` | Endpoint erreichbar | E | **CODE** |
-| `make test` | 286 Tests / 100 %, real | — | **CODE** |
+| `make test` | 305 Tests / 100 %, real | — | **CODE** |
 | `scripts/ci_drift.py` | Drift vs. Vorcommit | N | **OFFEN** (Skript da, nicht verdrahtet) |
 | `pre-commit` | Hooks | J | **OFFEN** |
 | `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |

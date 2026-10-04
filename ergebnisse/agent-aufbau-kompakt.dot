@@ -27,7 +27,7 @@ digraph Aufbau {
   t1 [label="tier1-base/\n4 Dateien + versions/v1–v9", fillcolor="#FFF2CC", color="#BF8F00"];
   t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
   t3 [label="tier3-working/\nlru_cache.py (Adaptive Forgetting + Spreading) + README", fillcolor="#FFF2CC", color="#BF8F00"];
-  py [label="Prozesse (16)\nfast_write_router · reflective_agent · ingestion_hook · gaama_extract\ntrust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server\nshared_memory · lru_cache · evaluator_version (Red-Queen) · mcp_catalog · shacl_inferenz\nmandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (18)\nfast_write_router · reflective_agent · ingestion_hook · gaama_extract\ntrust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server\nshared_memory · lru_cache · evaluator_version (Red-Queen) · mcp_catalog · shacl_inferenz\nlifecycle_runner (8 Stufen) · skill_interpreter (ReAct)\nmandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
   shared [label="shared/\nSharedTier (ACL + Sync)", fillcolor="#FFF2CC", color="#BF8F00"];
   mandate [shape=note, label="mandate.md\nIdentität · Aktionen · Limits · Approval-Schwellen\n(§9: kein self-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
 
@@ -35,11 +35,11 @@ digraph Aufbau {
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  tests [label="tests/  ·  25 Testdateien · 286 Tests\n100 % Line+Branch (2288/570 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten\nSkills · Connectoren · MCP-Katalog · SHACL-Inferenz", fillcolor="#E1D5E7", color="#9673A6"];
+  tests [label="tests/  ·  27 Testdateien · 305 Tests\n100 % Line+Branch (2462/600 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten\nSkills · Connectoren · MCP-Katalog · SHACL-Inferenz · 8-Stufen-Runner · Skill-Interpreter", fillcolor="#E1D5E7", color="#9673A6"];
 
   ci [label="CI & Qualität (ein verify-Job, Python 3.12)\nRuff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)\nPreflight · echte Tests · .gitleaks.toml · .pymarkdown.json\npyproject.toml (Ruff) · requirements-dev.txt · Makefile (make test)", fillcolor="#D5E8D4", color="#375623"];
 
-  res [label="ergebnisse/  ·  309 MD gesamt\nrekursion/ 000–047 (48) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration\nmcp-kontext · mcp-kalibrierung · adaptive-forgetting · inferenz-shacl", fillcolor="#E2EFDA", color="#375623"];
+  res [label="ergebnisse/  ·  314 MD gesamt\nrekursion/ 000–050 (51) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration\nmcp-kontext · mcp-kalibrierung · adaptive-forgetting · inferenz-shacl\nrunner-8-stufen · skill-interpreter", fillcolor="#E2EFDA", color="#375623"];
 
   root -> agents;
   root -> docs;

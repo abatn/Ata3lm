@@ -72,6 +72,9 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 045 | `045-mcp-kalibrierung.md` | System-Iteration (MCP-Kalibrierung Ist vs. Paper) | approved: Batnini, 2026-10-03 | siehe File |
 | 046 | `046-shacl-inferenz-echt.md` | System-Iteration (SHACL-Inferenz, echte Engine) | approved: Batnini, 2026-10-04 | siehe File |
 | 047 | `047-spreading-activation.md` | System-Iteration (HeLa-Mem Spreading Activation) | approved: Batnini, 2026-10-04 | siehe File |
+| 048 | `048-lifecycle-runner.md` | System-Iteration (8-Stufen-Runner) | approved: Batnini, 2026-10-04 | siehe File |
+| 049 | `049-skill-interpreter.md` | System-Iteration (Skill-Interpreter) | approved: Batnini, 2026-10-04 | siehe File |
+| 050 | `050-skill-interpreter-agent.md` | System-Iteration (ReAct-Loop + MCP-Executor) | approved: Batnini, 2026-10-04 | siehe File |
 
 ## Guardrail
 
