@@ -46,3 +46,10 @@ extrahierte Facts zuerst durch den Fast Write Router. **Write-Kette:**
 - Doku: `ergebnisse/tier2-tier3.md`, Beleg: `ergebnisse/gaama-schema.md`
 - Test: `tests/test_gaama_extract.py` (Extraktion/Kanten) + `tests/test_tier2_tier3.py`
   (Hybrid, PPR, `fill_from_graph`, Validation-Gate)
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `lru_cache.py` — Ladepfad tier2→tier3 (Hybrid-Retrieval).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

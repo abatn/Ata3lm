@@ -77,3 +77,10 @@ NUR diese Quellen (keine weiteren behauptet):
   - https://exa.ai/library/publication/khfxyt54hk1
 - Optional:
   - https://www.ijcai.org/proceedings/2025/0002.pdf
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `shared_memory.py` — Tier-1/Shared-Tier.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

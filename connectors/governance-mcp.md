@@ -64,3 +64,10 @@ Schwellwert `0.4`, kalibriert (siehe `ergebnisse/mcp-check-gliner.md`) **[Auftra
   `ergebnisse/mcp-check-lyapunov.md`
 - Server-Bau, Registrierung, Tool-Rohausgaben: `ergebnisse/mcp-neu.md`
 - Iteration: `ergebnisse/rekursion/030-governance-mcp.md`
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `bias_monitor.py` — Drift/Lyapunov.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

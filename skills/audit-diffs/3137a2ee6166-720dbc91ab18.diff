@@ -1,0 +1,16 @@
+--- skills/structure-knowledge/SKILL.md
++++ skills/structure-knowledge/SKILL.md (neu)
+@@ -64,3 +64,13 @@
+ - HeLa-Mem Paper (ACL 2026): https://aclanthology.org/2026.acl-long.625/
+ - HeLa-Mem Code: https://github.com/ReinerBRO/HeLa-Mem
+ - AWS Semantic Layer (Prescriptive Guidance): https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph.html
++
++
++## Prozesse (Aufrufe) [Auftrag]
++
++Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
++
++- `fast_write_router.py` — 3-Klassen + `apply_write_action` (Stufe 2)
++- **MCP-Tools:** `memory.write`
++
++Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

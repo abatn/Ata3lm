@@ -72,3 +72,10 @@ Test: `tests/test_fwr_write.py` · Doku: `ergebnisse/fwr-write.md`.
 
 ## Referenzen
 - Li, W., Nie, D., Lan, R., Lyu, T., Wang, P., Hong, L., Pan, W., & Pan, B. (2026). *Dual-Layer Agentic Memory with Fast Write Routing and Slow Consolidation*. arXiv:2608.22215.
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `fast_write_router.py` — Klassifikation/Write.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

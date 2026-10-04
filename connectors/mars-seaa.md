@@ -72,3 +72,10 @@
 - https://github.com/Paparare/MARS/tree/main
 - https://arxiv.org/abs/2609.17331
 - https://arxiv.org/abs/2303.11366
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `bias_monitor.py` — Denken (HMM-Trägheit).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

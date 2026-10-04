@@ -46,3 +46,10 @@
 - https://arxiv.org/abs/2609.08832
 - https://huggingface.co/blog/ibm-research/altk-evolve-consistency
 - https://arxiv.org/abs/2210.03629
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `evaluator_version.py` — Compare (externes Signal).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

@@ -99,3 +99,13 @@ Output: `(πₜ₊₁, Iₜ₊₁)` + `sr` + Diff + `ergebnisse/rekursion/NNN-*.
 - `knowledge/lifecycle/rekursion/revise.md`
 - `connectors/reflexion-trace.md`
 - `connectors/goedel-agent.md`
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `reflective_agent.py` + `bias_monitor.py` — (π,I)→(π+1,I+1)
+- **MCP-Tools:** `memory.write`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

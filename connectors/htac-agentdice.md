@@ -64,3 +64,10 @@ Quellen-Zitat.
 - HTAC (ICML 2026 Poster): https://icml.cc/virtual/2026/poster/63033
 - Agent-Dice Paper (ACL 2026 Findings): https://aclanthology.org/2026.findings-acl.908/
 - Agent-Dice Code: https://github.com/Wuzheng02/Agent-Dice
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `pipeline.py` — Handeln (Kette).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

@@ -1,6 +1,6 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-03 (konsolidiert + CI-Integration 042) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Datum: 2026-10-03 (konsolidiert + CI-Integration 042 + Skill-/Connector-Prozess) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
 > Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
 > `skills/**`, `connectors/**`, `AGENTS.md`.
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
@@ -176,6 +176,7 @@ flowchart TB
 |---|---|
 | 8 Stufen-Skills → Prozesse | **DOKU**: `skills/README.md` (Zuordnung, Status Auftrag) |
 | recursive-improve → Phasen konstrukt/akt/observe/compare/revise | **DOKU**: `skills/recursive-improve/*/SKILL.md` |
+| **jeder Skill nennt seinen Prozess** (14, + MCP-Tools) | **CODE/DOKU**: `skills/*/SKILL.md` §Prozesse, `ergebnisse/skill-prozess.md` (Test `test_skills.py`) |
 
 ### 2.5 Connector-Verbindungen (17)
 
@@ -187,6 +188,7 @@ flowchart TB
 | mars-seaa → Denken (5) | `AGENTS.md:384-385` |
 | reflexion-trace → Kognition/Reflexion (4) | `connectors/reflexion-trace.md` |
 | (übrige) → Phase/Stufe | `AGENTS.md:378-392` |
+| **jeder Connector nennt seinen Prozess** (17) | **CODE/DOKU**: `connectors/*.md` §Prozess, `ergebnisse/connector-prozess.md` (Test `test_connector_prozess.py`, SHACL/W3C) |
 | Connector → **Prozess** | **DOKU**: §5 (Mapping) — Connectoren sind `.md`, kein Code-Import |
 
 ## 3. Lücken (konsolidiert)
@@ -198,6 +200,10 @@ flowchart TB
 4. tier2 → tier3 — `pipeline.load_from_tier2`.
 5. skills → Prozesse — `skills/README.md` (Doku/Auftrag).
 6. connectors → Prozesse — §5 (Doku).
+
+**Geschlossen 2026-10-03 (Skill-/Connector-Prozess):**
+- **Skills:** jeder der 14 aktiven `SKILL.md` nennt seinen Prozess + MCP-Tools (Abschnitt `## Prozesse`); versioniert (`versions/v2`, cognize `v3`); Doku `ergebnisse/skill-prozess.md`; Test `tests/test_skills.py`.
+- **Connectoren:** jeder der 17 `connectors/*.md` nennt seinen Prozess (Abschnitt `## Prozess`); SHACL/W3C-Shape; Doku `ergebnisse/connector-prozess.md`; Test `tests/test_connector_prozess.py`.
 
 **Geschlossen 2026-10-03 (A–D):**
 - A. ~~pipeline 0 Aufrufer~~ → **Aufrufer** `reflective_agent.run_once` (opt-in `PIPELINE_ROUTE=1`) **+** `ingestion_hook.route_experience` (echter Router).
@@ -287,7 +293,7 @@ Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md 
 | `scripts/check_artifacts.py` | JSON/YAML/TOML + `.dot`-Syntax | C | **CODE** |
 | `scripts/check_secrets.py` | Secret-Muster (+Allowlist) | G | **CODE** |
 | `scripts/ci_preflight.py` | Endpoint erreichbar | E | **CODE** |
-| `make test` | 264 Tests / 100 %, real | — | **CODE** |
+| `make test` | 271 Tests / 100 %, real | — | **CODE** |
 | `scripts/ci_drift.py` | Drift vs. Vorcommit | N | **OFFEN** (Skript da, nicht verdrahtet) |
 | `pre-commit` | Hooks | J | **OFFEN** |
 | `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |

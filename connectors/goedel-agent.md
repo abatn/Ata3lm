@@ -91,3 +91,10 @@ python src/main.py
 - https://aclanthology.org/2025.acl-long.1354.pdf
 - https://github.com/Arvid-pku/Godel_Agent
 - https://github.com/ShengranHu/ADAS
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Recursion/Self-Improve.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

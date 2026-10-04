@@ -55,3 +55,10 @@
 - https://github.com/topoteretes/cognee
 - https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph.html
 - https://github.com/getzep/graphiti
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Kognition/Validierung.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

@@ -9,12 +9,12 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 278)">
 <title>Aufbau</title>
 <polygon fill="white" stroke="transparent" points="-4,4 -4,-278 3033,-278 3033,4 -4,4"/>
-<text text-anchor="middle" x="1514.5" y="-257.2" font-family="DejaVu Sans" font-size="16.00">Knowledge&#45;Agent — Aufbau&#45;Struktur (verifiziert aus Dateien, 2026&#45;10&#45;03 · HEAD 237641a)</text>
+<text text-anchor="middle" x="1514.5" y="-257.2" font-family="DejaVu Sans" font-size="16.00">Knowledge&#45;Agent — Aufbau&#45;Struktur (verifiziert aus Dateien, 2026&#45;10&#45;03 · HEAD b88140d)</text>
 <!-- root -->
 <g id="node1" class="node">
 <title>root</title>
-<polygon fill="#f8cbad" stroke="#c55a11" points="1330.5,-248 1327.5,-252 1306.5,-252 1303.5,-248 1193.5,-248 1193.5,-212 1330.5,-212 1330.5,-248"/>
-<text text-anchor="middle" x="1262" y="-226.6" font-family="DejaVu Sans" font-size="13.00">knowledge&#45;agent/</text>
+<polygon fill="#f8cbad" stroke="#c55a11" points="1322.5,-248 1319.5,-252 1298.5,-252 1295.5,-248 1185.5,-248 1185.5,-212 1322.5,-212 1322.5,-248"/>
+<text text-anchor="middle" x="1254" y="-226.6" font-family="DejaVu Sans" font-size="13.00">knowledge&#45;agent/</text>
 </g>
 <!-- agents -->
 <g id="node2" class="node">
@@ -28,8 +28,8 @@
 <!-- root&#45;&gt;agents -->
 <g id="edge1" class="edge">
 <title>root&#45;&gt;agents</title>
-<path fill="none" stroke="#7f7f7f" d="M1193.47,-227.95C1041.82,-224.97 666.58,-214.05 355,-176 323.29,-172.13 288.78,-166.14 258.41,-160.26"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="258.69,-158.17 252.4,-159.09 257.88,-162.3 258.69,-158.17"/>
+<path fill="none" stroke="#7f7f7f" d="M1185.22,-227.89C1034.36,-224.82 663.24,-213.73 355,-176 323.29,-172.12 288.78,-166.13 258.41,-160.25"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="258.69,-158.16 252.4,-159.08 257.88,-162.29 258.69,-158.16"/>
 </g>
 <!-- docs -->
 <g id="node3" class="node">
@@ -43,8 +43,8 @@
 <!-- root&#45;&gt;docs -->
 <g id="edge2" class="edge">
 <title>root&#45;&gt;docs</title>
-<path fill="none" stroke="#7f7f7f" d="M1193.04,-226.75C1076.69,-222.17 834.27,-209.21 632,-176 608.42,-172.13 582.93,-166.32 560.35,-160.59"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="560.71,-158.52 554.37,-159.06 559.66,-162.59 560.71,-158.52"/>
+<path fill="none" stroke="#7f7f7f" d="M1185.46,-226.67C1070.4,-221.97 831.44,-208.86 632,-176 608.42,-172.12 582.93,-166.3 560.35,-160.58"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="560.71,-158.5 554.37,-159.05 559.67,-162.57 560.71,-158.5"/>
 </g>
 <!-- git -->
 <g id="node4" class="node">
@@ -52,14 +52,14 @@
 <polygon fill="#f2f2f2" stroke="#808080" points="814.5,-159 641.5,-159 641.5,-123 820.5,-123 820.5,-153 814.5,-159"/>
 <polyline fill="none" stroke="#808080" points="814.5,-159 814.5,-153 "/>
 <polyline fill="none" stroke="#808080" points="820.5,-153 814.5,-153 "/>
-<text text-anchor="middle" x="731" y="-144.2" font-family="DejaVu Sans" font-size="11.00">git HEAD: 237641a (gepusht)</text>
+<text text-anchor="middle" x="731" y="-144.2" font-family="DejaVu Sans" font-size="11.00">git HEAD: b88140d (gepusht)</text>
 <text text-anchor="middle" x="731" y="-132.2" font-family="DejaVu Sans" font-size="11.00">privat: abatn/Ata3lm</text>
 </g>
 <!-- root&#45;&gt;git -->
 <g id="edge3" class="edge">
 <title>root&#45;&gt;git</title>
-<path fill="none" stroke="#7f7f7f" d="M1193.35,-225.1C1107.3,-219.2 955.71,-205.38 829,-176 812.59,-172.2 795.1,-166.63 779.5,-161.11"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="780.2,-159.13 773.84,-159.07 778.78,-163.08 780.2,-159.13"/>
+<path fill="none" stroke="#7f7f7f" d="M1185.13,-224.87C1100.43,-218.77 952.65,-204.82 829,-176 812.6,-172.18 795.1,-166.61 779.5,-161.08"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="780.2,-159.1 773.84,-159.05 778.78,-163.06 780.2,-159.1"/>
 </g>
 <!-- knowledge -->
 <g id="node5" class="node">
@@ -70,21 +70,21 @@
 <!-- root&#45;&gt;knowledge -->
 <g id="edge4" class="edge">
 <title>root&#45;&gt;knowledge</title>
-<path fill="none" stroke="#7f7f7f" d="M1193.08,-213.35C1115.73,-195.77 992.35,-167.75 925.58,-152.58"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="926,-150.52 919.69,-151.24 925.07,-154.62 926,-150.52"/>
+<path fill="none" stroke="#7f7f7f" d="M1185.3,-213.24C1139.57,-202.74 1078.18,-188.59 1024,-176 991.08,-168.35 953.98,-159.65 925.55,-152.96"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="925.94,-150.9 919.62,-151.57 924.98,-154.99 925.94,-150.9"/>
 </g>
 <!-- conn -->
 <g id="node11" class="node">
 <title>conn</title>
-<polygon fill="#fbe5d6" stroke="#ed7d31" points="1283,-159 1280,-163 1259,-163 1256,-159 1067,-159 1067,-123 1283,-123 1283,-159"/>
-<text text-anchor="middle" x="1175" y="-144.2" font-family="DejaVu Sans" font-size="11.00">connectors/ &#160;· &#160;17 Dateien</text>
-<text text-anchor="middle" x="1175" y="-132.2" font-family="DejaVu Sans" font-size="11.00">(in AGENTS.md&#45;Tabelle referenziert)</text>
+<polygon fill="#fbe5d6" stroke="#ed7d31" points="1283,-159 1280,-163 1259,-163 1256,-159 1033,-159 1033,-123 1283,-123 1283,-159"/>
+<text text-anchor="middle" x="1158" y="-144.2" font-family="DejaVu Sans" font-size="11.00">connectors/ &#160;· &#160;17 Dateien</text>
+<text text-anchor="middle" x="1158" y="-132.2" font-family="DejaVu Sans" font-size="11.00">(jeder nennt seinen Prozess, SHACL/W3C)</text>
 </g>
 <!-- root&#45;&gt;conn -->
 <g id="edge5" class="edge">
 <title>root&#45;&gt;conn</title>
-<path fill="none" stroke="#7f7f7f" d="M1244.81,-211.81C1230.99,-197.99 1211.49,-178.49 1196.61,-163.61"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1197.88,-161.91 1192.15,-159.15 1194.91,-164.88 1197.88,-161.91"/>
+<path fill="none" stroke="#7f7f7f" d="M1235.03,-211.81C1219.65,-197.87 1197.89,-178.15 1181.42,-163.23"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1182.78,-161.63 1176.93,-159.15 1179.96,-164.74 1182.78,-161.63"/>
 </g>
 <!-- data -->
 <g id="node12" class="node">
@@ -95,65 +95,66 @@
 <!-- root&#45;&gt;data -->
 <g id="edge6" class="edge">
 <title>root&#45;&gt;data</title>
-<path fill="none" stroke="#7f7f7f" d="M1279.39,-211.81C1293.37,-197.99 1313.09,-178.49 1328.14,-163.61"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1329.86,-164.86 1332.65,-159.15 1326.91,-161.88 1329.86,-164.86"/>
+<path fill="none" stroke="#7f7f7f" d="M1272.97,-211.81C1288.35,-197.87 1310.11,-178.15 1326.58,-163.23"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1328.04,-164.74 1331.07,-159.15 1325.22,-161.63 1328.04,-164.74"/>
 </g>
 <!-- skills -->
 <g id="node19" class="node">
 <title>skills</title>
-<polygon fill="#deebf7" stroke="#1f4e79" points="1553,-159 1550,-163 1529,-163 1526,-159 1417,-159 1417,-123 1553,-123 1553,-159"/>
-<text text-anchor="middle" x="1485" y="-138.2" font-family="DejaVu Sans" font-size="11.00">skills/ &#160;· &#160;14 SKILL.md</text>
+<polygon fill="#deebf7" stroke="#1f4e79" points="1593.5,-159 1590.5,-163 1569.5,-163 1566.5,-159 1416.5,-159 1416.5,-123 1593.5,-123 1593.5,-159"/>
+<text text-anchor="middle" x="1505" y="-144.2" font-family="DejaVu Sans" font-size="11.00">skills/ &#160;· &#160;14 SKILL.md</text>
+<text text-anchor="middle" x="1505" y="-132.2" font-family="DejaVu Sans" font-size="11.00">(jeder nennt seinen Prozess)</text>
 </g>
 <!-- root&#45;&gt;skills -->
 <g id="edge7" class="edge">
 <title>root&#45;&gt;skills</title>
-<path fill="none" stroke="#7f7f7f" d="M1310.94,-211.94C1339.18,-201.9 1375.27,-188.7 1407,-176 1418.21,-171.51 1430.22,-166.42 1441.37,-161.58"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1442.45,-163.39 1447.11,-159.07 1440.77,-159.54 1442.45,-163.39"/>
+<path fill="none" stroke="#7f7f7f" d="M1303.27,-211.94C1333.26,-201.55 1372.34,-188.02 1407,-176 1420.92,-171.17 1435.95,-165.96 1449.96,-161.1"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1450.92,-162.99 1455.9,-159.04 1449.54,-159.02 1450.92,-162.99"/>
 </g>
 <!-- tests -->
 <g id="node22" class="node">
 <title>tests</title>
-<polygon fill="#e1d5e7" stroke="#9673a6" points="1983,-176 1980,-180 1959,-180 1956,-176 1571,-176 1571,-106 1983,-106 1983,-176"/>
-<text text-anchor="middle" x="1777" y="-162.2" font-family="DejaVu Sans" font-size="11.00">tests/ &#160;· &#160;21 Testdateien · 265 Tests</text>
-<text text-anchor="middle" x="1777" y="-150.2" font-family="DejaVu Sans" font-size="11.00">100 % Line+Branch (2203/550 Statements/Branches)</text>
-<text text-anchor="middle" x="1777" y="-138.2" font-family="DejaVu Sans" font-size="11.00">FWR · Governance · Memory · Ingestion · Reflective</text>
-<text text-anchor="middle" x="1777" y="-126.2" font-family="DejaVu Sans" font-size="11.00">Bi&#45;Temporal · Shared · LRU · Procedural · Solver</text>
-<text text-anchor="middle" x="1777" y="-114.2" font-family="DejaVu Sans" font-size="11.00">Evaluator/Red&#45;Queen · Mandat · AGENTS&#45;Gesetz · GAAMA · Invarianten</text>
+<polygon fill="#e1d5e7" stroke="#9673a6" points="2144,-176 2141,-180 2120,-180 2117,-176 1612,-176 1612,-106 2144,-106 2144,-176"/>
+<text text-anchor="middle" x="1878" y="-162.2" font-family="DejaVu Sans" font-size="11.00">tests/ &#160;· &#160;23 Testdateien · 271 Tests</text>
+<text text-anchor="middle" x="1878" y="-150.2" font-family="DejaVu Sans" font-size="11.00">100 % Line+Branch (2203/550 Statements/Branches)</text>
+<text text-anchor="middle" x="1878" y="-138.2" font-family="DejaVu Sans" font-size="11.00">FWR · Governance · Memory · Ingestion · Reflective</text>
+<text text-anchor="middle" x="1878" y="-126.2" font-family="DejaVu Sans" font-size="11.00">Bi&#45;Temporal · Shared · LRU · Procedural · Solver</text>
+<text text-anchor="middle" x="1878" y="-114.2" font-family="DejaVu Sans" font-size="11.00">Evaluator/Red&#45;Queen · Mandat · AGENTS&#45;Gesetz · GAAMA · Invarianten · Skills · Connectoren</text>
 </g>
 <!-- root&#45;&gt;tests -->
 <g id="edge8" class="edge">
 <title>root&#45;&gt;tests</title>
-<path fill="none" stroke="#7f7f7f" d="M1330.65,-217.4C1391.76,-207.08 1484.39,-191.43 1569.45,-177.06"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1569.99,-179.1 1575.56,-176.03 1569.29,-174.96 1569.99,-179.1"/>
+<path fill="none" stroke="#7f7f7f" d="M1322.56,-219.44C1396.13,-209.18 1517.32,-192.29 1627.75,-176.89"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1628.35,-178.93 1634,-176.02 1627.77,-174.77 1628.35,-178.93"/>
 </g>
 <!-- ci -->
 <g id="node23" class="node">
 <title>ci</title>
-<polygon fill="#d5e8d4" stroke="#375623" points="2387,-170 2384,-174 2363,-174 2360,-170 2001,-170 2001,-112 2387,-112 2387,-170"/>
-<text text-anchor="middle" x="2194" y="-156.2" font-family="DejaVu Sans" font-size="11.00">CI &amp; Qualität (ein verify&#45;Job, Python 3.12)</text>
-<text text-anchor="middle" x="2194" y="-144.2" font-family="DejaVu Sans" font-size="11.00">Ruff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)</text>
-<text text-anchor="middle" x="2194" y="-132.2" font-family="DejaVu Sans" font-size="11.00">Preflight · echte Tests · .gitleaks.toml · .pymarkdown.json</text>
-<text text-anchor="middle" x="2194" y="-120.2" font-family="DejaVu Sans" font-size="11.00">pyproject.toml (Ruff) · requirements&#45;dev.txt · Makefile (make test)</text>
+<polygon fill="#d5e8d4" stroke="#375623" points="2548,-170 2545,-174 2524,-174 2521,-170 2162,-170 2162,-112 2548,-112 2548,-170"/>
+<text text-anchor="middle" x="2355" y="-156.2" font-family="DejaVu Sans" font-size="11.00">CI &amp; Qualität (ein verify&#45;Job, Python 3.12)</text>
+<text text-anchor="middle" x="2355" y="-144.2" font-family="DejaVu Sans" font-size="11.00">Ruff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)</text>
+<text text-anchor="middle" x="2355" y="-132.2" font-family="DejaVu Sans" font-size="11.00">Preflight · echte Tests · .gitleaks.toml · .pymarkdown.json</text>
+<text text-anchor="middle" x="2355" y="-120.2" font-family="DejaVu Sans" font-size="11.00">pyproject.toml (Ruff) · requirements&#45;dev.txt · Makefile (make test)</text>
 </g>
 <!-- root&#45;&gt;ci -->
 <g id="edge9" class="edge">
 <title>root&#45;&gt;ci</title>
-<path fill="none" stroke="#7f7f7f" d="M1330.64,-226.18C1460.26,-220.37 1749.77,-205.11 1992,-176 2004.48,-174.5 2017.36,-172.77 2030.3,-170.89"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2030.61,-172.97 2036.24,-170.02 2030,-168.81 2030.61,-172.97"/>
+<path fill="none" stroke="#7f7f7f" d="M1322.73,-227.48C1473.5,-223.58 1844.43,-210.96 2153,-176 2165.87,-174.54 2179.17,-172.81 2192.51,-170.91"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2193,-172.96 2198.64,-170.03 2192.4,-168.81 2193,-172.96"/>
 </g>
 <!-- res -->
 <g id="node24" class="node">
 <title>res</title>
-<polygon fill="#e2efda" stroke="#375623" points="2754.5,-164 2751.5,-168 2730.5,-168 2727.5,-164 2405.5,-164 2405.5,-118 2754.5,-118 2754.5,-164"/>
-<text text-anchor="middle" x="2580" y="-150.2" font-family="DejaVu Sans" font-size="11.00">ergebnisse/ &#160;· &#160;285 MD gesamt</text>
-<text text-anchor="middle" x="2580" y="-138.2" font-family="DejaVu Sans" font-size="11.00">rekursion/ 000–042 (43) · Systemtests · red&#45;queen · mandat</text>
-<text text-anchor="middle" x="2580" y="-126.2" font-family="DejaVu Sans" font-size="11.00">versionierung · zwei&#45;personen · Diagramme · ci&#45;integration</text>
+<polygon fill="#e2efda" stroke="#375623" points="2915.5,-164 2912.5,-168 2891.5,-168 2888.5,-164 2566.5,-164 2566.5,-118 2915.5,-118 2915.5,-164"/>
+<text text-anchor="middle" x="2741" y="-150.2" font-family="DejaVu Sans" font-size="11.00">ergebnisse/ &#160;· &#160;301 MD gesamt</text>
+<text text-anchor="middle" x="2741" y="-138.2" font-family="DejaVu Sans" font-size="11.00">rekursion/ 000–042 (43) · Systemtests · red&#45;queen · mandat</text>
+<text text-anchor="middle" x="2741" y="-126.2" font-family="DejaVu Sans" font-size="11.00">versionierung · zwei&#45;personen · Diagramme · ci&#45;integration</text>
 </g>
 <!-- root&#45;&gt;res -->
 <g id="edge10" class="edge">
 <title>root&#45;&gt;res</title>
-<path fill="none" stroke="#7f7f7f" d="M1330.65,-229.04C1507.71,-228.43 1994.13,-222.3 2396,-176 2419.5,-173.29 2444.52,-169.37 2468.3,-165.15"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2468.78,-167.2 2474.32,-164.07 2468.04,-163.06 2468.78,-167.2"/>
+<path fill="none" stroke="#7f7f7f" d="M1322.78,-229.63C1517.23,-230.69 2087.33,-228.68 2557,-176 2580.81,-173.33 2606.17,-169.38 2630.21,-165.1"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2630.76,-167.14 2636.3,-164.01 2630.02,-163 2630.76,-167.14"/>
 </g>
 <!-- kn_life -->
 <g id="node6" class="node">
@@ -273,8 +274,8 @@
 <!-- data&#45;&gt;py -->
 <g id="edge20" class="edge">
 <title>data&#45;&gt;py</title>
-<path fill="none" stroke="#7f7f7f" d="M1375.07,-122.86C1384.96,-116.76 1396.66,-110.34 1408,-106 1445.27,-91.75 1485.97,-80.21 1525.93,-70.94"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1526.44,-72.97 1531.82,-69.59 1525.5,-68.88 1526.44,-72.97"/>
+<path fill="none" stroke="#7f7f7f" d="M1374.6,-122.84C1384.32,-116.74 1395.82,-110.32 1407,-106 1444.46,-91.53 1485.41,-79.87 1525.62,-70.55"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1526.16,-72.58 1531.54,-69.19 1525.22,-68.49 1526.16,-72.58"/>
 </g>
 <!-- shared -->
 <g id="node17" class="node">
@@ -286,8 +287,8 @@
 <!-- data&#45;&gt;shared -->
 <g id="edge19" class="edge">
 <title>data&#45;&gt;shared</title>
-<path fill="none" stroke="#7f7f7f" d="M1373.37,-122.92C1383.51,-116.43 1395.83,-109.72 1408,-106 1652.89,-31.22 1733.09,-125.76 1983,-70 1997.81,-66.7 2013.4,-61.2 2027.18,-55.58"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2028.24,-57.41 2032.97,-53.17 2026.63,-53.53 2028.24,-57.41"/>
+<path fill="none" stroke="#7f7f7f" d="M1372.93,-122.92C1382.89,-116.43 1395,-109.71 1407,-106 1652.03,-30.17 1732.65,-125.84 1983,-70 1997.81,-66.7 2013.4,-61.2 2027.18,-55.58"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2028.24,-57.41 2032.97,-53.17 2026.63,-53.54 2028.24,-57.41"/>
 </g>
 <!-- mandate -->
 <g id="node18" class="node">
@@ -302,7 +303,7 @@
 <!-- data&#45;&gt;mandate -->
 <g id="edge21" class="edge">
 <title>data&#45;&gt;mandate</title>
-<path fill="none" stroke="#7f7f7f" d="M1373.35,-122.83C1383.48,-116.33 1395.81,-109.63 1408,-106 1567.29,-58.61 1990.28,-92.11 2155,-70 2174.55,-67.38 2195.3,-63.51 2215,-59.32"/>
+<path fill="none" stroke="#7f7f7f" d="M1372.9,-122.83C1382.86,-116.33 1394.98,-109.63 1407,-106 1566.32,-57.94 1990.06,-92.13 2155,-70 2174.55,-67.38 2195.3,-63.51 2215,-59.32"/>
 <polygon fill="#7f7f7f" stroke="#7f7f7f" points="2215.66,-61.33 2221.08,-58.01 2214.77,-57.22 2215.66,-61.33"/>
 </g>
 <!-- sk_top -->
@@ -317,8 +318,8 @@
 <!-- skills&#45;&gt;sk_top -->
 <g id="edge22" class="edge">
 <title>skills&#45;&gt;sk_top</title>
-<path fill="none" stroke="#7f7f7f" d="M1516.29,-122.98C1529.92,-116.42 1546.34,-109.63 1562,-106 1756.77,-60.82 2263.25,-99.47 2461,-70 2469.44,-68.74 2478.11,-67.15 2486.79,-65.35"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2487.37,-67.37 2492.8,-64.06 2486.49,-63.26 2487.37,-67.37"/>
+<path fill="none" stroke="#7f7f7f" d="M1545.75,-122.87C1563.09,-116.38 1583.72,-109.67 1603,-106 1977.95,-34.69 2083.55,-126.61 2461,-70 2469.44,-68.73 2478.11,-67.14 2486.79,-65.33"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2487.37,-67.35 2492.8,-64.04 2486.49,-63.25 2487.37,-67.35"/>
 </g>
 <!-- sk_rec -->
 <g id="node21" class="node">
@@ -330,8 +331,8 @@
 <!-- skills&#45;&gt;sk_rec -->
 <g id="edge23" class="edge">
 <title>skills&#45;&gt;sk_rec</title>
-<path fill="none" stroke="#7f7f7f" d="M1516.27,-122.91C1529.9,-116.34 1546.32,-109.56 1562,-106 1813.49,-48.86 2466,-101.26 2722,-70 2750.35,-66.54 2781.14,-60.45 2807.94,-54.38"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2808.58,-56.39 2813.96,-53 2807.64,-52.29 2808.58,-56.39"/>
+<path fill="none" stroke="#7f7f7f" d="M1545.26,-122.96C1562.69,-116.39 1583.52,-109.61 1603,-106 1847.64,-60.71 2475.06,-100.29 2722,-70 2750.22,-66.54 2780.86,-60.49 2807.58,-54.44"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2808.19,-56.46 2813.57,-53.07 2807.25,-52.36 2808.19,-56.46"/>
 </g>
 </g>
 </svg>

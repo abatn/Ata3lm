@@ -67,3 +67,10 @@ als Erfindung → `rejected`.
 - HeLa-Mem Paper (ACL 2026): https://aclanthology.org/2026.acl-long.625/
 - HeLa-Mem Code: https://github.com/ReinerBRO/HeLa-Mem
 - AWS Semantic Layer (Prescriptive Guidance): https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph.html
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Wissen (semantischer Store).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

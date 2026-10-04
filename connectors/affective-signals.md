@@ -71,3 +71,10 @@ Nur diese Quellen werden zitiert, keine weiteren behauptet:
 - CCA 2024 (autotelische + interactionale Selbstmotivation,
   Proclivity/Gewichte):
   https://researchr.org/publication/XueLM24-0
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `trust.py` — Nicht-Kognition/Guards.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

@@ -1,0 +1,16 @@
+--- skills/expand-knowledge/SKILL.md
++++ skills/expand-knowledge/SKILL.md (neu)
+@@ -67,3 +67,13 @@
+ - https://github.com/ReinerBRO/HeLa-Mem
+ - https://github.com/getzep/graphiti
+ - https://arxiv.org/abs/2609.24663
++
++
++## Prozesse (Aufrufe) [Auftrag]
++
++Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
++
++- `shared_memory.py` — Shared Tier + `pipeline.py` (Stufe 8)
++- **MCP-Tools:** `memory.read`, `memory.write`
++
++Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

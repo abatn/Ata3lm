@@ -118,3 +118,10 @@ selbst gemessen).
 - https://ieeexplore.ieee.org/document/7846786
 - https://jisem-journal.com/index.php/journal/article/view/12473
 - https://jisem-journal.com/index.php/journal/article/download/12473/5791/20977
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Konstrukt (Schemata).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

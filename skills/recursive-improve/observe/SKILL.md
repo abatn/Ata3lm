@@ -66,3 +66,13 @@ Output: `(s, r)` + Erklärungsstruktur + Kandidaten + `ergebnisse/rekursion/NNN-
 
 - `knowledge/lifecycle/rekursion/observe.md`
 - `connectors/observer-agent.md`
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `ingestion_hook.py` — Traces sammeln
+- **MCP-Tools:** `memory.write`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

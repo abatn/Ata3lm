@@ -57,3 +57,10 @@
 - https://react-lm.github.io/
 - https://www.microsoft.com/de-de/microsoft-copilot/copilot-101/build-ai-agents
 - https://learn.microsoft.com/de-de/training/paths/gh-developing-agentic-systems-1
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `pipeline.py` — Akt (Ausführen).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

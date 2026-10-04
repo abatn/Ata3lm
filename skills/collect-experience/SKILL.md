@@ -53,3 +53,13 @@ aus `knowledge/lifecycle/experience.md`:
   https://ucrisportal.univie.ac.at/en/publications/agento-an-ontology-for-modeling-agentic-ai-systems/
 - ARIADNE: https://exa.ai/library/publication/khfxyt54hk1
 - Optional: https://www.ijcai.org/proceedings/2025/0002.pdf
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `ingestion_hook.py` — Lifecycle-Events (Stufe 1)
+- **MCP-Tools:** `memory.write`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

@@ -65,3 +65,13 @@ Output: Metrik-Tabelle + Delta-Bericht + `ergebnisse/rekursion/NNN-*.md`.
 
 - `knowledge/lifecycle/rekursion/compare.md`
 - `connectors/consistency-gap.md`
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `evaluator_version.py` — externes Signal/Score
+- **MCP-Tools:** `memory.read`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

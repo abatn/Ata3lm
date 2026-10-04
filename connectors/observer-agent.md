@@ -53,3 +53,10 @@
 - http://www.isle.org/~langley/papers/icarus.trlp.ilp05.pdf
 - http://www.isle.org/~langley/papers/icarus.lbo.icml06.pdf
 - http://www.isle.org/~dgs/papers/lhso.DS02.pdf
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `ingestion_hook.py` — Observe (Traces).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

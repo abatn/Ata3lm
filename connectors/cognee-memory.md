@@ -66,3 +66,10 @@
 - https://docs.cognee.ai/how-to-guides/cognee-sdk/deployment
 - https://github.com/getzep/graphiti
 - https://arxiv.org/html/2501.13956v1
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Gedächtnis/Konsolidierung.
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

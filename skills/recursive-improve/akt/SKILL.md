@@ -71,3 +71,13 @@ Output: `M(t+1)` (Traces + Artefakte) + `ergebnisse/rekursion/NNN-*.md`.
 - `knowledge/lifecycle/rekursion/akt.md`
 - `connectors/react.md`
 - `connectors/goedel-agent.md`
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `pipeline.py` — π ausführen
+- **MCP-Tools:** `memory.write`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

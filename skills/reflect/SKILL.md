@@ -91,3 +91,13 @@ Output:
 - `knowledge/lifecycle/denken.md` (Stufe 5, Projekt-Doku)
 - `connectors/mars-seaa.md` (Mechanismen, Mapping, Grenzen)
 - `knowledge/reflection/README.md` (Reflexions-Format, Pflichtfelder)
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `bias_monitor.py` — Drift (Stufe 5)
+- **MCP-Tools:** `memory.read`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

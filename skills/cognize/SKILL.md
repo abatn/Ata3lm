@@ -150,3 +150,13 @@ Output: validierte Verknüpfungen in Working Memory +
   https://www.semantic-web-journal.net/system/files/swj3959.pdf
 - W3C SHACL Advanced Features (SPARQL-Rules, CONSTRUCT-WHERE):
   https://www.w3.org/TR/shacl-af/#SPARQLRule
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `reflective_agent.py` — Konsolidierung (Stufe 4)
+- **MCP-Tools:** `memory.read`, `memory.search`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

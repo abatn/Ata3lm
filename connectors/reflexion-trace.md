@@ -71,3 +71,10 @@
 - https://arxiv.org/abs/2609.05019
 - https://arxiv.org/html/2602.21230
 - https://github.com/Kepler1908/TRACE
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Revise (Reflexion).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

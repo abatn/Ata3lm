@@ -1,0 +1,16 @@
+--- skills/store-memory/SKILL.md
++++ skills/store-memory/SKILL.md (neu)
+@@ -76,3 +76,13 @@
+ - `knowledge/lifecycle/gedaechtnis.md` (Stufe 3)
+ - `connectors/cognee-memory.md` (Mechanismen)
+ - `data/memory/README.md` (Ablagekonvention)
++
++
++## Prozesse (Aufrufe) [Auftrag]
++
++Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
++
++- `lru_cache.py` + `pipeline.py` — Write (Stufe 3)
++- **MCP-Tools:** `memory.search`, `memory.write`
++
++Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

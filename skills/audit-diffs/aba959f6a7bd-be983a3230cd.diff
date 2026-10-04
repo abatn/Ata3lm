@@ -1,0 +1,16 @@
+--- skills/recursive-improve/konstrukt/SKILL.md
++++ skills/recursive-improve/konstrukt/SKILL.md (neu)
+@@ -96,3 +96,13 @@
+ - `knowledge/lifecycle/rekursion/index.md` (§2.1, §3 Kreis B)
+ - `connectors/cca-framework.md`
+ - `connectors/goedel-agent.md` (Materialisierung von `M`)
++
++
++## Prozesse (Aufrufe) [Auftrag]
++
++Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
++
++- `reflective_agent.py` — π0 aus Ziel+Wissen
++- **MCP-Tools:** `memory.read`
++
++Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

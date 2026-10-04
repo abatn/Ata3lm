@@ -50,3 +50,10 @@
 - https://github.com/ReinerBRO/HeLa-Mem
 - https://github.com/getzep/graphiti
 - https://arxiv.org/abs/2609.24663
+
+
+## Prozess (Aufruf) [Auftrag]
+
+Dieser Connector bedient: `reflective_agent.py` — Wissen+ (Evolution).
+
+MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

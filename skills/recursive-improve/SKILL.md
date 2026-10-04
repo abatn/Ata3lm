@@ -150,3 +150,13 @@ def EXECUTE(E, pi, s, r, a):
 - `connectors/consistency-gap.md` (Compare: Pass@k vs. Pass^k)
 - `connectors/reflexion-trace.md` (Revise: Reflexion + Closed-Loop)
 - `ergebnisse/rekursion/` (Iterations-Logs, Provenienz)
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `pipeline.py` + `reflective_agent.py` — Loop (Konstrukt→…→Revise)
+- **MCP-Tools:** `memory.search`, `memory.read`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).

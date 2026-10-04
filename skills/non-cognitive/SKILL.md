@@ -76,3 +76,13 @@ Nur diese Quellen, keine weiteren behauptet:
 - CCA 2024 (autotelische + interactionale Selbstmotivation,
   Proclivity/Gewichte):
   https://researchr.org/publication/XueLM24-0
+
+
+## Prozesse (Aufrufe) [Auftrag]
+
+Dieser Skill ruft folgende Prozesse in `data/memory/` auf (MCP-Interface nach Atomic: https://atomicapp.ai/guides/mcp-server/):
+
+- `trust.py` — Guards (Stufe 6)
+- **MCP-Tools:** `memory.write`
+
+Quelle (Auftrag): `skills/README.md` (Skill→Prozess), `ergebnisse/mcp-memory.md` (Atomic).
