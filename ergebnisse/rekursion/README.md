@@ -76,6 +76,11 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 049 | `049-skill-interpreter.md` | System-Iteration (Skill-Interpreter) | approved: Batnini, 2026-10-04 | siehe File |
 | 050 | `050-skill-interpreter-agent.md` | System-Iteration (ReAct-Loop + MCP-Executor) | approved: Batnini, 2026-10-04 | siehe File |
 | 051 | `051-connector-binding.md` | System-Iteration (Connector-Binding SHACL/W3C) | approved: Batnini, 2026-10-04 | siehe File |
+| 052 | `052-mcp-live-binding.md` | System-Iteration (MCP-Live-Binding + Governance) | approved: Batnini, 2026-10-04 | siehe File |
+| 053 | `053-memory-verifikation.md` | System-Iteration (Gedächtnis-Verifikation L0–L4) | approved: Batnini, 2026-10-04 | siehe File |
+| 054 | `054-shared-memory-verifikation.md` | System-Iteration (Shared-Memory-Verifikation) | approved: Batnini, 2026-10-04 | siehe File |
+| 055 | `055-verifikation-verifikation.md` | System-Iteration (Zwei-Personen-Gate-Verifikation) | approved: Batnini, 2026-10-04 | siehe File |
+| 056 | `056-reverse-engineering-vollstaendig.md` | System-Iteration (Reverse Engineering 8 Schichten) | approved: Batnini, 2026-10-04 | siehe File |
 
 ## Guardrail
 
