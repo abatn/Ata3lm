@@ -14,6 +14,7 @@ from pyshacl.rules import RULES_ITERATE_LIMIT
 def test_default_max_rounds_ist_offizieller_pyshacl_wert():
     assert si.DEFAULT_MAX_ROUNDS == RULES_ITERATE_LIMIT == 100
 
+
 DATA = """
 @prefix ex: <http://example.org/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
