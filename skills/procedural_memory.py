@@ -27,7 +27,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[1]  # repo-relativ (CI-tauglich)
 SKILLS = ROOT / "skills"
 AUDIT = SKILLS / "AUDIT.md"
 DIFF_DIR = SKILLS / "audit-diffs"

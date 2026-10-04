@@ -29,7 +29,7 @@ import reflective_agent
 import shared_memory
 import trust
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (CI-tauglich)
 CONNECTORS = ROOT / "connectors"
 
 # SHACL-Shape (W3C): „jeder Connector hat ≥ 1 Prozess" (minCount 1).

@@ -6,7 +6,7 @@ import connector_binding as cb
 import mandate
 import mcp_memory_server
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _ctx(tmp_path):

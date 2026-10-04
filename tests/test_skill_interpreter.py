@@ -6,7 +6,7 @@ import mandate
 import mcp_memory_server
 import skill_interpreter as si
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _mandate():
