@@ -73,4 +73,10 @@ als Erfindung → `rejected`.
 
 Dieser Connector bedient: `reflective_agent.py` — Wissen (semantischer Store).
 
+**Implementierung (Dual-Path, 2026-10-04):** `lru_cache.spread_activation_scores` +
+`dual_path_retrieval` + `WorkingMemory.fill_from_spreading` (Spreading Activation,
+**eine Stufe**, lokal). Adaptive Forgetting + Hub-Detection: `lru_cache.should_forget` /
+`_evict_adaptive_forgetting`. Doku: `ergebnisse/adaptive-forgetting.md`, Test:
+`tests/test_lru_cache.py`.
+
 MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.

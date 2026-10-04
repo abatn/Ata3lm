@@ -1,0 +1,1734 @@
+[
+  {
+    "server": "memory",
+    "ok": true,
+    "n_tools": 5,
+    "tools": [
+      {
+        "name": "memory.read",
+        "description": "Ressource aus einem Scope lesen",
+        "parameters": {
+          "properties": {
+            "scope": {
+              "title": "Scope",
+              "type": "string"
+            },
+            "key": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope",
+            "key"
+          ],
+          "title": "readArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory.write",
+        "description": "Schreiben mit Tri-Color-Gate (blue/green/red)",
+        "parameters": {
+          "properties": {
+            "scope": {
+              "title": "Scope",
+              "type": "string"
+            },
+            "key": {
+              "title": "Key",
+              "type": "string"
+            },
+            "content": {
+              "title": "Content",
+              "type": "string"
+            },
+            "trust": {
+              "default": "green",
+              "title": "Trust",
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope",
+            "key",
+            "content"
+          ],
+          "title": "writeArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory.search",
+        "description": "Volltextsuche (Such-vor-Schreiben)",
+        "parameters": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "scope": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Scope"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "searchArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory.consolidate",
+        "description": "Bestand zählen + Index schreiben",
+        "parameters": {
+          "properties": {},
+          "title": "consolidateArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory.link",
+        "description": "typisierte Kante mit Tri-Color-Trust",
+        "parameters": {
+          "properties": {
+            "a": {
+              "title": "A",
+              "type": "string"
+            },
+            "b": {
+              "title": "B",
+              "type": "string"
+            },
+            "trust": {
+              "default": "green",
+              "title": "Trust",
+              "type": "string"
+            }
+          },
+          "required": [
+            "a",
+            "b"
+          ],
+          "title": "linkArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "cognee",
+    "ok": true,
+    "n_tools": 5,
+    "tools": [
+      {
+        "name": "remember",
+        "description": "Store data in memory.\n\nTwo modes depending on whether session_id is provided:\n\nWithout session_id (permanent memory): Runs the full add + cognify\npipeline to ingest data and build the knowledge graph, then the\nself-improvement loop (improve) unless self_improvement=False.\n\nWith session_id (session memory): Stores the data in the session\ncache. Direct mode may also bridge it to the graph in the background;\nAPI mode uses typed cache entries and does not bridge to the graph.\nOmit session_id when the content should be stored as permanent graph memory.\n\nPass either `data` (text) or `filename` + `content_base64` (a file\nupload, up to 10 MB), not both. File uploads are permanent-memory\nonly and don't support session_id.",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "data": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The text content to store. Mutually exclusive with\nfilename/content_base64."
+            },
+            "filename": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Original filename for a file upload. Used to derive the stored\ndocument's name. Requires content_base64."
+            },
+            "content_base64": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Base64-encoded file content to ingest. Requires filename."
+            },
+            "dataset_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Target dataset name. Defaults to the current MCP client's\nagent-scoped dataset (e.g. \"cursor_vscode_memory\"), or\n\"main_dataset\" if no client identity is detected."
+            },
+            "session_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Session ID. Stores in cache; direct mode may also bridge to the graph\nunless self_improvement is False."
+            },
+            "custom_prompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Custom prompt for entity extraction (permanent mode only)."
+            },
+            "background": {
+              "default": false,
+              "type": "boolean",
+              "description": "Queue permanent ingestion as a background task and return immediately\ninstead of waiting for the pipeline. Use when the caller has a request\ndeadline shorter than ingestion takes. Ignored with session_id, which\nis already fast. Errors surface via cognify_status, not the return\nvalue."
+            },
+            "ontology_key": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "One or more uploaded ontology keys for extraction (permanent mode only).\nAPI mode uses ontologies uploaded by the authenticated API user. Local\nmode uses the default user's ontology store. Omit to keep the configured\nserver ontology."
+            },
+            "self_improvement": {
+              "default": true,
+              "type": "boolean",
+              "description": "False skips automatic improvement after permanent ingestion; add and\ncognify still run. In direct session mode, False disables the background\nsession-to-graph bridge. API session entries are cache-only regardless\nof this flag. Default True."
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "recall",
+        "description": "Search memory with auto-routing and session awareness.\n\nWhen session_id is provided without datasets or search_type,\nsearches session cache first by keyword matching. Falls through\nto the permanent knowledge graph if no session results match.\n\nAuto-routing picks the best search strategy when search_type\nis not specified.",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural language query to search for."
+            },
+            "search_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Override auto-routing with one SearchType name. Completion types\n(answer written by an LLM): HYBRID_COMPLETION (the default when\nrouting is off), GRAPH_COMPLETION, GRAPH_COMPLETION_COT,\nGRAPH_COMPLETION_CONTEXT_EXTENSION, GRAPH_COMPLETION_DECOMPOSITION,\nGRAPH_SUMMARY_COMPLETION, RAG_COMPLETION, TRIPLET_COMPLETION,\nTEMPORAL, AGENTIC_COMPLETION. Retrieval-only types (no LLM):\nCHUNKS, CHUNKS_LEXICAL, SUMMARIES, SKILLS, CODE. Other: CYPHER,\nNATURAL_LANGUAGE, CODING_RULES, GRAPH_REPORT, FEELING_LUCKY.\nAn unknown name is rejected with a validation error."
+            },
+            "datasets": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Comma-separated dataset names to search within."
+            },
+            "session_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Session ID for session-first search."
+            },
+            "system_prompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Override the synthesis prompt for completion searches. When omitted,\nfalls back to COGNEE_MCP_RECALL_SYSTEM_PROMPT / _FILE if configured\non the server."
+            },
+            "top_k": {
+              "default": 15,
+              "type": "integer",
+              "description": "Maximum results to return (default: 15)."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "forget",
+        "description": "Delete data from memory.\n\nCan target a single data item, a specific dataset (by name or id), or\neverything the user owns. Removes data from the relational DB, graph DB,\nand vector DB.",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "dataset": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Dataset name to delete entirely."
+            },
+            "everything": {
+              "default": false,
+              "type": "boolean",
+              "description": "If true, delete ALL data across all datasets."
+            },
+            "data_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "UUID of a single data item to delete. Must be paired with `dataset`\nor `dataset_id` so the owning dataset is unambiguous."
+            },
+            "dataset_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "UUID of the dataset to delete entirely, or to scope `data_id`."
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "search_tools",
+        "description": "Search for tools using natural language.\n\nReturns matching tool definitions ranked by relevance,\nin the same format as list_tools.",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "query": {
+              "description": "Natural language query to search for tools",
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "call_tool",
+        "description": "Call a tool by name with the given arguments.\n\nUse this to execute tools discovered via search_tools.",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "description": "The name of the tool to call",
+              "type": "string"
+            },
+            "arguments": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Arguments to pass to the tool"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "graphiti",
+    "ok": true,
+    "n_tools": 13,
+    "tools": [
+      {
+        "name": "add_memory",
+        "description": "Add an episode to memory. This is the primary way to add information to the graph.\n\n    This function returns immediately and processes the episode addition in the background.\n    Episodes for the same group_id are processed sequentially to avoid race conditions.\n\n    Graphiti uses a bi-temporal model: each episode records both when it was ingested and\n    when the described events actually occurred (its reference_time). Pass reference_time to\n    set the event-occurrence time explicitly; otherwise the current time is used.\n\n    Args:\n        name (str): Name of the episode\n        episode_body (str): The content of the episode to persist to memory. When source='json', this must be a\n                           properly escaped JSON string, not a raw Python dictionary. The JSON data will be\n                           automatically processed to extract entities and relationships.\n        group_id (str, optional): A unique ID for this graph. If not provided, uses the default group_id from CLI\n                                 or a generated one.\n        source (str, optional): Source type, must be one of:\n                               - 'text': For plain text content (default)\n                               - 'json': For structured data\n                               - 'message': For conversation-style content\n        source_description (str, optional): Description of the source\n        uuid (str, optional): Optional UUID for the episode\n        reference_time (str, optional): ISO-8601 timestamp for when the described events occurred\n                                 (e.g. \"2025-01-15T10:30:00Z\" or \"2025-01-15T10:30:00+00:00\"). A\n                                 timezone-naive value is interpreted as UTC. Defaults to the\n                                 current time when omitted.\n        excluded_entity_types (list[str], optional): Names of configured entity types to exclude\n                                 from extraction for this episode.\n        custom_extraction_instructions (str, optional): Additional natural-language guidance passed\n                                 to the extraction model for this episode only.\n        previous_episode_uuids (list[str], optional): Explicit list of prior episode UUIDs to use\n                                 as conversational/contextual history. Overrides automatic retrieval.\n        update_communities (bool, optional): When True, incrementally update community summaries to\n                                 reflect entities affected by this episode. Defaults to False.\n        saga (str, optional): Name/id of a saga to associate this episode with. Sagas group related\n                                 episodes so their evolving narrative can be summarized via summarize_saga.\n        saga_previous_episode_uuid (str, optional): UUID of the preceding episode in the saga, used to\n                                 order episodes within the saga.\n\n    Examples:\n        # Adding plain text content\n        add_memory(\n            name=\"Company News\",\n            episode_body=\"Acme Corp announced a new product line today.\",\n            source=\"text\",\n            source_description=\"news article\",\n            group_id=\"some_arbitrary_string\"\n        )\n\n        # Adding structured JSON data\n        # NOTE: episode_body should be a JSON string (standard JSON escaping)\n        add_memory(\n            name=\"Customer Profile\",\n            episode_body='{\"company\": {\"name\": \"Acme Technologies\"}, \"products\": [{\"id\": \"P001\", \"name\": \"CloudSync\"}, {\"id\": \"P002\", \"name\": \"DataMiner\"}]}',\n            source=\"json\",\n            source_description=\"CRM data\"\n        )\n\n        # Recording an event that occurred in the past (bi-temporal)\n        add_memory(\n            name=\"Historical Note\",\n            episode_body=\"The merger closed in early 2020.\",\n            reference_time=\"2020-03-01T00:00:00Z\"\n        )\n    ",
+        "parameters": {
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "episode_body": {
+              "title": "Episode Body",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            },
+            "source": {
+              "default": "text",
+              "title": "Source",
+              "type": "string"
+            },
+            "source_description": {
+              "default": "",
+              "title": "Source Description",
+              "type": "string"
+            },
+            "uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Uuid"
+            },
+            "reference_time": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference Time"
+            },
+            "excluded_entity_types": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Excluded Entity Types"
+            },
+            "custom_extraction_instructions": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Custom Extraction Instructions"
+            },
+            "previous_episode_uuids": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Previous Episode Uuids"
+            },
+            "update_communities": {
+              "default": false,
+              "title": "Update Communities",
+              "type": "boolean"
+            },
+            "saga": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Saga"
+            },
+            "saga_previous_episode_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Saga Previous Episode Uuid"
+            }
+          },
+          "required": [
+            "name",
+            "episode_body"
+          ],
+          "type": "object",
+          "title": "add_memoryArguments"
+        }
+      },
+      {
+        "name": "search_nodes",
+        "description": "Search for nodes (entities) in the graph memory.\n\n    Args:\n        query: The search query\n        group_ids: Optional group ID, or list of group IDs, to filter results (a single\n            string is accepted and treated as a one-element list)\n        max_nodes: Maximum number of nodes to return (default: 10)\n        entity_types: Optional list of entity type names (node labels) to filter by\n        center_node_uuid: Optional UUID of a node to center the search around. Results\n            closer to this node in the graph are ranked higher.\n    ",
+        "parameters": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            },
+            "max_nodes": {
+              "default": 10,
+              "title": "Max Nodes",
+              "type": "integer"
+            },
+            "entity_types": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Entity Types"
+            },
+            "center_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Center Node Uuid"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object",
+          "title": "search_nodesArguments"
+        }
+      },
+      {
+        "name": "search_memory_facts",
+        "description": "Search the graph memory for relevant facts (entity edges).\n\n    Args:\n        query: The search query\n        group_ids: Optional group ID, or list of group IDs, to filter results (a single\n            string is accepted and treated as a one-element list)\n        max_facts: Maximum number of facts to return (default: 10)\n        center_node_uuid: Optional UUID of a node to center the search around\n        edge_types: Optional list of edge (fact) type names to filter by\n        valid_at_after: Optional ISO-8601 lower bound; only facts whose valid_at is at or\n            after this time are returned (timezone-naive is treated as UTC)\n        valid_at_before: Optional ISO-8601 upper bound on a fact's valid_at\n        invalid_at_after: Optional ISO-8601 lower bound on a fact's invalid_at\n        invalid_at_before: Optional ISO-8601 upper bound on a fact's invalid_at\n    ",
+        "parameters": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            },
+            "max_facts": {
+              "default": 10,
+              "title": "Max Facts",
+              "type": "integer"
+            },
+            "center_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Center Node Uuid"
+            },
+            "edge_types": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Edge Types"
+            },
+            "valid_at_after": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Valid At After"
+            },
+            "valid_at_before": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Valid At Before"
+            },
+            "invalid_at_after": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Invalid At After"
+            },
+            "invalid_at_before": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Invalid At Before"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object",
+          "title": "search_memory_factsArguments"
+        }
+      },
+      {
+        "name": "delete_entity_edge",
+        "description": "Delete an entity edge from the graph memory.\n\n    Args:\n        uuid: UUID of the entity edge to delete\n        group_id: Optional group ID. Falls back to the default group when omitted.\n    ",
+        "parameters": {
+          "properties": {
+            "uuid": {
+              "title": "Uuid",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "type": "object",
+          "title": "delete_entity_edgeArguments"
+        }
+      },
+      {
+        "name": "delete_episode",
+        "description": "Delete an episode from the graph memory.\n\n    Uses Graphiti.remove_episode, which cascades the deletion: entities and facts\n    that were created solely by this episode are removed along with it, while\n    entities and facts also supported by other episodes are preserved.\n\n    Args:\n        uuid: UUID of the episode to delete\n        group_id: Optional group ID. Falls back to the default group when omitted.\n    ",
+        "parameters": {
+          "properties": {
+            "uuid": {
+              "title": "Uuid",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "type": "object",
+          "title": "delete_episodeArguments"
+        }
+      },
+      {
+        "name": "get_entity_edge",
+        "description": "Get an entity edge from the graph memory by its UUID.\n\n    Args:\n        uuid: UUID of the entity edge to retrieve\n        group_id: Optional group ID. Falls back to the default group when omitted.\n    ",
+        "parameters": {
+          "properties": {
+            "uuid": {
+              "title": "Uuid",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "type": "object",
+          "title": "get_entity_edgeArguments"
+        }
+      },
+      {
+        "name": "get_episodes",
+        "description": "Get episodes from the graph memory.\n\n    Args:\n        group_ids: Optional group ID, or list of group IDs, to filter results (a single\n            string is accepted and treated as a one-element list)\n        max_episodes: Maximum number of episodes to return (default: 10)\n    ",
+        "parameters": {
+          "properties": {
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            },
+            "max_episodes": {
+              "default": 10,
+              "title": "Max Episodes",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "title": "get_episodesArguments"
+        }
+      },
+      {
+        "name": "summarize_saga",
+        "description": "Summarize a saga: an ordered group of related episodes.\n\n    Generates (or refreshes) a running summary of the saga's narrative across its\n    episodes and returns the saga's name and summary text.\n\n    Sagas are keyed by (name, group_id): pass the same ``saga`` name you used with\n    add_memory. This tool resolves that name to the saga within the group and\n    summarizes it.\n\n    Args:\n        saga_name: The saga name — the same value passed as ``saga`` to add_memory.\n        group_id: Optional group ID the saga belongs to. Falls back to the default group.\n    ",
+        "parameters": {
+          "properties": {
+            "saga_name": {
+              "title": "Saga Name",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            }
+          },
+          "required": [
+            "saga_name"
+          ],
+          "type": "object",
+          "title": "summarize_sagaArguments"
+        }
+      },
+      {
+        "name": "build_communities",
+        "description": "Detect and build community summaries over the graph's entities.\n\n    Communities group densely-connected entities and produce higher-level summaries\n    that can then be searched. This is a relatively expensive operation that\n    processes the full set of entities for the given group(s).\n\n    Args:\n        group_ids: Optional group ID, or list of group IDs, to build communities for.\n            Falls back to the default group when omitted. Pass an explicit list to scope\n            community detection across multiple graphs.\n    ",
+        "parameters": {
+          "properties": {
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            }
+          },
+          "type": "object",
+          "title": "build_communitiesArguments"
+        }
+      },
+      {
+        "name": "add_triplet",
+        "description": "Directly add a single fact triplet (source entity -> fact -> target entity).\n\n    Unlike add_memory, this bypasses episode extraction and writes the relationship\n    directly. graphiti-core resolves the source/target nodes against existing entities\n    (deduplicating by name) and generates the required embeddings internally.\n\n    Args:\n        source_node_name: Name of the source entity\n        edge_name: Relationship/edge type name (e.g. \"WORKS_FOR\")\n        fact: Natural-language statement describing the relationship\n        target_node_name: Name of the target entity\n        group_id: Optional group ID. Falls back to the default group when omitted.\n        source_node_uuid: Optional UUID to reuse an existing source entity. A new UUID is\n            generated when omitted.\n        target_node_uuid: Optional UUID to reuse an existing target entity. A new UUID is\n            generated when omitted.\n    ",
+        "parameters": {
+          "properties": {
+            "source_node_name": {
+              "title": "Source Node Name",
+              "type": "string"
+            },
+            "edge_name": {
+              "title": "Edge Name",
+              "type": "string"
+            },
+            "fact": {
+              "title": "Fact",
+              "type": "string"
+            },
+            "target_node_name": {
+              "title": "Target Node Name",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            },
+            "source_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Source Node Uuid"
+            },
+            "target_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Target Node Uuid"
+            }
+          },
+          "required": [
+            "source_node_name",
+            "edge_name",
+            "fact",
+            "target_node_name"
+          ],
+          "type": "object",
+          "title": "add_tripletArguments"
+        }
+      },
+      {
+        "name": "get_episode_entities",
+        "description": "Get the entities (nodes) and facts (edges) created by specific episodes.\n\n    Use this to trace provenance: given one or more episode UUIDs, return the graph\n    elements that those episodes produced.\n\n    Args:\n        episode_uuids: List of episode UUIDs to look up provenance for\n        group_id: Optional group ID. Falls back to the default group when omitted.\n    ",
+        "parameters": {
+          "properties": {
+            "episode_uuids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Episode Uuids",
+              "type": "array"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            }
+          },
+          "required": [
+            "episode_uuids"
+          ],
+          "type": "object",
+          "title": "get_episode_entitiesArguments"
+        }
+      },
+      {
+        "name": "clear_graph",
+        "description": "Clear all data from the graph for specified group IDs.\n\n    Args:\n        group_ids: Optional group ID, or list of group IDs, to clear (a single string is\n            accepted). If not provided, clears the default group.\n    ",
+        "parameters": {
+          "properties": {
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            }
+          },
+          "type": "object",
+          "title": "clear_graphArguments"
+        }
+      },
+      {
+        "name": "get_status",
+        "description": "Get the status of the Graphiti MCP server and database connection.",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+          "title": "get_statusArguments"
+        }
+      }
+    ]
+  },
+  {
+    "server": "hela-mem",
+    "ok": true,
+    "n_tools": 6,
+    "tools": [
+      {
+        "name": "store_episodic",
+        "description": "Store an episodic memory node (conversation turn / experience).",
+        "parameters": {
+          "properties": {
+            "content": {
+              "title": "Content",
+              "type": "string"
+            },
+            "role": {
+              "default": "user",
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "content"
+          ],
+          "title": "store_episodicArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "retrieve",
+        "description": "Retrieve relevant episodic memories via Hebbian spreading activation.",
+        "parameters": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "top_k": {
+              "default": 5,
+              "title": "Top K",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "retrieveArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "add_semantic",
+        "description": "Add distilled semantic knowledge (Hebbian distillation store).",
+        "parameters": {
+          "properties": {
+            "knowledge_text": {
+              "title": "Knowledge Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "knowledge_text"
+          ],
+          "title": "add_semanticArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "search_semantic",
+        "description": "Search the semantic knowledge store.",
+        "parameters": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "top_k": {
+              "default": 10,
+              "title": "Top K",
+              "type": "integer"
+            },
+            "threshold": {
+              "default": 0.1,
+              "title": "Threshold",
+              "type": "number"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "search_semanticArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "process_turn",
+        "description": "Process a conversation turn (store both sides + associate).",
+        "parameters": {
+          "properties": {
+            "user_input": {
+              "title": "User Input",
+              "type": "string"
+            },
+            "agent_response": {
+              "title": "Agent Response",
+              "type": "string"
+            }
+          },
+          "required": [
+            "user_input",
+            "agent_response"
+          ],
+          "title": "process_turnArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "save_state",
+        "description": "Persist episodic + semantic memory to disk.",
+        "parameters": {
+          "properties": {},
+          "title": "save_stateArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "reflexion",
+    "ok": true,
+    "n_tools": 1,
+    "tools": [
+      {
+        "name": "reflect",
+        "description": "Generate a self-reflection on a failed reasoning trial (Reflexion).\n\n    Args:\n        context: Relevant context of the previous trial.\n        question: The question that was answered incorrectly.\n        scratchpad: The previous reasoning trace (Thought/Action/Observation).\n        examples: Optional few-shot examples.\n    ",
+        "parameters": {
+          "properties": {
+            "context": {
+              "title": "Context",
+              "type": "string"
+            },
+            "question": {
+              "title": "Question",
+              "type": "string"
+            },
+            "scratchpad": {
+              "default": "",
+              "title": "Scratchpad",
+              "type": "string"
+            },
+            "examples": {
+              "default": "",
+              "title": "Examples",
+              "type": "string"
+            }
+          },
+          "required": [
+            "context",
+            "question"
+          ],
+          "title": "reflectArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "react",
+    "ok": true,
+    "n_tools": 1,
+    "tools": [
+      {
+        "name": "react_step",
+        "description": "Run one ReAct reasoning step (Thought -> Finish[answer]).\n\n    Args:\n        question: The question to answer.\n        context: Relevant context to help answer.\n        reflections: Optional prior reflections (from Reflexion).\n        scratchpad: Accumulated Thought/Action/Observation trace.\n        examples: Optional few-shot examples.\n    ",
+        "parameters": {
+          "properties": {
+            "question": {
+              "title": "Question",
+              "type": "string"
+            },
+            "context": {
+              "default": "",
+              "title": "Context",
+              "type": "string"
+            },
+            "reflections": {
+              "default": "",
+              "title": "Reflections",
+              "type": "string"
+            },
+            "scratchpad": {
+              "default": "",
+              "title": "Scratchpad",
+              "type": "string"
+            },
+            "examples": {
+              "default": "",
+              "title": "Examples",
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "title": "react_stepArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "mars",
+    "ok": true,
+    "n_tools": 3,
+    "tools": [
+      {
+        "name": "mars_list_strategies",
+        "description": "List all MARS prompting strategies from prompts.json.",
+        "parameters": {
+          "properties": {},
+          "title": "mars_list_strategiesArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "mars_run_strategy",
+        "description": "Run a MARS prompting strategy on a question (template from prompts.json).\n\n    Args:\n        strategy: One of the keys from mars_list_strategies (e.g. zero_shot, zero_shot_cot, self_refine).\n        question: The question to answer.\n    ",
+        "parameters": {
+          "properties": {
+            "strategy": {
+              "title": "Strategy",
+              "type": "string"
+            },
+            "question": {
+              "title": "Question",
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy",
+            "question"
+          ],
+          "title": "mars_run_strategyArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "mars_analyze_failure",
+        "description": "Analyze a failed question and propose a targeted prompt improvement (MARS failure analysis).\n\n    Args:\n        strategy: The prompting strategy that was used.\n        question: The failed question.\n        model_answer: The (incorrect) answer the model produced.\n    ",
+        "parameters": {
+          "properties": {
+            "strategy": {
+              "title": "Strategy",
+              "type": "string"
+            },
+            "question": {
+              "title": "Question",
+              "type": "string"
+            },
+            "model_answer": {
+              "title": "Model Answer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy",
+            "question",
+            "model_answer"
+          ],
+          "title": "mars_analyze_failureArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "trace",
+    "ok": true,
+    "n_tools": 6,
+    "tools": [
+      {
+        "name": "metric_recall_at_k",
+        "description": "Fraction of gold docs found in top-k candidates (TRACE recall_at_k).",
+        "parameters": {
+          "properties": {
+            "gold_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Gold Ids",
+              "type": "array"
+            },
+            "candidate_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Candidate Ids",
+              "type": "array"
+            },
+            "k": {
+              "title": "K",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "gold_ids",
+            "candidate_ids",
+            "k"
+          ],
+          "title": "metric_recall_at_kArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "metric_gold_rank",
+        "description": "Position of first gold doc in candidates (1-indexed); None if not found (TRACE gold_rank).",
+        "parameters": {
+          "properties": {
+            "gold_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Gold Ids",
+              "type": "array"
+            },
+            "candidate_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Candidate Ids",
+              "type": "array"
+            }
+          },
+          "required": [
+            "gold_ids",
+            "candidate_ids"
+          ],
+          "title": "metric_gold_rankArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "metric_precision_in_accepted",
+        "description": "Fraction of accepted docs that are gold (TRACE precision_in_accepted).",
+        "parameters": {
+          "properties": {
+            "gold_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Gold Ids",
+              "type": "array"
+            },
+            "accepted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Accepted Ids",
+              "type": "array"
+            }
+          },
+          "required": [
+            "gold_ids",
+            "accepted_ids"
+          ],
+          "title": "metric_precision_in_acceptedArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "metric_recall_in_accepted",
+        "description": "Fraction of gold docs found in accepted set (TRACE recall_in_accepted).",
+        "parameters": {
+          "properties": {
+            "gold_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Gold Ids",
+              "type": "array"
+            },
+            "accepted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Accepted Ids",
+              "type": "array"
+            }
+          },
+          "required": [
+            "gold_ids",
+            "accepted_ids"
+          ],
+          "title": "metric_recall_in_acceptedArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "metric_compute",
+        "description": "Compute aggregate retrieval metrics by question type (TRACE compute_metrics).\n\n    Args:\n        results: List of dicts with keys question_id, gold_ids, candidate_ids, accepted_ids.\n        type_map: Optional mapping question_id -> question type.\n    ",
+        "parameters": {
+          "properties": {
+            "results": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "title": "Results",
+              "type": "array"
+            },
+            "type_map": {
+              "additionalProperties": true,
+              "default": null,
+              "title": "Type Map",
+              "type": "object"
+            }
+          },
+          "required": [
+            "results"
+          ],
+          "title": "metric_computeArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "parse_json",
+        "description": "Parse a JSON object from text (TRACE parse_json_object).",
+        "parameters": {
+          "properties": {
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "title": "parse_jsonArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "godel-agent",
+    "ok": true,
+    "n_tools": 2,
+    "tools": [
+      {
+        "name": "run_code",
+        "description": "Execute Python or Bash code and capture output/errors (Gödel action_run_code).\n\n    Args:\n        code_type: 'python' or 'bash'.\n        code: The code to execute.\n        timeout: Max execution time in seconds.\n    ",
+        "parameters": {
+          "properties": {
+            "code_type": {
+              "title": "Code Type",
+              "type": "string"
+            },
+            "code": {
+              "title": "Code",
+              "type": "string"
+            },
+            "timeout": {
+              "default": 30.0,
+              "title": "Timeout",
+              "type": "number"
+            }
+          },
+          "required": [
+            "code_type",
+            "code"
+          ],
+          "title": "run_codeArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "read_logic",
+        "description": "Read the source of a function/class from a module (Gödel action_read_logic).\n\n    Args:\n        module_name: Module name to inspect.\n        target_name: Function or class name to read.\n    ",
+        "parameters": {
+          "properties": {
+            "module_name": {
+              "title": "Module Name",
+              "type": "string"
+            },
+            "target_name": {
+              "title": "Target Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "module_name",
+            "target_name"
+          ],
+          "title": "read_logicArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "agent-dice",
+    "ok": true,
+    "n_tools": 1,
+    "tools": [
+      {
+        "name": "geometric_consensus_fuse",
+        "description": "Fuse three parameter variants (task vectors) via Agent-Dice geometric consensus.\n\n    Args:\n        base: Base parameters (flattened list of floats).\n        b1: Variant 1 parameters.\n        b2: Variant 2 parameters.\n        b3: Variant 3 parameters.\n    ",
+        "parameters": {
+          "properties": {
+            "base": {
+              "items": {},
+              "title": "Base",
+              "type": "array"
+            },
+            "b1": {
+              "items": {},
+              "title": "B1",
+              "type": "array"
+            },
+            "b2": {
+              "items": {},
+              "title": "B2",
+              "type": "array"
+            },
+            "b3": {
+              "items": {},
+              "title": "B3",
+              "type": "array"
+            }
+          },
+          "required": [
+            "base",
+            "b1",
+            "b2",
+            "b3"
+          ],
+          "title": "geometric_consensus_fuseArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "adas",
+    "ok": true,
+    "n_tools": 3,
+    "tools": [
+      {
+        "name": "adas_init_archive",
+        "description": "Return the ADAS initial archive of agent designs (from arc_prompt.py).",
+        "parameters": {
+          "properties": {},
+          "title": "adas_init_archiveArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "adas_get_prompt",
+        "description": "Build the ADAS meta-agent prompt from an archive (system_prompt + prompt).",
+        "parameters": {
+          "properties": {
+            "archive": {
+              "items": {},
+              "title": "Archive",
+              "type": "array"
+            }
+          },
+          "required": [
+            "archive"
+          ],
+          "title": "adas_get_promptArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "adas_propose_agent",
+        "description": "Ask the ADAS meta-agent to propose a new agent (in code) given an archive.\n\n    Args:\n        archive: List of prior agent designs (dicts with thought/name/code/fitness).\n    ",
+        "parameters": {
+          "properties": {
+            "archive": {
+              "items": {},
+              "title": "Archive",
+              "type": "array"
+            }
+          },
+          "required": [
+            "archive"
+          ],
+          "title": "adas_propose_agentArguments",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  {
+    "server": "governance-mcp",
+    "ok": true,
+    "n_tools": 3,
+    "tools": [
+      {
+        "name": "drift_index",
+        "description": "JSD-basierter Drift-Index (DI). Trigger: DI > τ → Flag + Human-Gate.",
+        "parameters": {
+          "properties": {
+            "current": {
+              "additionalProperties": true,
+              "title": "Current",
+              "type": "object"
+            },
+            "reference": {
+              "additionalProperties": true,
+              "title": "Reference",
+              "type": "object"
+            },
+            "tau": {
+              "default": 0.02,
+              "title": "Tau",
+              "type": "number"
+            },
+            "w_max": {
+              "default": 0.6,
+              "title": "W Max",
+              "type": "number"
+            }
+          },
+          "required": [
+            "current",
+            "reference"
+          ],
+          "title": "drift_indexArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "lyapunov_check",
+        "description": "E[ΔV] ≤ 0 (Lyapunov-bounded damping). Verletzung → Human-Gate (ask).",
+        "parameters": {
+          "properties": {
+            "energies": {
+              "items": {},
+              "title": "Energies",
+              "type": "array"
+            },
+            "tau": {
+              "default": 0.0,
+              "title": "Tau",
+              "type": "number"
+            }
+          },
+          "required": [
+            "energies"
+          ],
+          "title": "lyapunov_checkArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "resolve_entities",
+        "description": "Entity-Resolution: echtes GLiNER falls installiert, sonst Regeln (Auftrag).",
+        "parameters": {
+          "properties": {
+            "text": {
+              "title": "Text",
+              "type": "string"
+            },
+            "backend": {
+              "default": "auto",
+              "title": "Backend",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "title": "resolve_entitiesArguments",
+          "type": "object"
+        }
+      }
+    ]
+  }
+]

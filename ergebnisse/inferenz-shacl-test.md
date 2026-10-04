@@ -8,12 +8,12 @@
 
 ## Ehrlichkeits-Hinweis
 
-Dies ist eine **eigenständige Simulation** des Musters „Inferenz → Validierung"
-(kein echtes SHACL-Engine; `rdflib`/`pyshacl` sind in dieser Umgebung **nicht**
-installiert). Regeln sind als `CONSTRUCT-WHERE`-Analogon, Shapes als
-`SELECT-WHERE`-Analogon implementiert. Der Effekt, den das Paper beschreibt
-(Validierung braucht den inferierten Graphen), wird dadurch reproduzierbar
-gezeigt — die konkreten Triple-Mengen sind illustrativ, nicht normativ.
+Dies ist eine **eigenständige Simulation** des Musters „Inferenz → Validierung".
+**Hinweis (2026-10-04):** Inzwischen ist eine **echte** Engine-Ausführung
+(`rdflib` + `pyshacl`) verfügbar — siehe Abschnitt „Echte Ausführung mit Engine"
+in `ergebnisse/inferenz-shacl.md` und `tests/test_shacl_inferenz.py`. Die
+Simulation hier bleibt als Vorstufe erhalten; die konkreten Triple-Mengen sind
+illustrativ, nicht normativ.
 
 ## Test-Harness (Python)
 

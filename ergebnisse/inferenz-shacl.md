@@ -88,7 +88,64 @@ temporale/aggregierte Compliance.
 | SHACL Core einfach / SHACL-SPARQL komplex | **Belegt** (Swansea) |
 | Umsetzung im cognize-Skill + Ablageformat | **Auftrag** (Projekt) |
 
-## Quellen (alle HTTP 200, 2026-10-01)
+## Echte Ausführung mit Engine (2026-10-04, Guardrail 7)
+
+> Engine: `rdflib 7.6.0` (SPARQL-CONSTRUCT) + `pyshacl 0.40.1` (SHACL-Shapes), im venv installiert.
+> Code: `data/memory/shacl_inferenz.py` · Test: `tests/test_shacl_inferenz.py` (3 Tests, echt).
+
+**Zitat verifiziert** (swj3959, S. 5, wörtlich):
+> „Similar to standard OWL reasoners such as HermiT, which repeatedly apply OWL
+> axioms until no further triples can be inferred, our approach also **iteratively
+> applies SHACL-SPARQL rules until the inferred graph reaches closure, prior to
+> validation.**"
+
+**Korrektur (ehrlich, §6):** Die Angabe „max 10 Runden, wie SHACL-AF §8.3" ist
+**nicht belegt**. SHACL-AF §8.3 ist das *sh:Rules Entailment Regime*; §8.4 sagt
+ausdrücklich: „only covers a single 'iteration' over all rules … The latter is
+left to future work." Die **offiziellen** Rundengrenzen kommen aus den **Engines**:
+
+| Quelle | Wert | Beleg |
+|---|---|---|
+| **pyshacl 0.40.1** (unsere Engine) | **100** | `RULES_ITERATE_LIMIT = 100` — `pyshacl/rules/__init__.py:89` |
+| TopBraid SHACL (`shaclinfer`) | Default **1** | README: `-maxiterations 1` |
+| Triply SHACL Rules | Default **0** | Doku: `maxIterations` (0 = keine Iteration) |
+| W3C SHACL 1.2 Rules | impl.-abhängig | „pre-configured maximum iteration count" |
+| HuggingFace | — | kein SHACL-Iterationswert gefunden |
+
+Der Cap wird daher **aus der Engine importiert** (`DEFAULT_MAX_ROUNDS = RULES_ITERATE_LIMIT`
+= **100**), kein Paper-Claim.
+
+### Ablauf (real)
+
+```text
+1) Inferenz:  SPARQL-CONSTRUCT-Regeln iterativ bis Fixpunkt (Cap = pyshacl 100)
+2) Validierung: pyshacl prüft den materialisierten Graphen
+```
+
+### Lauf-Ausgabe (echt)
+
+```text
+SHACL allein (explizit): conforms = True      # i2 (Ende<Beginn) NICHT erkannt
+Nach Inferenz:           conforms = False     # i2 erkannt
+  Runde 1: 1 neues Triple -> ex:hasNegativeDuration
+  Runde 2: 0 neue Triples  -> Fixpunkt erreicht
+Report: "More than 0 values on ex:i2->ex:hasNegativeDuration"
+```
+
+### Materialisierte Inferenzen / geprüfte Constraints
+
+| Regel | CONSTRUCT (Kurz) | materialisiert (real) |
+|---|---|---|
+| R1 | `?i hasNegativeDuration true` WHERE `?te < ?tb` | `ex:i2 hasNegativeDuration true` |
+
+| Shape | Constraint | Ergebnis |
+|---|---|---|
+| `ex:NoNegativeDurationShape` | `sh:path ex:hasNegativeDuration ; sh:maxCount 0` | **verletzt** (`ex:i2`) |
+
+Ergebnis: Dasselbe Muster wie im Paper — die verletzende Information steht **nicht**
+im expliziten Graphen; erst die Fixpunkt-Inferenz macht sie für SHACL sichtbar.
+
+## Quellen (alle HTTP 200, 2026-10-01; swj3959 erneut 2026-10-04)
 
 - https://www.semantic-web-journal.net/system/files/swj3959.pdf (Swansea, SHACL-Inferenz/Validierung)
 - https://semantic-web-journal.net/content/interplay-between-validation-and-inference-shacl-investigation-time-ontology-0

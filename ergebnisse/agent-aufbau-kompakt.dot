@@ -4,7 +4,7 @@ digraph Aufbau {
   fontname="DejaVu Sans";
   labelloc="t";
   fontsize=16;
-  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-03 · HEAD b88140d)";
+  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-04)";
   node [shape=folder, style=filled, fillcolor="#E8F0FE", color="#2E75B6", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.07"];
   edge [color="#7F7F7F", arrowsize=0.6];
 
@@ -12,7 +12,7 @@ digraph Aufbau {
 
   agents [shape=note, label="AGENTS.md (411 Zeilen)\nGesetz §1–§8 · §9/§9.1–9.3 · §10/§10.1–10.7 · §11/§11.1–11.4", fillcolor="#FFF2CC", color="#BF8F00"];
   docs [shape=note, label="README.md · CONTRIBUTING.md · LICENSE\n(MIT, c 2026 batnini)", fillcolor="#F2F2F2", color="#808080"];
-  git [shape=note, label="git HEAD: b88140d (gepusht)\nprivat: abatn/Ata3lm", fillcolor="#F2F2F2", color="#808080"];
+  git [shape=note, label="git: abatn/Ata3lm (privat, gepusht 2026-10-04)", fillcolor="#F2F2F2", color="#808080"];
 
   knowledge [label="knowledge/", fillcolor="#E2EFDA", color="#548235"];
   kn_life [label="lifecycle/\n8 Stufen-Dateien", fillcolor="#E2EFDA", color="#548235"];
@@ -26,8 +26,8 @@ digraph Aufbau {
   data [label="data/memory/", fillcolor="#FFF2CC", color="#BF8F00"];
   t1 [label="tier1-base/\n4 Dateien + versions/v1–v9", fillcolor="#FFF2CC", color="#BF8F00"];
   t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
-  t3 [label="tier3-working/\nlru_cache.py + README", fillcolor="#FFF2CC", color="#BF8F00"];
-  py [label="Prozesse (14)\nfast_write_router · reflective_agent · ingestion_hook · gaama_extract\ntrust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server\nshared_memory · lru_cache · evaluator_version (Red-Queen)\nmandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
+  t3 [label="tier3-working/\nlru_cache.py (Adaptive Forgetting + Spreading) + README", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (16)\nfast_write_router · reflective_agent · ingestion_hook · gaama_extract\ntrust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server\nshared_memory · lru_cache · evaluator_version (Red-Queen) · mcp_catalog · shacl_inferenz\nmandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
   shared [label="shared/\nSharedTier (ACL + Sync)", fillcolor="#FFF2CC", color="#BF8F00"];
   mandate [shape=note, label="mandate.md\nIdentität · Aktionen · Limits · Approval-Schwellen\n(§9: kein self-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
 
@@ -35,11 +35,11 @@ digraph Aufbau {
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  tests [label="tests/  ·  23 Testdateien · 271 Tests\n100 % Line+Branch (2203/550 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten · Skills · Connectoren", fillcolor="#E1D5E7", color="#9673A6"];
+  tests [label="tests/  ·  25 Testdateien · 286 Tests\n100 % Line+Branch (2288/570 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten\nSkills · Connectoren · MCP-Katalog · SHACL-Inferenz", fillcolor="#E1D5E7", color="#9673A6"];
 
   ci [label="CI & Qualität (ein verify-Job, Python 3.12)\nRuff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)\nPreflight · echte Tests · .gitleaks.toml · .pymarkdown.json\npyproject.toml (Ruff) · requirements-dev.txt · Makefile (make test)", fillcolor="#D5E8D4", color="#375623"];
 
-  res [label="ergebnisse/  ·  301 MD gesamt\nrekursion/ 000–042 (43) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration", fillcolor="#E2EFDA", color="#375623"];
+  res [label="ergebnisse/  ·  309 MD gesamt\nrekursion/ 000–047 (48) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration\nmcp-kontext · mcp-kalibrierung · adaptive-forgetting · inferenz-shacl", fillcolor="#E2EFDA", color="#375623"];
 
   root -> agents;
   root -> docs;

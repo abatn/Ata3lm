@@ -1,6 +1,6 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-03 (konsolidiert + CI-Integration 042 + Skill-/Connector-Prozess) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL-Inferenz 046 + HeLa-Mem Spreading 047) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
 > Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
 > `skills/**`, `connectors/**`, `AGENTS.md`.
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
@@ -8,8 +8,8 @@
 
 ## 0. Kernbefund (Ist-Stand, verifiziert)
 
-- **Module in `data/memory/**`: 13** (11 top-level + `shared/shared_memory.py` +
-  `tier3-working/lru_cache.py`).
+- **Module in `data/memory/**`: 16** (14 top-level + `shared/shared_memory.py` +
+  `tier3-working/lru_cache.py` + `mcp_catalog.py` + `shacl_inferenz.py`).
 - **Code-Kanten: 7 direkte** + **Pipeline-Kanten** (`pipeline.py` ruft 7 Module:
   `mandate`, `trust`, `approval`, `bi_temporal`, `bias_monitor`, `fast_write_router`,
   `shared_memory`).
@@ -42,7 +42,7 @@ flowchart TB
   LAW["AGENTS.md §1–§11"]:::docu
   MAND["mandate.md"]:::docu
 
-  subgraph PROC["Prozesse (14)"]
+  subgraph PROC["Prozesse (16)"]
     FWR["fast_write_router"]:::code
     REF["reflective_agent"]:::code
     ING["ingestion_hook"]:::code
@@ -57,6 +57,8 @@ flowchart TB
     MPY["mandate.py"]:::code
     PIPE["pipeline"]:::code
     MCPSRV["mcp_memory_server"]:::code
+    MCAT["mcp_catalog"]:::code
+    SHACL["shacl_inferenz"]:::code
   end
 
   subgraph TIER["Gedächtnis-Tiers"]
@@ -68,7 +70,7 @@ flowchart TB
   SK["skills/ (14)"]:::docu
   CN["connectors/ (17)"]:::docu
   MCP["MCP-Server (19/16 aktiv)"]:::code
-  TST["tests/ + CI (264 Tests, 100 %)"]:::code
+  TST["tests/ + CI (286 Tests, 100 %)"]:::code
   CIC["CI verify (Python 3.12, ein Job)"]:::code
 
   %% CODE-Kanten (verdrahtet)
@@ -79,6 +81,9 @@ flowchart TB
   ING -->|"CODE: ingestion_log.jsonl"| T3
   LRU -->|"CODE: liest *.md"| KS
   LRU -->|"CODE: fill_from_graph (Cosine+PPR)"| T3
+  LRU -->|"CODE: fill_from_spreading (1 Hop, HeLa-Mem)"| T3
+  MCAT -->|"CODE: TTC-Katalog + Lazy-Gating"| MCP
+  SHACL -->|"CODE: CONSTRUCT-Fixpunkt → pyshacl"| KS
   LRU -->|"CODE: evicted-index.md"| T2
   GEX -->|"CODE: build_graph (5 Kantentypen)"| LRU
   GEX -->|"CODE: route_extracted_facts (§10.1)"| FWR
@@ -139,7 +144,7 @@ flowchart TB
 | tier1-base → tier2-index | Hub → Konzept-Index | Hub (`D(v) > δ_hub`) | **CODE**: `reflective_agent.py:24,351-353` |
 | tier2-index → tier3-working | Laden | — | **CODE**: `pipeline.py:load_from_tier2` |
 | tier2-index (concept-index) → tier3-working | Hybrid-Retrieval (Cosine + edge-type-aware PPR) | Query, top-k | **CODE**: `lru_cache.fill_from_graph` + `gaama_extract.build_graph` (GAAMA arXiv:2603.27910) |
-| tier3-working → tier2-index | Eviction | Kapazität > 15 / Forgetting | **CODE**: `lru_cache.py:26,228-229` |
+| tier3-working → tier2-index | Eviction | Kapazität 15 / Adaptive Forgetting (3 Bedingungen) | **CODE**: `lru_cache.should_forget` + `_evict_adaptive_forgetting` (HeLa-Mem arXiv:2604.16839) |
 | knowledge/structured → tier3-working | Initialbefüllung | `relevance ≥ min_relevance` | **CODE**: `lru_cache.py:146` |
 | tier1-base (Hub) → knowledge/structured | Destillation | `detect_hubs` | **CODE**: `reflective_agent.py:25,334-336` |
 | skills → data/memory | Fakt ablegen | — | **DOKU**: `skills/README.md` (Mapping) |
@@ -156,6 +161,9 @@ flowchart TB
 | ingestion_hook → tier3-working | Lifecycle-Log | jedes Event | **CODE**: `ingestion_hook.py:47,386-389` |
 | lru_cache → tier2-index | Eviction | Kapazität/Forgetting | **CODE**: `lru_cache.py:228-229` |
 | lru_cache → tier3-working | Hybrid-Laden (Cosine + PPR) | Query, top-k | **CODE**: `lru_cache.fill_from_graph` (GAAMA arXiv:2603.27910) |
+| lru_cache → tier3-working | Dual-Path Spreading Activation (**1 Hop**, lokal) | Base-top-k ∪ Spread-top-m | **CODE**: `lru_cache.spread_activation_scores` / `fill_from_spreading` (HeLa-Mem arXiv:2604.16839) |
+| shacl_inferenz → (cognize) | Inferenz **vor** Validierung | CONSTRUCT-Fixpunkt, dann pyshacl | **CODE**: `shacl_inferenz.pipeline` (swj3959) |
+| mcp_catalog → MCP-Layer | TTC-Katalog + Lazy-Gating | Top-k/Stufe | **CODE**: `mcp_catalog.build_catalog` (TTC Zenodo 19869008) |
 | lru_cache → tier3-working | Validation-Gated Konsolidierung (LTP) | logical ∧ grounding ∧ alignment ≥ τ | **CODE**: `lru_cache.consolidate_edges` (Kairos, NeurIPS 2025) |
 | trust → alle | PII vor Write | — | **CODE**: `pipeline.py` (`trust.PIIFilter`) |
 | approval → alle | §9.3-Gate | self_update | **CODE**: `pipeline.py` (`approval.TwoPersonApproval`) |
@@ -221,7 +229,7 @@ flowchart TB
 
 ## 4. Quellen (geprüft)
 
-- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server}.py`,
+- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz}.py`,
   `data/memory/tier3-working/lru_cache.py`, `data/memory/shared/shared_memory.py`
 - Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:378-392`),
   `skills/README.md`, `data/memory/README.md`, `ergebnisse/mcp-memory.md`
@@ -293,7 +301,7 @@ Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md 
 | `scripts/check_artifacts.py` | JSON/YAML/TOML + `.dot`-Syntax | C | **CODE** |
 | `scripts/check_secrets.py` | Secret-Muster (+Allowlist) | G | **CODE** |
 | `scripts/ci_preflight.py` | Endpoint erreichbar | E | **CODE** |
-| `make test` | 271 Tests / 100 %, real | — | **CODE** |
+| `make test` | 286 Tests / 100 %, real | — | **CODE** |
 | `scripts/ci_drift.py` | Drift vs. Vorcommit | N | **OFFEN** (Skript da, nicht verdrahtet) |
 | `pre-commit` | Hooks | J | **OFFEN** |
 | `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |

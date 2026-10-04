@@ -67,6 +67,11 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 040 | `040-write-kette.md` | System-Iteration (Write-Kette §9.2c/a + §10.1) | approved: Batnini, 2026-10-03 | siehe File |
 | 041 | `041-echte-verifikation.md` | System-Iteration (Fakes ersetzt, Guardrail 7) | approved: Batnini, 2026-10-03 | siehe File |
 | 042 | `042-ci-integration.md` | System-Iteration (CI-Integration A–O) | approved: Batnini, 2026-10-03 | siehe File |
+| 043 | `043-mcp-kontext.md` | System-Iteration (MCP-Kontext: TTC/Lazy-Gating) | approved: Batnini, 2026-10-03 | siehe File |
+| 044 | `044-mcp-aktivierung.md` | System-Iteration (MCP-Aktivierung 12 Server) | approved: Batnini, 2026-10-03 | siehe File |
+| 045 | `045-mcp-kalibrierung.md` | System-Iteration (MCP-Kalibrierung Ist vs. Paper) | approved: Batnini, 2026-10-03 | siehe File |
+| 046 | `046-shacl-inferenz-echt.md` | System-Iteration (SHACL-Inferenz, echte Engine) | approved: Batnini, 2026-10-04 | siehe File |
+| 047 | `047-spreading-activation.md` | System-Iteration (HeLa-Mem Spreading Activation) | approved: Batnini, 2026-10-04 | siehe File |
 
 ## Guardrail
 

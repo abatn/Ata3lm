@@ -120,3 +120,39 @@ def test_fill_from_structured_ohne_aufnahme_bei_vollem_cache(tmp_path, monkeypat
     loaded = wm.fill_from_structured()
     assert loaded == []  # store() lief, Item ist sofort raus
     assert list(wm.items) == ["full"]
+
+
+def test_hub_bleibt_isolierter_knoten_evakuiert(tmp_path, monkeypatch):
+    """HeLa-Mem: Hub (hohes Kantengewicht) bleibt, isolierter Knoten wird entfernt."""
+    wm = _wm(tmp_path, monkeypatch, capacity=2)
+    wm.store("hub", "x", edge_weight=5.0)  # stark vernetzt
+    wm.store("isoliert", "y", edge_weight=0.1)  # strukturell irrelevant
+    wm.tick += lc.DELTA_AGE + 1  # beide alt; nur "isoliert" erfüllt alles
+    evicted = wm._evict_adaptive_forgetting()
+    assert evicted == "isoliert"
+    assert "hub" in wm.items  # Hub bleibt (edge_weight >= δ_prune)
+
+
+def test_spread_activation_eine_stufe(tmp_path, monkeypatch):
+    """Spreading = eine Stufe: direkter Nachbar verstärkt, 2 Hops entfernt NICHT."""
+    items = [("a", "alpha"), ("b", "beta"), ("c", "gamma")]
+    edges = [("a", "b", 1.0), ("a", "gibt-es-nicht", 1.0)]  # a→b (1 Hop); 2. Kante: Knoten unbekannt
+    s = lc.spread_activation_scores("alpha", items, edges, beta=0.5)
+    assert s["spread"]["b"] > s["base"]["b"]  # direkter Nachbar verstärkt
+    assert s["spread"]["c"] == s["base"]["c"]  # c ist 2 Hops entfernt -> unberührt
+
+
+def test_dual_path_retrieval_base_und_spread(tmp_path, monkeypatch):
+    """Dual-Path: Base-top-k ∪ Spread-top-m (HeLa-Mem §3.4)."""
+    items = [("q", "query"), ("s", "alpha"), ("f", "zzz")]
+    edges = [("s", "f", 1.0)]
+    res = lc.dual_path_retrieval("alpha", items, edges, top_k=2, top_m=1, beta=1.0)
+    assert {e["id"] for e in res} == {"q", "s", "f"}
+    assert any(e["path"] == "spread" for e in res)
+
+
+def test_fill_from_spreading(tmp_path, monkeypatch):
+    wm = _wm(tmp_path, monkeypatch, capacity=15)
+    loaded = wm.fill_from_spreading("alpha", [("a", "alpha"), ("b", "beta")], [("a", "b", 0.5)])
+    assert "a" in wm.items
+    assert loaded[0]["id"] == "a" and len(loaded) == 2

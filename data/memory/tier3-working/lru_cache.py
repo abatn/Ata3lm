@@ -15,6 +15,13 @@ Quellen (2025–2026, verifiziert):
 Lab-Prinzip: keine Erfindung – LRU + Bounded + Pinning + search-before-store
 sind aus den Quellen; die Zahl 15 ist die Projekt-Vorgabe (Auftrag).
 
+Adaptive Forgetting + Hub + Dual-Path (HeLa-Mem, arXiv:2604.16839 §3.3/§3.4):
+  - Dreifache Bedingung: entfernt nur, wenn (1) edge_weight < δ_prune, (2) age > δ_age
+    und (3) zero recent access (wörtlich; siehe `should_forget`).
+  - Hub-Detection: hohes Kantengewicht -> NICHT entfernen (GAAMA `hub_dampening`).
+  - Dual-Path: Cosine-Base ∪ **Spreading Activation** (eine Stufe, lokal) — siehe
+    `spread_activation_scores` / `dual_path_retrieval` (ergänzt GAAMA-PPR).
+
 Ladepfad tier2 → tier3 (2026-10-03):
   - GAAMA (arXiv:2603.27910): Hybrid-Retrieval = Cosine-KNN + **edge-type-aware
     Personalized PageRank** (additive: score = w_sim·sim + w_ppr·ppr; Paper-Defaults
@@ -67,6 +74,14 @@ VALIDATION_QUALITY_DIMS = ("logical", "grounding", "alignment")  # novelty ortho
 VALIDATION_TAU = 0.6
 GAAMA_HUB_THRESHOLD = 50  # GAAMA `hub_dampening_threshold=50`
 GAAMA_EXPANSION_DEPTH = 2  # GAAMA §3.4 Step 2 (d=2)
+
+# --- HeLa-Mem Spreading Activation (arXiv:2604.16839 §3.4, Dual-Path) ---
+# Wörtlich: "S(v_j) = S_base(v_j) + β · Σ_{i∈N(j)} S_base(v_i) · w_ij".
+# EINE Stufe, lokal (nur direkte Nachbarn) — NICHT der globale PPR-Random-Walk.
+# β ist im Paper nicht beziffert -> Projekt-Auftrag (Default 0.5).
+HELA_BETA = float(os.environ.get("HELA_BETA", "0.5"))
+HELA_TOP_K = 5  # Base-Pfad (Cosine-Similarity)
+HELA_TOP_M = 3  # Spread-Pfad (Spreading Activation)
 
 
 def relevance(path: Path) -> float:
@@ -241,6 +256,26 @@ class WorkingMemory:
         concepts = parse_concept_index(concepts_path)
         items = [(c["concept"], c["concept"]) for c in concepts]
         return self.fill_from_graph(query, items, edges or [], top_k=top_k, min_score=min_score)
+
+    def fill_from_spreading(
+        self, query: str, items: list, edges: list, top_k: int = HELA_TOP_K, top_m: int = HELA_TOP_M
+    ):
+        """tier2 → tier3: HeLa-Mem Dual-Path (Cosine-Base + Spreading Activation).
+
+        Quelle: HeLa-Mem (arXiv:2604.16839 §3.4). Lädt die vereinigte Menge
+        (Base-top-k ∪ Spread-top-m) in Tier 3. `items`: [(id, text)], `edges`:
+        [(src, dst, w)] gerichtete Hebbian-Kanten.
+        """
+        loaded = []
+        for entry in dual_path_retrieval(query, items, edges, top_k=top_k, top_m=top_m):
+            key = entry["id"]
+            self.store(
+                key,
+                f"hela-spread ({entry['path']}, S={entry['spread']:.3f})",
+                importance=min(max(entry["spread"], 0.0), 1.0),
+            )
+            loaded.append(entry)
+        return loaded
 
     def consolidate_edges(self, edges: list, dims: dict, tau: float = VALIDATION_TAU):
         """Validation-Gated Hebbian-Konsolidierung: LTP nur bei bestandener Prüfung.
@@ -452,6 +487,43 @@ def hybrid_scores(query: str, items: list, edges: list, top_seeds: int = 3, dept
     ppr = edge_type_aware_ppr(nodes, sub, seeds)
     scored = [(i, GAAMA_W_SIM * sim[i] + GAAMA_W_PPR * ppr[i]) for i in nodes]
     return sorted(scored, key=lambda kv: -kv[1])
+
+
+def spread_activation_scores(query: str, items: list, edges: list, beta: float = HELA_BETA):
+    """HeLa-Mem Spreading Activation (EINE Stufe, lokal).
+
+    Wörtlich (arXiv:2604.16839 §3.4): `S(v_j) = S_base(v_j) + β · Σ_{i∈N(j)} S_base(v_i)·w_ij`.
+    `items`: [(id, text)] · `edges`: [(src, dst, w)] gerichtete Hebbian-Kanten
+    (src aktiviert dst). Nur **direkte** Nachbarn (kein globaler Random-Walk wie PPR).
+    """
+    nodes = [i for i, _ in items]
+    texts = {i: t for i, t in items}
+    q = embed_text(query)
+    base = {i: cosine_similarity(q, embed_text(texts[i])) for i in nodes}
+    spread = dict(base)
+    for src, dst, w in edges:
+        if src in base and dst in base:
+            spread[dst] += beta * base[src] * w
+    return {"base": base, "spread": spread}
+
+
+def dual_path_retrieval(
+    query: str, items: list, edges: list, top_k: int = HELA_TOP_K, top_m: int = HELA_TOP_M, beta: float = HELA_BETA
+):
+    """HeLa-Mem Dual-Path: Cosine-Base (top-k) ∪ Spreading-Activation (top-m).
+
+    Wörtlich (§3.4): „the base path selects the top-k nodes by S_base, and the flip
+    path promotes up to m additional nodes that rank highest by spreading-augmented
+    score S but were not already selected."
+    """
+    scores = spread_activation_scores(query, items, edges, beta=beta)
+    base, spread = scores["base"], scores["spread"]
+    base_top = sorted(base, key=lambda n: -base[n])[:top_k]
+    rest = [n for n in base if n not in base_top]
+    flip_top = sorted(rest, key=lambda n: -spread[n])[:top_m]
+    out = [{"id": n, "base": base[n], "spread": spread[n], "path": "base"} for n in base_top]
+    out += [{"id": n, "base": base[n], "spread": spread[n], "path": "spread"} for n in flip_top]
+    return out
 
 
 def validation_gate(dims: dict, tau: float = VALIDATION_TAU) -> dict:
