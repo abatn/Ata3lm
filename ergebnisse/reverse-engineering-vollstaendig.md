@@ -14,7 +14,7 @@
 | 1 | **Lifecycle — 8 Stufen** | **teilweise (Runner)** | `knowledge/lifecycle/*.md` (8); **`lifecycle_runner.run_cycle`** (führt alle 8 Stufen aus, ruft je eine echte Funktion); Test `tests/test_lifecycle_runner.py` | Stufenfolge + Stufe→Modul = **Auftrag** (AGENTS.md §3 erlaubt das); Stufe 5 = echte LLM-Reflexion, offline NOOP |
 | 2 | **Rekursion — 5 Phasen** | **teilweise** | `reflective_agent.run_once` (Hub/Forgetting/HMM); `evaluator_version.RedQueenLoop` (Epochen) | **kein Runner** Konstrukt→Akt→Observe→Compare→Revise (Phasen = `.md`-Skills) |
 | 3 | **Gedächtnis — 16 Module** | **verdrahtet** | Import-Graph unten; Tests + CLI | Einstiegspunkte ohne Importer (CLI/Tests): `ingestion_hook`, `reflective_agent`, `mcp_memory_server`, `lru_cache`, `shared_memory`, `mcp_catalog`, `shacl_inferenz` |
-| 4 | **Connectoren — 17** | **nur Doku** | `connectors/*.md` (17, je `## Prozess`); AGENTS.md-Tabelle | **kein `.py` referenziert `connectors/`** (nur `mcp_memory_server.py:42` Scope „connectors") |
+| 4 | **Connectoren — 17** | **Doku + Binding** | `connectors/*.md` (17, je `## Prozess`); AGENTS.md-Tabelle; **`connector_binding.bind`** (parse → SHACL-Validierung → Prozess-Aufruf → MCP-Record); Test `tests/test_connector_binding.py` | SHACL prüft nur die Invariante (minCount 1), nicht die inhaltliche Richtigkeit |
 | 5 | **MCP-Server — 19 (16 aktiv)** | **extern/optional** | `opencode.json` (19/16); eigener `mcp_memory_server.py` (5 Tools); `mcp_catalog.py` (TTC-Katalog der **real** gestarteten 12 Projekt-MCPs) | **kein `.py` ruft** externe MCPs live (Graphiti/Cognee/…); §11 optional |
 | 6 | **Skills — 14 aktiv** | **verwaltet + ausgeführt (deklarierte Prozesse)** | `skills/*/SKILL.md` (14 aktiv, 43 inkl. `versions/`); `skills/procedural_memory.py` (snapshot/update/rollback); **`skill_interpreter.run_skill`** (führt die deklarierten Prozesse aus); Test `tests/test_skill_interpreter.py` | NL-`## Ablauf`-Schritte werden **nicht** interpretiert (nur deklarierte Prozesse) |
 | 7 | **Ergebnisse — 48 Rekursionen (000–047)** | **konsistent** | 48 nummerierte Dateien; Index + `tests/test_agents_law.py` (`test_rekursion_index_vollstaendig`) | — |
@@ -56,9 +56,11 @@
 - **Lücke:** keine (bis auf Einstiegspunkte).
 
 ### Schicht 4 — Connectoren (17)
-- `connectors/*.md` (17). **Kein `.py` importiert/referenziert sie** (Grep → nur `mcp_memory_server.py:42` Scope).
-- Zuordnung über `AGENTS.md`-Tabelle + `ergebnisse/verbindungen-diagramm.md` §5 + je `## Prozess` (`ergebnisse/connector-prozess.md`, SHACL/W3C).
-- **Lücke:** Connectoren sind **reine Doku**, kein Code-Pfad.
+- `connectors/*.md` (17). **`connector_binding.bind`** liest den `## Prozess (Aufruf)`,
+  validiert die SHACL-Invariante (`ex:ConnectorShape`, `sh:minCount 1`, echte pyshacl-Engine),
+  ruft den zugeordneten Prozess auf (9 Executoren) und schreibt einen Bindungs-Nachweis via MCP.
+- Zuordnung über `AGENTS.md`-Tabelle + `ergebnisse/verbindungs-diagramm.md` §5 + `ergebnisse/connector-binding.md`.
+- **Lücke:** die Zuordnung selbst ist **Auftrag**; SHACL prüft nur „≥ 1 Prozess".
 
 ### Schicht 5 — MCP-Server (19 konfiguriert, 16 aktiv)
 - `opencode.json`: 19 Einträge (16 aktiv). **Kein `.py` ruft** Graphiti/Cognee/HeLa/… **live** auf.

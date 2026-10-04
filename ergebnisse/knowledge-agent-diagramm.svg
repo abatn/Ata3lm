@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 1197)">
 <title>KnowledgeAgent</title>
 <polygon fill="white" stroke="transparent" points="-4,4 -4,-1197 2153,-1197 2153,4 -4,4"/>
-<text text-anchor="middle" x="1074.5" y="-1173" font-family="DejaVu Sans" font-size="20.00">Knowledge&#45;Agent &#160;— &#160;alle Stufen × alle Phasen × alle Schichten (2026&#45;10&#45;04 · Rekursion 000–050)</text>
+<text text-anchor="middle" x="1074.5" y="-1173" font-family="DejaVu Sans" font-size="20.00">Knowledge&#45;Agent &#160;— &#160;alle Stufen × alle Phasen × alle Schichten (2026&#45;10&#45;04 · Rekursion 000–051)</text>
 <text text-anchor="middle" x="1074.5" y="-1151" font-family="DejaVu Sans" font-size="20.00">Quelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/</text>
 <g id="clust1" class="cluster">
 <title>cluster_law</title>
@@ -33,7 +33,7 @@
 </g>
 <g id="clust4" class="cluster">
 <title>cluster_mem</title>
-<path fill="#fff2cc" stroke="#bf8f00" d="M974,-610C974,-610 1475,-610 1475,-610 1481,-610 1487,-616 1487,-622 1487,-622 1487,-812 1487,-812 1487,-818 1481,-824 1475,-824 1475,-824 974,-824 974,-824 968,-824 962,-818 962,-812 962,-812 962,-622 962,-622 962,-616 968,-610 974,-610"/>
+<path fill="#fff2cc" stroke="#bf8f00" d="M974,-604C974,-604 1475,-604 1475,-604 1481,-604 1487,-610 1487,-616 1487,-616 1487,-812 1487,-812 1487,-818 1481,-824 1475,-824 1475,-824 974,-824 974,-824 968,-824 962,-818 962,-812 962,-812 962,-616 962,-616 962,-610 968,-604 974,-604"/>
 <text text-anchor="middle" x="1224.5" y="-808.8" font-family="DejaVu Sans" font-size="14.00">Schicht 3 · Gedächtnis — data/memory (3&#45;Tier + L4 + Shared)</text>
 </g>
 <g id="clust6" class="cluster">
@@ -283,7 +283,7 @@
 <text text-anchor="middle" x="1757" y="-651.2" font-family="DejaVu Sans" font-size="11.00">affective&#45;signals · agento&#45;ariadne · cca&#45;framework · cognee&#45;memory · cognee&#45;validation</text>
 <text text-anchor="middle" x="1757" y="-639.2" font-family="DejaVu Sans" font-size="11.00">consistency&#45;gap · fast&#45;write&#45;routing · goedel&#45;agent · governance&#45;mcp · hela&#45;evolution</text>
 <text text-anchor="middle" x="1757" y="-627.2" font-family="DejaVu Sans" font-size="11.00">hela&#45;semantic · htac&#45;agentdice · mars&#45;seaa · observer&#45;agent · react · reflexion&#45;trace</text>
-<text text-anchor="middle" x="1757" y="-615.2" font-family="DejaVu Sans" font-size="11.00">17 Connectoren · jeder nennt seinen Prozess (SHACL/W3C)</text>
+<text text-anchor="middle" x="1757" y="-615.2" font-family="DejaVu Sans" font-size="11.00">17 Connectoren · jeder nennt seinen Prozess (SHACL/W3C + connector_binding)</text>
 </g>
 <!-- m1&#45;&gt;conn -->
 <g id="edge21" class="edge">
@@ -305,9 +305,10 @@
 <!-- mx -->
 <g id="node18" class="node">
 <title>mx</title>
-<path fill="#ffe699" stroke="#bf8f00" d="M1466.5,-654C1466.5,-654 1079.5,-654 1079.5,-654 1073.5,-654 1067.5,-648 1067.5,-642 1067.5,-642 1067.5,-630 1067.5,-630 1067.5,-624 1073.5,-618 1079.5,-618 1079.5,-618 1466.5,-618 1466.5,-618 1472.5,-618 1478.5,-624 1478.5,-630 1478.5,-630 1478.5,-642 1478.5,-642 1478.5,-648 1472.5,-654 1466.5,-654"/>
-<text text-anchor="middle" x="1273" y="-639.2" font-family="DejaVu Sans" font-size="11.00">shacl_inferenz.py (rdflib+pyshacl) · mcp_catalog.py (TTC/Lazy&#45;Gating)</text>
-<text text-anchor="middle" x="1273" y="-627.2" font-family="DejaVu Sans" font-size="11.00">lifecycle_runner.py (8 Stufen) · skill_interpreter.py (ReAct&#45;Loop + MCP)</text>
+<path fill="#ffe699" stroke="#bf8f00" d="M1466.5,-660C1466.5,-660 1079.5,-660 1079.5,-660 1073.5,-660 1067.5,-654 1067.5,-648 1067.5,-648 1067.5,-624 1067.5,-624 1067.5,-618 1073.5,-612 1079.5,-612 1079.5,-612 1466.5,-612 1466.5,-612 1472.5,-612 1478.5,-618 1478.5,-624 1478.5,-624 1478.5,-648 1478.5,-648 1478.5,-654 1472.5,-660 1466.5,-660"/>
+<text text-anchor="middle" x="1273" y="-645.2" font-family="DejaVu Sans" font-size="11.00">shacl_inferenz.py (rdflib+pyshacl) · mcp_catalog.py (TTC/Lazy&#45;Gating)</text>
+<text text-anchor="middle" x="1273" y="-633.2" font-family="DejaVu Sans" font-size="11.00">lifecycle_runner.py (8 Stufen) · skill_interpreter.py (ReAct&#45;Loop + MCP)</text>
+<text text-anchor="middle" x="1273" y="-621.2" font-family="DejaVu Sans" font-size="11.00">connector_binding.py (17 Connectoren → Prozess, SHACL)</text>
 </g>
 <!-- m3&#45;&gt;mx -->
 <!-- mcp -->
@@ -343,8 +344,8 @@
 <g id="node22" class="node">
 <title>res</title>
 <path fill="#c6e0b4" stroke="#375623" d="M1905.5,-318C1905.5,-318 1608.5,-318 1608.5,-318 1602.5,-318 1596.5,-312 1596.5,-306 1596.5,-306 1596.5,-282 1596.5,-282 1596.5,-276 1602.5,-270 1608.5,-270 1608.5,-270 1905.5,-270 1905.5,-270 1911.5,-270 1917.5,-276 1917.5,-282 1917.5,-282 1917.5,-306 1917.5,-306 1917.5,-312 1911.5,-318 1905.5,-318"/>
-<text text-anchor="middle" x="1757" y="-303.2" font-family="DejaVu Sans" font-size="11.00">rekursion/NNN&#45;*.md (Provenienz je Iteration, 000–050)</text>
-<text text-anchor="middle" x="1757" y="-291.2" font-family="DejaVu Sans" font-size="11.00">314 MD gesamt</text>
+<text text-anchor="middle" x="1757" y="-303.2" font-family="DejaVu Sans" font-size="11.00">rekursion/NNN&#45;*.md (Provenienz je Iteration, 000–051)</text>
+<text text-anchor="middle" x="1757" y="-291.2" font-family="DejaVu Sans" font-size="11.00">316 MD gesamt</text>
 <text text-anchor="middle" x="1757" y="-279.2" font-family="DejaVu Sans" font-size="11.00">Pläne · Testberichte · Analysen · Diagramme</text>
 </g>
 <!-- sk&#45;&gt;res -->
@@ -358,7 +359,7 @@
 <g id="node23" class="node">
 <title>tst</title>
 <path fill="#d5c6e0" stroke="#9673a6" d="M1606.5,-134C1606.5,-134 1127.5,-134 1127.5,-134 1121.5,-134 1115.5,-128 1115.5,-122 1115.5,-122 1115.5,-98 1115.5,-98 1115.5,-92 1121.5,-86 1127.5,-86 1127.5,-86 1606.5,-86 1606.5,-86 1612.5,-86 1618.5,-92 1618.5,-98 1618.5,-98 1618.5,-122 1618.5,-122 1618.5,-128 1612.5,-134 1606.5,-134"/>
-<text text-anchor="middle" x="1367" y="-119.2" font-family="DejaVu Sans" font-size="11.00">tests/ 27 Dateien · 305 Tests · 100 % Line+Branch (2462/600)</text>
+<text text-anchor="middle" x="1367" y="-119.2" font-family="DejaVu Sans" font-size="11.00">tests/ 28 Dateien · 312 Tests · 100 % Line+Branch (2543/604)</text>
 <text text-anchor="middle" x="1367" y="-107.2" font-family="DejaVu Sans" font-size="11.00">CI verify (Python 3.12, ein Job): Ruff · Markdown(adv) · scripts/* · Preflight · echte Tests</text>
 <text text-anchor="middle" x="1367" y="-95.2" font-family="DejaVu Sans" font-size="11.00">scripts/ · .gitleaks.toml · .pymarkdown.json · pyproject.toml (Ruff) · make test</text>
 </g>

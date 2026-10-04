@@ -5,7 +5,7 @@ digraph KnowledgeAgent {
   fontname="DejaVu Sans";
   labelloc="t";
   fontsize=20;
-  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten (2026-10-04 · Rekursion 000–050)\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/";
+  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten (2026-10-04 · Rekursion 000–051)\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/";
   node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, margin="0.14,0.09"];
   edge [fontname="DejaVu Sans", fontsize=9, color="#595959"];
 
@@ -54,7 +54,7 @@ digraph KnowledgeAgent {
     m1 [label="tier1-base\nidentity · ontology\ncore-relations\nepisodic_graph.json", fillcolor="#FFE699", color="#BF8F00"];
     m2 [label="tier2-index\nconcept-index\nhub-index\nevicted-index", fillcolor="#FFE699", color="#BF8F00"];
     m3 [label="tier3-working\nlru_cache.py\n(Adaptive Forgetting + Spreading)\n(+ README)", fillcolor="#FFE699", color="#BF8F00"];
-    mx [label="shacl_inferenz.py (rdflib+pyshacl) · mcp_catalog.py (TTC/Lazy-Gating)\nlifecycle_runner.py (8 Stufen) · skill_interpreter.py (ReAct-Loop + MCP)", fillcolor="#FFE699", color="#BF8F00"];
+    mx [label="shacl_inferenz.py (rdflib+pyshacl) · mcp_catalog.py (TTC/Lazy-Gating)\nlifecycle_runner.py (8 Stufen) · skill_interpreter.py (ReAct-Loop + MCP)\nconnector_binding.py (17 Connectoren → Prozess, SHACL)", fillcolor="#FFE699", color="#BF8F00"];
     m1 -> m2 -> m3 [style=invis];
     m3 -> mx [style=invis];
   }
@@ -63,7 +63,7 @@ digraph KnowledgeAgent {
   subgraph cluster_conn {
     label="Schicht 4 · Connectoren (17) — connectors/";
     style="filled,rounded"; fillcolor="#FBE5D6"; color="#ED7D31"; fontsize=14;
-    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · goedel-agent · governance-mcp · hela-evolution\nhela-semantic · htac-agentdice · mars-seaa · observer-agent · react · reflexion-trace\n17 Connectoren · jeder nennt seinen Prozess (SHACL/W3C)", fillcolor="#F8CBAD", color="#ED7D31"];
+    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · goedel-agent · governance-mcp · hela-evolution\nhela-semantic · htac-agentdice · mars-seaa · observer-agent · react · reflexion-trace\n17 Connectoren · jeder nennt seinen Prozess (SHACL/W3C + connector_binding)", fillcolor="#F8CBAD", color="#ED7D31"];
   }
 
   // ================= Schicht 5 · MCP =================
@@ -84,14 +84,14 @@ digraph KnowledgeAgent {
   subgraph cluster_res {
     label="Schicht 7 · Ergebnisse — ergebnisse/";
     style="filled,rounded"; fillcolor="#E2EFDA"; color="#375623"; fontsize=14;
-    res [label="rekursion/NNN-*.md (Provenienz je Iteration, 000–050)\n314 MD gesamt\nPläne · Testberichte · Analysen · Diagramme", fillcolor="#C6E0B4", color="#375623"];
+    res [label="rekursion/NNN-*.md (Provenienz je Iteration, 000–051)\n316 MD gesamt\nPläne · Testberichte · Analysen · Diagramme", fillcolor="#C6E0B4", color="#375623"];
   }
 
   // ================= Schicht 8 · Tests & CI =================
   subgraph cluster_tests {
     label="Schicht 8 · Tests & CI — tests/ + .github/workflows/";
     style="filled,rounded"; fillcolor="#E1D5E7"; color="#9673A6"; fontsize=14;
-    tst [label="tests/ 27 Dateien · 305 Tests · 100 % Line+Branch (2462/600)\nCI verify (Python 3.12, ein Job): Ruff · Markdown(adv) · scripts/* · Preflight · echte Tests\nscripts/ · .gitleaks.toml · .pymarkdown.json · pyproject.toml (Ruff) · make test", fillcolor="#D5C6E0", color="#9673A6"];
+    tst [label="tests/ 28 Dateien · 312 Tests · 100 % Line+Branch (2543/604)\nCI verify (Python 3.12, ein Job): Ruff · Markdown(adv) · scripts/* · Preflight · echte Tests\nscripts/ · .gitleaks.toml · .pymarkdown.json · pyproject.toml (Ruff) · make test", fillcolor="#D5C6E0", color="#9673A6"];
   }
 
   // ================= Schicht-Spine (von oben nach unten) =================

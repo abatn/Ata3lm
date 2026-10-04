@@ -75,6 +75,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 048 | `048-lifecycle-runner.md` | System-Iteration (8-Stufen-Runner) | approved: Batnini, 2026-10-04 | siehe File |
 | 049 | `049-skill-interpreter.md` | System-Iteration (Skill-Interpreter) | approved: Batnini, 2026-10-04 | siehe File |
 | 050 | `050-skill-interpreter-agent.md` | System-Iteration (ReAct-Loop + MCP-Executor) | approved: Batnini, 2026-10-04 | siehe File |
+| 051 | `051-connector-binding.md` | System-Iteration (Connector-Binding SHACL/W3C) | approved: Batnini, 2026-10-04 | siehe File |
 
 ## Guardrail
 

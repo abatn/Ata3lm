@@ -1,6 +1,6 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + 8-Stufen-Runner 048 + Skill-Interpreter 050) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + 8-Stufen-Runner 048 + Skill-Interpreter 050 + Connector-Binding 051) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
 > Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
 > `skills/**`, `connectors/**`, `AGENTS.md`.
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
@@ -8,7 +8,7 @@
 
 ## 0. Kernbefund (Ist-Stand, verifiziert)
 
-- **Module in `data/memory/**`: 18** (16 top-level + `shared/shared_memory.py` +
+- **Module in `data/memory/**`: 19** (17 top-level + `shared/shared_memory.py` +
   `tier3-working/lru_cache.py`).
 - **Code-Kanten: 7 direkte** + **Pipeline-Kanten** (`pipeline.py` ruft 7 Module:
   `mandate`, `trust`, `approval`, `bi_temporal`, `bias_monitor`, `fast_write_router`,
@@ -42,7 +42,7 @@ flowchart TB
   LAW["AGENTS.md §1–§11"]:::docu
   MAND["mandate.md"]:::docu
 
-  subgraph PROC["Prozesse (18)"]
+  subgraph PROC["Prozesse (19)"]
     FWR["fast_write_router"]:::code
     REF["reflective_agent"]:::code
     ING["ingestion_hook"]:::code
@@ -61,6 +61,7 @@ flowchart TB
     SHACL["shacl_inferenz"]:::code
     LRUN["lifecycle_runner"]:::code
     SINT["skill_interpreter"]:::code
+    CONNB["connector_binding"]:::code
   end
 
   subgraph TIER["Gedächtnis-Tiers"]
@@ -72,7 +73,7 @@ flowchart TB
   SK["skills/ (14)"]:::docu
   CN["connectors/ (17)"]:::docu
   MCP["MCP-Server (19/16 aktiv)"]:::code
-  TST["tests/ + CI (305 Tests, 100 %)"]:::code
+  TST["tests/ + CI (312 Tests, 100 %)"]:::code
   CIC["CI verify (Python 3.12, ein Job)"]:::code
 
   %% CODE-Kanten (verdrahtet)
@@ -90,6 +91,9 @@ flowchart TB
   LRUN -->|"CODE: konsolidiert (Kognition)"| LRU
   SINT -->|"CODE: ReAct-Loop → pipeline"| PIPE
   SINT -->|"CODE: memory.write (MCP in-process)"| MCPSRV
+  CONNB -->|"CODE: liest connectors/*.md"| CN
+  CONNB -->|"CODE: bind → Prozess-Executor"| PIPE
+  CONNB -->|"CODE: Record (MCP in-process)"| MCPSRV
   LRU -->|"CODE: evicted-index.md"| T2
   GEX -->|"CODE: build_graph (5 Kantentypen)"| LRU
   GEX -->|"CODE: route_extracted_facts (§10.1)"| FWR
@@ -205,6 +209,7 @@ flowchart TB
 | reflexion-trace → Kognition/Reflexion (4) | `connectors/reflexion-trace.md` |
 | (übrige) → Phase/Stufe | `AGENTS.md:378-392` |
 | **jeder Connector nennt seinen Prozess** (17) | **CODE/DOKU**: `connectors/*.md` §Prozess, `ergebnisse/connector-prozess.md` (Test `test_connector_prozess.py`, SHACL/W3C) |
+| connector_binding → connectors/pipeline/mcp | 17 Connectoren **binden** (SHACL-Validierung → Prozess → MCP-Record) | **CODE**: `connector_binding.bind` / `bind_all` (9 Executoren), Test `test_connector_binding.py` |
 | Connector → **Prozess** | **DOKU**: §5 (Mapping) — Connectoren sind `.md`, kein Code-Import |
 
 ## 3. Lücken (konsolidiert)
@@ -237,7 +242,7 @@ flowchart TB
 
 ## 4. Quellen (geprüft)
 
-- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter}.py`,
+- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter,connector_binding}.py`,
   `data/memory/tier3-working/lru_cache.py`, `data/memory/shared/shared_memory.py`
 - Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:378-392`),
   `skills/README.md`, `data/memory/README.md`, `ergebnisse/mcp-memory.md`
@@ -309,7 +314,7 @@ Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md 
 | `scripts/check_artifacts.py` | JSON/YAML/TOML + `.dot`-Syntax | C | **CODE** |
 | `scripts/check_secrets.py` | Secret-Muster (+Allowlist) | G | **CODE** |
 | `scripts/ci_preflight.py` | Endpoint erreichbar | E | **CODE** |
-| `make test` | 305 Tests / 100 %, real | — | **CODE** |
+| `make test` | 312 Tests / 100 %, real | — | **CODE** |
 | `scripts/ci_drift.py` | Drift vs. Vorcommit | N | **OFFEN** (Skript da, nicht verdrahtet) |
 | `pre-commit` | Hooks | J | **OFFEN** |
 | `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |

@@ -113,50 +113,50 @@
 <!-- tests -->
 <g id="node22" class="node">
 <title>tests</title>
-<polygon fill="#e1d5e7" stroke="#9673a6" points="2256.5,-200 2253.5,-204 2232.5,-204 2229.5,-200 1757.5,-200 1757.5,-118 2256.5,-118 2256.5,-200"/>
-<text text-anchor="middle" x="2007" y="-186.2" font-family="DejaVu Sans" font-size="11.00">tests/ &#160;· &#160;27 Testdateien · 305 Tests</text>
-<text text-anchor="middle" x="2007" y="-174.2" font-family="DejaVu Sans" font-size="11.00">100 % Line+Branch (2462/600 Statements/Branches)</text>
-<text text-anchor="middle" x="2007" y="-162.2" font-family="DejaVu Sans" font-size="11.00">FWR · Governance · Memory · Ingestion · Reflective</text>
-<text text-anchor="middle" x="2007" y="-150.2" font-family="DejaVu Sans" font-size="11.00">Bi&#45;Temporal · Shared · LRU · Procedural · Solver</text>
-<text text-anchor="middle" x="2007" y="-138.2" font-family="DejaVu Sans" font-size="11.00">Evaluator/Red&#45;Queen · Mandat · AGENTS&#45;Gesetz · GAAMA · Invarianten</text>
-<text text-anchor="middle" x="2007" y="-126.2" font-family="DejaVu Sans" font-size="11.00">Skills · Connectoren · MCP&#45;Katalog · SHACL&#45;Inferenz · 8&#45;Stufen&#45;Runner · Skill&#45;Interpreter</text>
+<polygon fill="#e1d5e7" stroke="#9673a6" points="2244.5,-200 2241.5,-204 2220.5,-204 2217.5,-200 1757.5,-200 1757.5,-118 2244.5,-118 2244.5,-200"/>
+<text text-anchor="middle" x="2001" y="-186.2" font-family="DejaVu Sans" font-size="11.00">tests/ &#160;· &#160;28 Testdateien · 312 Tests</text>
+<text text-anchor="middle" x="2001" y="-174.2" font-family="DejaVu Sans" font-size="11.00">100 % Line+Branch (2543/604 Statements/Branches)</text>
+<text text-anchor="middle" x="2001" y="-162.2" font-family="DejaVu Sans" font-size="11.00">FWR · Governance · Memory · Ingestion · Reflective</text>
+<text text-anchor="middle" x="2001" y="-150.2" font-family="DejaVu Sans" font-size="11.00">Bi&#45;Temporal · Shared · LRU · Procedural · Solver</text>
+<text text-anchor="middle" x="2001" y="-138.2" font-family="DejaVu Sans" font-size="11.00">Evaluator/Red&#45;Queen · Mandat · AGENTS&#45;Gesetz · GAAMA · Invarianten</text>
+<text text-anchor="middle" x="2001" y="-126.2" font-family="DejaVu Sans" font-size="11.00">Skills · Connectoren · MCP&#45;Katalog · SHACL · Runner · Interpreter · Connector&#45;Binding</text>
 </g>
 <!-- root&#45;&gt;tests -->
 <g id="edge8" class="edge">
 <title>root&#45;&gt;tests</title>
-<path fill="none" stroke="#7f7f7f" d="M1468.55,-242.65C1538.93,-232.02 1651.62,-214.94 1749,-200 1749.79,-199.88 1750.58,-199.76 1751.37,-199.64"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1751.84,-201.69 1757.45,-198.7 1751.2,-197.54 1751.84,-201.69"/>
+<path fill="none" stroke="#7f7f7f" d="M1468.56,-242.73C1538.95,-232.15 1651.65,-215.12 1749,-200 1749.77,-199.88 1750.54,-199.76 1751.31,-199.64"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="1751.65,-201.71 1757.25,-198.72 1751,-197.56 1751.65,-201.71"/>
 </g>
 <!-- ci -->
 <g id="node23" class="node">
 <title>ci</title>
-<polygon fill="#d5e8d4" stroke="#375623" points="2661,-188 2658,-192 2637,-192 2634,-188 2275,-188 2275,-130 2661,-130 2661,-188"/>
-<text text-anchor="middle" x="2468" y="-174.2" font-family="DejaVu Sans" font-size="11.00">CI &amp; Qualität (ein verify&#45;Job, Python 3.12)</text>
-<text text-anchor="middle" x="2468" y="-162.2" font-family="DejaVu Sans" font-size="11.00">Ruff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)</text>
-<text text-anchor="middle" x="2468" y="-150.2" font-family="DejaVu Sans" font-size="11.00">Preflight · echte Tests · .gitleaks.toml · .pymarkdown.json</text>
-<text text-anchor="middle" x="2468" y="-138.2" font-family="DejaVu Sans" font-size="11.00">pyproject.toml (Ruff) · requirements&#45;dev.txt · Makefile (make test)</text>
+<polygon fill="#d5e8d4" stroke="#375623" points="2649,-188 2646,-192 2625,-192 2622,-188 2263,-188 2263,-130 2649,-130 2649,-188"/>
+<text text-anchor="middle" x="2456" y="-174.2" font-family="DejaVu Sans" font-size="11.00">CI &amp; Qualität (ein verify&#45;Job, Python 3.12)</text>
+<text text-anchor="middle" x="2456" y="-162.2" font-family="DejaVu Sans" font-size="11.00">Ruff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)</text>
+<text text-anchor="middle" x="2456" y="-150.2" font-family="DejaVu Sans" font-size="11.00">Preflight · echte Tests · .gitleaks.toml · .pymarkdown.json</text>
+<text text-anchor="middle" x="2456" y="-138.2" font-family="DejaVu Sans" font-size="11.00">pyproject.toml (Ruff) · requirements&#45;dev.txt · Makefile (make test)</text>
 </g>
 <!-- root&#45;&gt;ci -->
 <g id="edge9" class="edge">
 <title>root&#45;&gt;ci</title>
-<path fill="none" stroke="#7f7f7f" d="M1468.78,-251.93C1615.72,-248.94 1970.95,-238.07 2266,-200 2288.05,-197.16 2311.31,-193.33 2333.89,-189.17"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2334.41,-191.21 2339.92,-188.05 2333.64,-187.08 2334.41,-191.21"/>
+<path fill="none" stroke="#7f7f7f" d="M1468.65,-251.84C1614.06,-248.72 1963.6,-237.59 2254,-200 2276.05,-197.15 2299.31,-193.32 2321.89,-189.16"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2322.41,-191.2 2327.92,-188.03 2321.64,-187.07 2322.41,-191.2"/>
 </g>
 <!-- res -->
 <g id="node24" class="node">
 <title>res</title>
-<polygon fill="#e2efda" stroke="#375623" points="3074.5,-194 3071.5,-198 3050.5,-198 3047.5,-194 2679.5,-194 2679.5,-124 3074.5,-124 3074.5,-194"/>
-<text text-anchor="middle" x="2877" y="-180.2" font-family="DejaVu Sans" font-size="11.00">ergebnisse/ &#160;· &#160;314 MD gesamt</text>
-<text text-anchor="middle" x="2877" y="-168.2" font-family="DejaVu Sans" font-size="11.00">rekursion/ 000–050 (51) · Systemtests · red&#45;queen · mandat</text>
-<text text-anchor="middle" x="2877" y="-156.2" font-family="DejaVu Sans" font-size="11.00">versionierung · zwei&#45;personen · Diagramme · ci&#45;integration</text>
-<text text-anchor="middle" x="2877" y="-144.2" font-family="DejaVu Sans" font-size="11.00">mcp&#45;kontext · mcp&#45;kalibrierung · adaptive&#45;forgetting · inferenz&#45;shacl</text>
-<text text-anchor="middle" x="2877" y="-132.2" font-family="DejaVu Sans" font-size="11.00">runner&#45;8&#45;stufen · skill&#45;interpreter</text>
+<polygon fill="#e2efda" stroke="#375623" points="3062.5,-194 3059.5,-198 3038.5,-198 3035.5,-194 2667.5,-194 2667.5,-124 3062.5,-124 3062.5,-194"/>
+<text text-anchor="middle" x="2865" y="-180.2" font-family="DejaVu Sans" font-size="11.00">ergebnisse/ &#160;· &#160;316 MD gesamt</text>
+<text text-anchor="middle" x="2865" y="-168.2" font-family="DejaVu Sans" font-size="11.00">rekursion/ 000–051 (52) · Systemtests · red&#45;queen · mandat</text>
+<text text-anchor="middle" x="2865" y="-156.2" font-family="DejaVu Sans" font-size="11.00">versionierung · zwei&#45;personen · Diagramme · ci&#45;integration</text>
+<text text-anchor="middle" x="2865" y="-144.2" font-family="DejaVu Sans" font-size="11.00">mcp&#45;kontext · mcp&#45;kalibrierung · adaptive&#45;forgetting · inferenz&#45;shacl</text>
+<text text-anchor="middle" x="2865" y="-132.2" font-family="DejaVu Sans" font-size="11.00">runner&#45;8&#45;stufen · skill&#45;interpreter · connector&#45;binding</text>
 </g>
 <!-- root&#45;&gt;res -->
 <g id="edge10" class="edge">
 <title>root&#45;&gt;res</title>
-<path fill="none" stroke="#7f7f7f" d="M1468.77,-253.72C1659.97,-254.96 2213.82,-253.29 2670,-200 2682.03,-198.59 2694.41,-196.88 2706.84,-194.97"/>
-<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2707.34,-197.02 2712.95,-194.02 2706.69,-192.87 2707.34,-197.02"/>
+<path fill="none" stroke="#7f7f7f" d="M1468.81,-253.68C1658.83,-254.8 2206.67,-252.82 2658,-200 2670.03,-198.59 2682.4,-196.88 2694.84,-194.97"/>
+<polygon fill="#7f7f7f" stroke="#7f7f7f" points="2695.34,-197.01 2700.95,-194.01 2694.69,-192.86 2695.34,-197.01"/>
 </g>
 <!-- kn_life -->
 <g id="node6" class="node">
@@ -267,11 +267,11 @@
 <g id="node16" class="node">
 <title>py</title>
 <polygon fill="#fff2cc" stroke="#bf8f00" points="2344.5,-82 2341.5,-86 2320.5,-86 2317.5,-82 1821.5,-82 1821.5,0 2344.5,0 2344.5,-82"/>
-<text text-anchor="middle" x="2083" y="-68.2" font-family="DejaVu Sans" font-size="11.00">Prozesse (18)</text>
+<text text-anchor="middle" x="2083" y="-68.2" font-family="DejaVu Sans" font-size="11.00">Prozesse (19)</text>
 <text text-anchor="middle" x="2083" y="-56.2" font-family="DejaVu Sans" font-size="11.00">fast_write_router · reflective_agent · ingestion_hook · gaama_extract</text>
 <text text-anchor="middle" x="2083" y="-44.2" font-family="DejaVu Sans" font-size="11.00">trust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server</text>
 <text text-anchor="middle" x="2083" y="-32.2" font-family="DejaVu Sans" font-size="11.00">shared_memory · lru_cache · evaluator_version (Red&#45;Queen) · mcp_catalog · shacl_inferenz</text>
-<text text-anchor="middle" x="2083" y="-20.2" font-family="DejaVu Sans" font-size="11.00">lifecycle_runner (8 Stufen) · skill_interpreter (ReAct)</text>
+<text text-anchor="middle" x="2083" y="-20.2" font-family="DejaVu Sans" font-size="11.00">lifecycle_runner (8 Stufen) · skill_interpreter (ReAct) · connector_binding (SHACL)</text>
 <text text-anchor="middle" x="2083" y="-8.2" font-family="DejaVu Sans" font-size="11.00">mandate (Mandat: attenuate&#45;nie&#45;expand)</text>
 </g>
 <!-- data&#45;&gt;py -->
