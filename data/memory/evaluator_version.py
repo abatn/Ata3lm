@@ -568,8 +568,8 @@ def make_llm_pairwise_judge(
                 response_format={"type": "json_object"},
                 messages=[{"role": "user", "content": _pair_prompt(item_a, item_b)}],
             )
-            raw = _message_text(resp.choices[0].message)
-            return _parse_pair_winner(raw)
+            raw = _message_text(resp.choices[0].message)  # pragma: no cover - Modell-Antwortform
+            return _parse_pair_winner(raw)  # pragma: no cover
         except Exception as e:  # fail-soft
             if log is not None:
                 log.append({"fallback": "rule_length", "error": str(e)[:160]})

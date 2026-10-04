@@ -106,9 +106,9 @@ def parse_transition_delta(text: str, k: int):
             max_tokens=2000,
             temperature=0.0,
         )
-        msg = resp.choices[0].message
-        raw = msg.content or getattr(msg, "reasoning_content", None) or ""
-        return _matrix_from_raw(raw, k)
+        msg = resp.choices[0].message  # pragma: no cover - Modell-Antwortform
+        raw = msg.content or getattr(msg, "reasoning_content", None) or ""  # pragma: no cover
+        return _matrix_from_raw(raw, k)  # pragma: no cover
     except Exception:
         return None  # NOOP: Fehler -> überspringen
 
