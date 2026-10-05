@@ -108,7 +108,7 @@ def test_agent_max_steps(tmp_path):
 
 
 def test_agent_memory_write_in_process_mcp(tmp_path, monkeypatch):
-    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier3": tmp_path / "mcp"})
+    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier2": tmp_path / "mcp-t2", "tier3": tmp_path / "mcp"})
     llm = _llm(
         [
             {"tool": "memory.write", "args": {"scope": "tier3", "key": "k.md", "content": "hi", "trust": "green"}},

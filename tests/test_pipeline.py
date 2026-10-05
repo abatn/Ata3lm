@@ -91,8 +91,28 @@ def test_write_update_supersediert_bitemporal(tmp_path):
         structured_dir=s,
         tier3_dir=t3,
     )
-    assert out["action"] == "write-update" and out["superseded"] == 0
+    assert out["action"] == "write-update" and out["superseded"]["old_found"] is False  # kein Vorgänger
     assert (s / "hauptstadt-x.md").exists() and not (t3 / "hauptstadt-x.md").exists()
+
+
+def test_write_update_archiviert_alten_stand(tmp_path):
+    """§10.7: bestehender Stand wird archiviert (nicht gelöscht) (S2)."""
+    s, t3 = _dirs(tmp_path)
+    s.mkdir(parents=True)
+    (s / "hauptstadt-x.md").write_text("ALT", encoding="utf-8")
+    out = pipeline.route_and_store(
+        question="Hauptstadt X",
+        fact="NEU",
+        correct="NEU",
+        classify_fn=_cls("write-update"),
+        mandate_obj=_mandate(),
+        now=5.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert out["superseded"]["old_found"] is True
+    assert (s / "hauptstadt-x.superseded-5.md").read_text(encoding="utf-8") == "ALT"
+    assert (s / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"
 
 
 def test_trust_entfernt_pii_vor_store(tmp_path):
@@ -168,7 +188,7 @@ def test_drift_gate_ok_bei_stabilitaet(tmp_path):
     s, t3 = _dirs(tmp_path)
     import bias_monitor
 
-    drift = bias_monitor.BiasDriftMonitor(baseline={"non-write": 0.5, "write": 0.5}, tau=0.5)
+    drift = bias_monitor.BiasDriftMonitor(baseline={"write-new": 1.0}, tau=0.5)
     out = pipeline.route_and_store(
         question="Q",
         fact="F",
@@ -230,3 +250,37 @@ def test_export_shared_nach_tier1(tmp_path):
     path = pipeline.export_shared(tier, tmp_path / "tier1")
     assert (tmp_path / "tier1" / "shared_store.jsonl").exists()
     assert path.endswith("shared_store.jsonl")
+
+
+def test_router_gate_ask_blockiert_write(tmp_path):
+    """§10.4: Router-Gate ask -> KEIN Write vor Freigabe (S1)."""
+    s, t3 = _dirs(tmp_path)
+    out = pipeline.route_and_store(
+        question="Q",
+        fact="F",
+        correct="C",
+        classify_fn=lambda q, f, c: {"class": "write-new", "gate": "ask"},
+        mandate_obj=_mandate(),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert out["ok"] is False and out["gate"] == "ask"
+    assert not s.exists()  # kein Write
+
+
+def test_router_uncertain_blockiert_write(tmp_path):
+    """§10.4: Router uncertain -> Human-Gate, KEIN Write (S1)."""
+    s, t3 = _dirs(tmp_path)
+    out = pipeline.route_and_store(
+        question="Q",
+        fact="F",
+        correct="C",
+        classify_fn=_cls("uncertain"),
+        mandate_obj=_mandate(),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert out["ok"] is False and out["gate"] == "ask"
+    assert not s.exists()

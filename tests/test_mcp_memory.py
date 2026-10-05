@@ -95,3 +95,44 @@ def test_build_server_mit_echtem_mcp_sdk():
     server = m.build_server()
     tools = set(server._tool_manager._tools.keys())
     assert {"memory.read", "memory.write", "memory.search", "memory.consolidate", "memory.link"} <= tools
+
+
+def test_write_minimiert_pii_vor_store(tmp_path, monkeypatch):
+    """§9.2a: PII wird VOR dem Store entfernt (F2)."""
+    scopes = _setup(tmp_path, monkeypatch)
+    r = m.write("structured", "pii.md", "Contact audit-person@example.test bitte melden", trust="green")
+    assert r["ok"] is True
+    text = (scopes["structured"] / "pii.md").read_text(encoding="utf-8")
+    assert "audit-person@example.test" not in text and "Contact" in text
+
+
+def test_green_ueberschreibt_blue_nicht(tmp_path, monkeypatch):
+    """§9.2c/§10.7: green (Vorschlag) darf bestätigtes blue NICHT überschreiben (F1)."""
+    scopes = _setup(tmp_path, monkeypatch)
+    assert m.write("structured", "cur.md", "Bestätigt", trust="blue")["ok"] is True
+    r = m.write("structured", "cur.md", "Vorschlag", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
+
+
+def test_tier1_nur_blue(tmp_path, monkeypatch):
+    """§9.2c/§9.3: kuratiertes tier1 nur mit trust=blue."""
+    scopes = _setup(tmp_path, monkeypatch)
+    r = m.write("tier1", "curated.md", "Vorschlag", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert not (scopes["tier1"] / "curated.md").exists()
+    assert m.write("tier1", "curated.md", "Kuratiert", trust="blue")["ok"] is True
+
+
+def test_trust_db_kaputt_wird_ignoriert(tmp_path, monkeypatch):
+    scopes = _setup(tmp_path, monkeypatch)
+    (scopes["tier2"] / "mcp-trust.json").write_text("{kein json", encoding="utf-8")
+    assert m.write("structured", "x.md", "y", trust="green")["ok"] is True
+
+
+def test_write_fail_closed_ohne_tier2(tmp_path, monkeypatch):
+    """§9.2c/§9.3: ohne Trust-Metadaten KEIN Write (fail-closed, nie fail-open)."""
+    monkeypatch.setattr(m, "SCOPES", {"structured": tmp_path / "structured"})
+    r = m.write("structured", "x.md", "y", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert not (tmp_path / "structured" / "x.md").exists()

@@ -32,6 +32,8 @@ class Fact:
     recorded_at: str = ""
     superseded_at: Optional[str] = None  # None = weiterhin geglaubt
     supersedes: int = -1  # Index des abgelösten Fakts
+    # Transaction-Zeit, zu der `valid_to` BEKANNT wurde (für `as_of` vor der Korrektur).
+    valid_to_known_at: Optional[str] = None
 
 
 class BiTemporalStore:
@@ -48,6 +50,7 @@ class BiTemporalStore:
             if f.subject == subject and f.predicate == predicate and f.superseded_at is None and f.obj != obj:
                 f.valid_to = valid_from  # Welt: alter Fakt endet, als neuer begann
                 f.superseded_at = recorded_at  # Wissen: alter Fakt verworfen bei Speicherung
+                f.valid_to_known_at = recorded_at  # Ende erst ab jetzt bekannt
                 superseded = i
         new = Fact(
             subject,
@@ -63,15 +66,22 @@ class BiTemporalStore:
         return {"index": len(self.facts) - 1, "superseded": superseded, "fact": asdict(new)}
 
     def as_of(self, valid_time: str, knowledge_time: str) -> list[dict]:
-        """Bitemporal: „Was glaubten wir am knowledge_time über valid_time?" """
-        return [
-            asdict(f)
-            for f in self.facts
-            if f.valid_from <= valid_time
-            and (f.valid_to is None or valid_time < f.valid_to)
-            and f.recorded_at <= knowledge_time
-            and (f.superseded_at is None or knowledge_time < f.superseded_at)
-        ]
+        """Bitemporal: „Was glaubten wir am knowledge_time über valid_time?"
+
+        §10.7 (Engram: „keep the history"): das **Ende** eines Fakts (`valid_to`) zählt
+        nur, wenn es zum knowledge_time **schon bekannt** war (`valid_to_known_at`) —
+        sonst galt der Fakt als offen (F4).
+        """
+        out = []
+        for f in self.facts:
+            if f.recorded_at > knowledge_time or f.valid_from > valid_time:
+                continue
+            if f.valid_to is not None:
+                known_at = f.valid_to_known_at or f.recorded_at
+                if knowledge_time >= known_at and valid_time >= f.valid_to:
+                    continue  # Ende bekannt und valid_time liegt danach -> Fakt abgelöst
+            out.append(asdict(f))
+        return out
 
     def world_state_as_of(self, valid_time: str) -> list[dict]:
         """Nur valid time: was war am valid_time tatsächlich wahr (egal wann gelernt)."""

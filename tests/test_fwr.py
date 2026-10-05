@@ -101,3 +101,13 @@ def test_decide_alle_zweige():
     assert fwr._decide(False, False, True) == ("write-update", "ask")
     assert fwr._decide(False, True, True) == ("uncertain", "ask")  # large korrekt -> kein write
     assert fwr._decide(False, False, False) == ("uncertain", "ask")
+
+
+def test_import_ohne_key_kein_crash(monkeypatch):
+    """A9: Import ohne OPENAI_API_KEY crasht nicht (lazy Client)."""
+    import importlib
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    mod = importlib.reload(fwr)
+    assert mod._client is None

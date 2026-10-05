@@ -8,6 +8,7 @@ realen Parser `_matrix_from_raw` (echter Code, echte Eingabe) als Test-Seam gepr
 import ingestion_hook
 import lifecycle_runner as lr
 import lru_cache
+import mandate
 import reflective_agent as ra
 
 
@@ -93,3 +94,35 @@ def test_ueberschreibungen(tmp_path):
 
 def test_stage_mechanism_vollstaendig():
     assert set(lr.STAGE_MECHANISM) == set(lr.STAGES)
+
+
+def test_denied_lifecycle_stoppt_writes(tmp_path, monkeypatch):
+    """§9.1/§9.2a: bei Mandats-deny kein Action-Write, revised=False, PII gefiltert (F3)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    deny = mandate.Mandate(
+        mandate_id="d",
+        principal="P",
+        agent="a",
+        actions=frozenset({"read:repo"}),
+        resources=frozenset({"data/memory"}),
+        amount_limit=1.0,
+        max_uses=100,
+        valid_from=0.0,
+        valid_until=1e12,
+        approval_threshold=0.5,
+    )
+    wm = lru_cache.WorkingMemory(capacity=15)
+    out = lr.run_cycle(
+        "Wo?",
+        "Kontakt: max@example.com bitte melden",
+        "x",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        wm=wm,
+        mandate_obj=deny,
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is False
+    assert out["results"]["Handeln"]["skipped"] is True
+    assert out["results"]["Wissen+"]["revised"] is False
+    assert "max@example.com" not in wm.search("raw:wo")["value"]  # PII entfernt

@@ -33,10 +33,19 @@ from openai import OpenAI
 SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")
 LARGE_MODEL = os.environ.get("FWR_LARGE_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
 
-_client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY", ""),
-    base_url=os.environ.get("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1"),
-)
+_client = None
+
+
+def _get_client():
+    """Lazy OpenAI-Client (A9): kein Crash beim Import ohne OPENAI_API_KEY."""
+    global _client
+    if _client is None:
+        _client = OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY", ""),
+            base_url=os.environ.get("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+        )
+    return _client
+
 
 REFUSAL_MARKERS = [
     "i don't know",
@@ -58,7 +67,7 @@ REFUSAL_MARKERS = [
 def _ask(model: str, question: str, memory: Optional[str] = None, max_tokens: int = 2000) -> str:
     base = "Answer in ONE short sentence. If you do not know the answer, reply exactly: I don't know.\n\n"
     prompt = base + question if not memory else f"{base}Use this knowledge:\n{memory}\n\nQuestion: {question}"
-    r = _client.chat.completions.create(
+    r = _get_client().chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,

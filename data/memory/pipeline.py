@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import approval
-import bi_temporal
 import bias_monitor
 import mandate
 import trust
@@ -82,10 +81,29 @@ def route_and_store(
         return {"ok": False, "gate": "deny", "reason": dec["reason"], "steps": steps}
 
     # 2) Fast Write Routing (Klassifikation injiziert – im Betrieb der echte Router)
-    cls = classify_fn(question, fact, correct)["class"]
+    router = classify_fn(question, fact, correct)
+    cls = router["class"]
     steps.append(("fwr", cls))
     if cls == "non-write":
         return {"ok": True, "action": "none", "gate": "allow", "steps": steps}
+    if cls not in ("write-new", "write-update"):
+        # §10.4: Router unsicher (uncertain) -> Human-Gate, KEIN Write
+        return {
+            "ok": False,
+            "action": cls,
+            "gate": "ask",
+            "reason": "Router uncertain -> Human-Gate (§10.4)",
+            "steps": steps,
+        }
+    if router.get("gate") == "ask" and not self_update:
+        # §10.4: neue Quelle (write-new) / self_update (write-update) -> Freigabe vor Speicherung
+        return {
+            "ok": False,
+            "action": cls,
+            "gate": "ask",
+            "reason": "Router-Gate ask: Freigabe erforderlich (§10.4)",
+            "steps": steps,
+        }
 
     # 3) Trust: PII vor dem Store entfernen (§9.2)
     clean = trust.PIIFilter().minimize(fact)
@@ -102,27 +120,39 @@ def route_and_store(
         if state != "approved":
             return {"ok": False, "gate": "ask", "approval": state, "steps": steps}
 
-    # 5) Write: write-new → structured + tier3 · write-update → Bi-Temporal-Supersede
+    # 5) Drift-Gate VOR dem Write (§9.1c): bei ask KEIN Write
+    gate = "allow"
+    if drift is not None:
+        d = drift.observe({cls: 1.0}, step=1)  # echte Verteilung des Laufs (nicht konstant)
+        gate = d["gate"]
+        steps.append(("drift", d["DI"]))
+        if gate == "ask":
+            return {
+                "ok": False,
+                "action": cls,
+                "gate": "ask",
+                "reason": "Drift-Gate ask: kein Write vor Freigabe (§9.1c)",
+                "steps": steps,
+            }
+
+    # 6) Write: write-new → structured + tier3 · write-update → alten Stand archivieren (§10.7)
     Path(structured_dir).mkdir(parents=True, exist_ok=True)
     Path(tier3_dir).mkdir(parents=True, exist_ok=True)
     name = f"{_slug(question)}.md"
-    written = [str(Path(structured_dir) / name)]
-    (Path(structured_dir) / name).write_text(clean, encoding="utf-8")
-    superseded = None
+    structured_file = Path(structured_dir) / name
+    written, superseded = [], None
     if cls == "write-new":
+        structured_file.write_text(clean, encoding="utf-8")
         (Path(tier3_dir) / name).write_text(clean, encoding="utf-8")
-        written.append(str(Path(tier3_dir) / name))
-    else:  # write-update → alten Fakt invalidieren (nicht löschen)
-        bt = bi_temporal.BiTemporalStore()
-        bt.assert_fact(question, "answer", "alt", valid_from=str(now), recorded_at=str(now))
-        res = bt.assert_fact(question, "answer", correct, valid_from=str(now), recorded_at=str(now))
-        superseded = res["superseded"]
+        written = [str(structured_file), str(Path(tier3_dir) / name)]
+    else:  # write-update → alten Stand archivieren (invalidieren, NICHT löschen)
+        if structured_file.exists():
+            archived = Path(structured_dir) / f"{_slug(question)}.superseded-{int(now)}.md"
+            archived.write_text(structured_file.read_text(encoding="utf-8"), encoding="utf-8")
+            superseded = {"key": _slug(question), "old_found": True, "archived": str(archived)}
+        else:
+            superseded = {"key": _slug(question), "old_found": False, "archived": None}
+        structured_file.write_text(clean, encoding="utf-8")
+        written = [str(structured_file)]
     steps.append(("write", cls))
-
-    # 6) Drift-Gate (bias_monitor → alle)
-    gate = "allow"
-    if drift is not None:
-        d = drift.observe({"non-write": 0.5, "write": 0.5}, step=1)
-        gate = d["gate"]
-        steps.append(("drift", d["DI"]))
     return {"ok": True, "action": cls, "written": written, "superseded": superseded, "gate": gate, "steps": steps}

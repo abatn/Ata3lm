@@ -32,9 +32,16 @@ def test_as_of_kennt_nur_was_wir_damals_wussten():
     assert [f["obj"] for f in st.as_of("2024-02-01", "2024-02-01")] == ["Globex"]
     assert [f["obj"] for f in st.as_of("2024-04-01", "2024-04-01")] == ["Moonshot"]
     # Wissen vom 2024-04-01 kennt bereits den Supersede (2024-03-15) -> nichts mehr
-    assert st.as_of("2024-02-01", "2024-04-01") == []
+    # F4: bei Kenntnis 2024-04-01 ist der alte Fakt (Globex, gültig bis 2024-03-01) korrekt.
+    assert [f["obj"] for f in st.as_of("2024-02-01", "2024-04-01")] == ["Globex"]
     # Wissen vom 2024-03-01 (vor dem Supersede) hielt Globex noch für gültig
     assert [f["obj"] for f in st.as_of("2024-02-01", "2024-03-01")] == ["Globex"]
+
+
+def test_as_of_vor_bekanntwerden_der_korrektur():
+    """F4: Wissen vom 2024-03-10 (vor Kenntnis der Korrektur) → Globex, nicht []."""
+    st = _store()
+    assert [f["obj"] for f in st.as_of("2024-03-10", "2024-03-10")] == ["Globex"]
 
 
 def test_world_state_und_knowledge_as_of_einzeln():

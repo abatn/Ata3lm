@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import trust as trust_mod
+
 ROOT = Path(os.environ.get("MCP_MEMORY_ROOT", "/home/opc/knowledge-agent"))
 
 # Tri-Color Trust (ATHENA): Blue = Mensch, Green = KI-Vorschlag, Red = Verstoß
@@ -64,6 +66,27 @@ def _path(scope: str, key: str) -> Path:
     return base / key
 
 
+def _trust_db_path() -> Optional[Path]:
+    """Pfad der Tri-Color-Trust-DB (None, wenn kein `tier2`-Scope konfiguriert)."""
+    base = SCOPES.get("tier2")
+    return (base / "mcp-trust.json") if base else None
+
+
+def _load_trust_db(p: Path) -> dict:
+    """Tri-Color-Trust je `scope/key` (blue = bestätigt, green = Vorschlag)."""
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_trust_db(p: Path, db: dict) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(db, ensure_ascii=False), encoding="utf-8")
+
+
 def read(scope: str, key: str) -> dict:
     """memory.read – Inhalt einer Ressource aus einem Scope lesen."""
     path = _path(scope, key)
@@ -78,6 +101,10 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
     Blue = menschlich bestätigt (confirmed) · Green = KI-Vorschlag (proposed,
     pending validation) · Red = Constraint-Verstoß (rejected, kein Write).
     Quelle: „AI can only propose; it cannot auto-commit."
+
+    Gate (§9.2c/§9.3/§10.7): `green` darf ein **bestätigtes** `blue` **nicht**
+    überschreiben; `tier1` (kuratiert) nur mit `blue`. **§9.2a:** PII wird VOR
+    dem Store entfernt (`trust.PIIFilter.minimize`).
     """
     if trust not in TRUST_COLORS:
         return {"ok": False, "reason": f"ungültige Trust-Farbe {trust!r} (erlaubt: {TRUST_COLORS})"}
@@ -90,8 +117,39 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
             "key": key,
             "reason": "Tri-Color Red: Constraint-Verstoß – nicht gespeichert",
         }
+    db_path = _trust_db_path()
+    if db_path is None:
+        # §9.2c/§9.3: FAIL-CLOSED — ohne Trust-Metadaten KEIN Write (nie fail-open).
+        return {
+            "ok": False,
+            "status": "rejected",
+            "scope": scope,
+            "key": key,
+            "reason": "Trust-Metadaten (tier2) nicht verfügbar → fail-closed (§9.2c/§9.3)",
+        }
+    db = _load_trust_db(db_path)
+    db_key = f"{scope}/{key}"
+    if db.get(db_key) == "blue" and trust == "green":
+        return {
+            "ok": False,
+            "status": "rejected",
+            "scope": scope,
+            "key": key,
+            "reason": "green (Vorschlag) darf bestätigtes blue nicht überschreiben (§9.2c/§10.7)",
+        }
+    if scope == "tier1" and trust != "blue":
+        return {
+            "ok": False,
+            "status": "rejected",
+            "scope": scope,
+            "key": key,
+            "reason": "tier1 (kuratiert) nur mit trust=blue + Approval (§9.2c/§9.3)",
+        }
+    clean = trust_mod.PIIFilter().minimize(content)  # §9.2a: PII vor dem Store entfernen
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    path.write_text(clean, encoding="utf-8")
+    db[db_key] = trust
+    _save_trust_db(db_path, db)
     status = "confirmed" if trust == "blue" else "proposed"
     return {
         "ok": True,
@@ -99,7 +157,7 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
         "trust": trust,
         "scope": scope,
         "key": key,
-        "bytes": len(content.encode("utf-8")),
+        "bytes": len(clean.encode("utf-8")),
     }
 
 

@@ -82,6 +82,9 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 055 | `055-verifikation-verifikation.md` | System-Iteration (Zwei-Personen-Gate-Verifikation) | approved: Batnini, 2026-10-04 | siehe File |
 | 056 | `056-reverse-engineering-vollstaendig.md` | System-Iteration (Reverse Engineering 8 Schichten) | approved: Batnini, 2026-10-04 | siehe File |
 | 057 | `057-recursion-runner.md` | System-Iteration (5-Phasen-Runner SEAA) | approved: Batnini, 2026-10-04 | siehe File |
+| 058 | `058-fixes-p1.md` | System-Iteration (E2E-Fixes P1: F2/F1/S1) | approved: Batnini, 2026-10-05 | siehe File |
+| 059 | `059-fixes-p2.md` | System-Iteration (E2E-Fixes P2: F3/S2/S3) | approved: Batnini, 2026-10-05 | siehe File |
+| 060 | `060-fixes-p3.md` | System-Iteration (E2E-Fixes P3: F4/F5/A9) | approved: Batnini, 2026-10-05 | siehe File |
 
 ## Guardrail
 

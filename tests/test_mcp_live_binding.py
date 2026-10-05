@@ -74,3 +74,22 @@ def test_load_servers_ohne_config(monkeypatch):
 
     monkeypatch.setattr(mlb, "_load_probe", _boom)
     assert mlb.load_servers() == {}
+
+
+def test_call_tool_live_rejected_write(tmp_path):
+    """F5: fachliche Ablehnung (inner ok=false) → outer ok=false (Transport bleibt ok)."""
+    out = mlb.call_tool_live(
+        "memory",
+        "memory.write",
+        {"scope": "tier3", "key": "r.md", "content": "x", "trust": "red"},
+        servers=_own(tmp_path),
+    )
+    assert out["ok"] is False and out["transport_ok"] is True
+
+
+def test_inner_ok_zweige():
+    assert mlb._inner_ok(['{"ok": false}']) is False
+    assert mlb._inner_ok(['{"ok": true}']) is True
+    assert mlb._inner_ok(["nicht json"]) is True
+    assert mlb._inner_ok(['{"x": 1}']) is True
+    assert mlb._inner_ok([]) is True

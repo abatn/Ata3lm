@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 
@@ -89,6 +90,18 @@ def cross_endpoint_correlation(records: list) -> dict:
     return {fp: sorted(s) for fp, s in groups.items()}
 
 
+def _inner_ok(content: list) -> bool:
+    """Fachlicher Erfolg aus dem inneren JSON (`ok`); fehlt/kein JSON → True."""
+    for c in content:
+        try:
+            j = json.loads(c)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(j, dict) and "ok" in j:
+            return bool(j["ok"])
+    return True
+
+
 def call_tool_live(
     server_name: str, tool: str, arguments: dict | None = None, *, servers: dict | None = None, timeout: float = 60.0
 ) -> dict:
@@ -99,10 +112,13 @@ def call_tool_live(
         return {"server": server_name, "tool": tool, "ok": False, "error": "Server nicht (aktiv/lokal) konfiguriert"}
     try:
         out = asyncio.run(_call(srv, tool, arguments or {}, timeout))
+        transport_ok = out["ok"]
+        inner_ok = _inner_ok(out["content"])  # F5: fachlicher Erfolg (inneres JSON `ok`)
         return {
             "server": server_name,
             "tool": tool,
-            "ok": out["ok"],
+            "ok": transport_ok and inner_ok,  # Transport UND fachlich
+            "transport_ok": transport_ok,
             "content": out["content"],
             "fingerprint": tool_path_fingerprint([(server_name, tool)]),
         }

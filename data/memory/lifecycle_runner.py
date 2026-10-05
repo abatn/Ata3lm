@@ -29,6 +29,7 @@ import lru_cache
 import mandate
 import pipeline
 import reflective_agent
+import trust
 
 STAGES = (
     "Erfahrung",
@@ -77,7 +78,7 @@ def _default_mandate() -> "mandate.Mandate":
 def _stage_erfahrung(ctx: dict) -> dict:
     entities = ingestion_hook.resolve_entities(ctx["fact"])
     key = "raw:" + _slug(ctx["question"])
-    ctx["wm"].store(key, ctx["fact"])
+    ctx["wm"].store(key, trust.PIIFilter().minimize(ctx["fact"]))  # §9.2a: PII vor M
     ctx["entities"] = [e.get("span", str(e)) if isinstance(e, dict) else str(e) for e in entities]
     return {"stage": "Erfahrung", "entities": ctx["entities"], "stored": key}
 
@@ -121,7 +122,17 @@ def _stage_nicht_kognition(ctx: dict) -> dict:
 
 
 def _stage_handeln(ctx: dict) -> dict:
-    action = ctx["results"]["Gedächtnis"]["action"]
+    ged = ctx["results"]["Gedächtnis"]
+    if not ged.get("ok"):
+        # §9.1: Ablehnung (deny/ask) begrenzt nachfolgende Änderungen → KEIN Action-Write
+        return {
+            "stage": "Handeln",
+            "action": None,
+            "stored": None,
+            "skipped": True,
+            "reason": "Gedächtnis-Gate nicht ok",
+        }
+    action = ged.get("action")
     key = "action:" + _slug(ctx["question"])
     ctx["wm"].store(key, str(action))
     return {
@@ -135,7 +146,8 @@ def _stage_handeln(ctx: dict) -> dict:
 def _stage_wissen_plus(ctx: dict) -> dict:
     monitor = bias_monitor.BiasDriftMonitor(baseline=ctx["drift_baseline"], tau=ctx["tau"])
     d = monitor.observe({"non-write": 0.5, "write": 0.5}, step=1)
-    return {"stage": "Wissen+", "DI": d["DI"], "gate": d["gate"], "revised": True}
+    revised = bool(ctx["results"]["Gedächtnis"].get("ok"))  # §9: keine Revision nach Ablehnung
+    return {"stage": "Wissen+", "DI": d["DI"], "gate": d["gate"], "revised": revised}
 
 
 _STAGE_FN = {
