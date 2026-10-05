@@ -1,6 +1,6 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + Runner 048 + Interpreter 050 + Connector-Binding 051 + Reverse Engineering 056) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + Runner 048 + Interpreter 050 + Connector-Binding 051 + Reverse Engineering 056 + 5-Phasen-Runner 057) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
 > Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
 > `skills/**`, `connectors/**`, `AGENTS.md`.
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
@@ -8,12 +8,13 @@
 
 ## 0. Kernbefund (Ist-Stand, verifiziert)
 
-- **Module in `data/memory/**`: 20** (18 top-level + `shared/shared_memory.py` +
-  `tier3-working/lru_cache.py`). *(Selbst-Korrektur: früher 19 gezählt — Glob übersah Unterordner.)*
-- **Import-Graph (echt, 8 Gruppen):** `pipeline`→{approval, bi_temporal, bias_monitor, fast_write_router, mandate, trust};
+- **Module in `data/memory/**`: 21** (19 top-level + `shared/shared_memory.py` +
+  `tier3-working/lru_cache.py`). *(Selbst-Korrektur: früher 19/20 gezählt — Glob übersah Unterordner.)*
+- **Import-Graph (echt, 9 Gruppen):** `pipeline`→{approval, bi_temporal, bias_monitor, fast_write_router, mandate, trust};
   `connector_binding`→{bias_monitor, evaluator_version, fast_write_router, ingestion_hook, mandate, mcp_memory_server, pipeline, reflective_agent, shacl_inferenz, trust};
   `lifecycle_runner`→{bias_monitor, ingestion_hook, mandate, pipeline, reflective_agent};
   `skill_interpreter`→{mandate, mcp_memory_server, pipeline}; `reflective_agent`→{evaluator_version, mandate, pipeline};
+  `recursion_runner`→{evaluator_version, ingestion_hook, pipeline, reflective_agent};
   `gaama_extract`→{fast_write_router, trust}; `ingestion_hook`→{pipeline}; `mcp_live_binding`→{mcp_catalog}.
 - **Code-Kanten: 7 direkte** + **Pipeline-Kanten** (`pipeline.py` ruft 7 Module:
   `mandate`, `trust`, `approval`, `bi_temporal`, `bias_monitor`, `fast_write_router`,
@@ -47,7 +48,7 @@ flowchart TB
   LAW["AGENTS.md §1–§11"]:::docu
   MAND["mandate.md"]:::docu
 
-  subgraph PROC["Prozesse (20)"]
+  subgraph PROC["Prozesse (21)"]
     FWR["fast_write_router"]:::code
     REF["reflective_agent"]:::code
     ING["ingestion_hook"]:::code
@@ -68,6 +69,7 @@ flowchart TB
     SINT["skill_interpreter"]:::code
     CONNB["connector_binding"]:::code
     MLIVE["mcp_live_binding"]:::code
+    RRUN["recursion_runner"]:::code
   end
 
   subgraph TIER["Gedächtnis-Tiers"]
@@ -79,7 +81,7 @@ flowchart TB
   SK["skills/ (14)"]:::docu
   CN["connectors/ (17)"]:::docu
   MCP["MCP-Server (19/16 aktiv)"]:::code
-  TST["tests/ + CI (321 Tests, 100 %)"]:::code
+  TST["tests/ + CI (324 Tests, 100 %)"]:::code
   CIC["CI verify (Python 3.12, ein Job)"]:::code
 
   %% CODE-Kanten (verdrahtet)
@@ -102,6 +104,9 @@ flowchart TB
   CONNB -->|"CODE: Record (MCP in-process)"| MCPSRV
   MLIVE -->|"CODE: stdio tools/call (live)"| MCP
   MLIVE -->|"CODE: load_servers + TTC-Katalog"| MCAT
+  RRUN -->|"CODE: 5 Phasen (Konstrukt→Revise)"| REF
+  RRUN -->|"CODE: Akt → pipeline"| PIPE
+  RRUN -->|"CODE: Compare → evaluator_version"| EV
   LRU -->|"CODE: evicted-index.md"| T2
   GEX -->|"CODE: build_graph (5 Kantentypen)"| LRU
   GEX -->|"CODE: route_extracted_facts (§10.1)"| FWR
@@ -183,6 +188,7 @@ flowchart TB
 | shacl_inferenz → (cognize) | Inferenz **vor** Validierung | CONSTRUCT-Fixpunkt, dann pyshacl | **CODE**: `shacl_inferenz.pipeline` (swj3959) |
 | mcp_catalog → MCP-Layer | TTC-Katalog + Lazy-Gating | Top-k/Stufe | **CODE**: `mcp_catalog.build_catalog` (TTC Zenodo 19869008) |
 | lifecycle_runner → pipeline/lru_cache | **8 Stufen** ausführen (Stufe 3 = pipeline, Stufe 4 = consolidate) | `run_cycle` | **CODE**: `lifecycle_runner.run_cycle` (AGENTS.md §3) |
+| recursion_runner → reflective_agent/pipeline/evaluator_version | **5 Phasen** (Konstrukt→Revise; Revise = SEAA-HMM) | `run_recursion` | **CODE**: `recursion_runner.run_recursion` (SEAA arXiv:2609.17331, AGENTS.md §2) |
 | skill_interpreter → pipeline/mcp_memory_server | **ReAct-Loop**: LLM ruft Tools | Tool-Calling | **CODE**: `skill_interpreter.run_skill_agent` (Agent Skills/ReAct) + `_run_memory_write` (MCP in-process) |
 | lru_cache → tier3-working | Validation-Gated Konsolidierung (LTP) | logical ∧ grounding ∧ alignment ≥ τ | **CODE**: `lru_cache.consolidate_edges` (Kairos, NeurIPS 2025) |
 | trust → alle | PII vor Write | — | **CODE**: `pipeline.py` (`trust.PIIFilter`) |
@@ -250,7 +256,7 @@ flowchart TB
 
 ## 4. Quellen (geprüft)
 
-- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter,connector_binding,mcp_live_binding}.py`,
+- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter,connector_binding,mcp_live_binding,recursion_runner}.py`,
   `data/memory/tier3-working/lru_cache.py`, `data/memory/shared/shared_memory.py`
 - Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:378-392`),
   `skills/README.md`, `data/memory/README.md`, `ergebnisse/mcp-memory.md`
@@ -322,7 +328,7 @@ Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md 
 | `scripts/check_artifacts.py` | JSON/YAML/TOML + `.dot`-Syntax | C | **CODE** |
 | `scripts/check_secrets.py` | Secret-Muster (+Allowlist) | G | **CODE** |
 | `scripts/ci_preflight.py` | Endpoint erreichbar | E | **CODE** |
-| `make test` | 321 Tests / 100 %, real | — | **CODE** |
+| `make test` | 324 Tests / 100 %, real | — | **CODE** |
 | `scripts/ci_drift.py` | Drift vs. Vorcommit | N | **OFFEN** (Skript da, nicht verdrahtet) |
 | `pre-commit` | Hooks | J | **OFFEN** |
 | `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |

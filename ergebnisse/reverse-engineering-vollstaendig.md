@@ -3,10 +3,10 @@
 > Datum: 2026-10-04 · Methode: `ast`/`grep`/`ls` über den **echten** Code
 > (`data/memory/**`, `skills/**`, `connectors/**`, `opencode.json`, `AGENTS.md`, `ergebnisse/rekursion/**`).
 > **Keine Erfindungen** — nur was tatsächlich im Code/Doku steht. Lücken werden klar benannt.
-> **Korrektur der Auftrags-Zahlen (ehrlich):** „13 Module" → real **20**; „42 Rekursionen" → real
-> **56** (000–055); „17 Connectoren" ✓; „19 MCP" ✓; „14 Skills" ✓.
+> **Korrektur der Auftrags-Zahlen (ehrlich):** „13 Module" → real **21**; „42 Rekursionen" → real
+> **57** (000–057); „17 Connectoren" ✓; „19 MCP" ✓; „14 Skills" ✓.
 > **Selbst-Korrektur:** Ein früherer Analyse-Lauf zählte **19** Module (Glob übersah Unterordner);
-> real sind es **20** (18 top-level + `shared/` + `tier3-working/`).
+> real sind es **21** (19 top-level + `shared/` + `tier3-working/`).
 
 ## 0. Übersicht (Schicht · Status · Beweis · Lücke)
 
@@ -14,8 +14,8 @@
 |---|---|---|---|---|
 | 0 | **Gesetz** (AGENTS.md §1–§11) | **teilweise** | §9 `pipeline.route_and_store:59`; §9.3 `approval.approve:45`/`finalize:76`; §9.1c `bias_monitor.observe:111`; §9.2a `trust.minimize:49`; §10 `fast_write_router.classify:223`/`apply_write_action:153`; §11 `mcp_memory_server.build_server:161`; §6 `shacl_inferenz.pipeline:56`; Test `tests/test_agents_law.py` | §1–§8 sind **Doku/Auftrag**, nicht als Code erzwungen |
 | 1 | **Lifecycle — 8 Stufen** | **teilweise (Runner)** | `lifecycle_runner.run_cycle:153` ruft je Stufe eine echte Funktion: `_stage_erfahrung:77` … `_stage_wissen_plus:135` | Stufenfolge = **Auftrag**; Stufe 5 = echte LLM-Reflexion, offline NOOP |
-| 2 | **Rekursion — 5 Phasen** | **teilweise** | `reflective_agent`: `parse_transition_delta:67`, `detect_hubs:224`, `detect_forgetting:229`, `resolve_conflict:247`, `run_once:380`; `evaluator_version.RedQueenLoop:411` | **kein Runner** Konstrukt→Akt→Observe→Compare→Revise; Phasen = `.md`-Skills |
-| 3 | **Gedächtnis — 20 Module** | **verdrahtet** | Import-Graph unten; 20 Module, 294 defs gesamt | Einstiegspunkte ohne Importer (CLI/Tests) |
+| 2 | **Rekursion — 5 Phasen** | **teilweise (Runner)** | `reflective_agent`: `parse_transition_delta:67`, `detect_hubs:224`, `resolve_conflict:247`, `run_once:380`; `evaluator_version.RedQueenLoop:411`; **`recursion_runner.run_recursion`** (Konstrukt→Akt→Observe→Compare→Revise) | Phasenfolge = **Auftrag**; Compare nutzt `best_belief` (nicht vollen Grader-Loop) |
+| 3 | **Gedächtnis — 21 Module** | **verdrahtet** | Import-Graph unten; 21 Module, 300 defs gesamt | Einstiegspunkte ohne Importer (CLI/Tests) |
 | 4 | **Connectoren — 17** | **Doku + Binding** | `connectors/*.md` (17, je `## Prozess`); `connector_binding.bind:...` (SHACL + Prozess-Aufruf) | Zuordnung = Auftrag; SHACL prüft nur `minCount 1` |
 | 5 | **MCP-Server — 19 (16 aktiv)** | **extern/optional + Live-Binding** | `opencode.json` (19/16); `mcp_memory_server` (5 Tools); `mcp_live_binding.call_tool_live` (stdio `tools/call`) | Live braucht Deps/Keys (§11 optional) |
 | 6 | **Skills — 14 aktiv** | **verwaltet + ausgeführt** | `skills/procedural_memory.py` (Versionierung); `skill_interpreter.run_skill`/`run_skill_agent` (ReAct) | NL-`## Ablauf` nur via LLM-Tool-Calling, nicht garantiert |
@@ -47,15 +47,16 @@
 ### Schicht 2 — Rekursion (5 Phasen)
 - **Daten-Analyse (`knowledge/lifecycle/rekursion/`):** index 229 · konstrukt 149 · akt 112 ·
   observe 110 · compare 99 · revise 115 · wissenszyklus-8-stufen 172 Zeilen (7 Dateien).
-- **Phasen-Funktionen:** Konstrukt→`reflective_agent.run_once:380`; Akt→`lifecycle_runner`/`pipeline`;
-  Observe→`ingestion_hook`; Compare→`evaluator_version.RedQueenLoop:411`; Revise→
-  `reflective_agent.parse_transition_delta:67`/`detect_hubs:224`.
-- **Tote Phasen:** **keine** — die Phasen sind `.md`-Skills; **kein expliziter Phasen-Runner**
-  (Lücke, Auftrag/Doku).
+- **Phasen-Funktionen:** **`recursion_runner.run_recursion`** (5-Phasen-Runner): `_phase_konstrukt`
+  (`HMMInertia` π0) → `_phase_akt` (`pipeline.route_and_store`) → `_phase_observe`
+  (`ingestion_hook.resolve_entities`) → `_phase_compare` (`evaluator_version.best_belief`) →
+  `_phase_revise` (`HMMInertia.update_from_reflection`, SEAA Eq. 2).
+- **Tote Phasen:** **keine** — alle 5 `_phase_*` werden von `run_recursion` aufgerufen.
+- **Lücke:** Phasenfolge = **Auftrag**; Compare nutzt `best_belief` (nicht den vollen Grader-Loop).
 
-### Schicht 3 — Gedächtnis (20 Module)
-- **Daten-Analyse (`data/memory/`):** 20 Module (18 top-level + `shared/` + `tier3-working/`),
-  **294 defs** gesamt. Größte:
+### Schicht 3 — Gedächtnis (21 Module)
+- **Daten-Analyse (`data/memory/`):** 21 Module (19 top-level + `shared/` + `tier3-working/`),
+  **300 defs** gesamt. Größte:
   `evaluator_version.py` 1077 Z., 64 defs · `reflective_agent.py` 634 Z., 28 defs ·
   `ingestion_hook.py` 555 Z., 27 defs.
 - **Import-Graph (echt):**
@@ -119,16 +120,16 @@
 
 ## 2. Fazit (ehrlich)
 
-- **Verdrahtet (Code):** Schicht 3 (20 Module) + §9/§10/§11 + §6 (SHACL).
+- **Verdrahtet (Code):** Schicht 3 (21 Module) + §9/§10/§11 + §6 (SHACL).
 - **Nur Doku/Auftrag:** Schicht 1 (Stufenfolge), Schicht 4 (Zuordnung), Schicht 5 (externe MCPs),
   Schicht 6 (NL-`## Ablauf`).
 - **Teilweise:** Schicht 0 (Prinzipien §1–§8), Schicht 2 (kein Phasen-Runner).
 - **Konsistent:** Schicht 7 (56 Rekursionen).
-- **Korrekturen:** 20 Module (nicht 13), 56 Rekursionen (nicht 42); `connector-prozess.md`-Aussage
+- **Korrekturen:** 21 Module (nicht 13), 57 Rekursionen (nicht 42); `connector-prozess.md`-Aussage
   „kein SHACL-Server" ist überholt (pyshacl aktiv).
 
 ## 3. Quellen
-- Code: `data/memory/*.py` (18) + `data/memory/{shared,tier3-working}/*.py` (2) = **20**;
+- Code: `data/memory/*.py` (19) + `data/memory/{shared,tier3-working}/*.py` (2) = **21**;
   `skills/procedural_memory.py`, `scripts/mcp_probe.py`.
 - Doku: `AGENTS.md` (411 Z.), `knowledge/lifecycle/` (8), `knowledge/lifecycle/rekursion/` (7),
   `connectors/` (17), `skills/` (14 aktiv), `opencode.json` (19/16), `ergebnisse/rekursion/` (56).

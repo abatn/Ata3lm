@@ -81,6 +81,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 054 | `054-shared-memory-verifikation.md` | System-Iteration (Shared-Memory-Verifikation) | approved: Batnini, 2026-10-04 | siehe File |
 | 055 | `055-verifikation-verifikation.md` | System-Iteration (Zwei-Personen-Gate-Verifikation) | approved: Batnini, 2026-10-04 | siehe File |
 | 056 | `056-reverse-engineering-vollstaendig.md` | System-Iteration (Reverse Engineering 8 Schichten) | approved: Batnini, 2026-10-04 | siehe File |
+| 057 | `057-recursion-runner.md` | System-Iteration (5-Phasen-Runner SEAA) | approved: Batnini, 2026-10-04 | siehe File |
 
 ## Guardrail
 
