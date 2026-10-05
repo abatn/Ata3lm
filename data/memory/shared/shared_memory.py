@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[3]  # repo-relativ (S6, CI-tauglich)
 SHARED = ROOT / "data/memory/shared"
 
 
@@ -96,9 +96,18 @@ class SharedTier:
         e = Entry(key=key, value=value, version=v, writer=agent, ts=_now(), trust=new_trust)
 
         # Write-Time-Konfliktlösung (LatticeMind): Trust-Score entscheidet.
-        if cur is None or cur.value == value:
-            e.status = "confirmed"  # neu oder Evidence-Accumulation
+        if cur is None:
+            e.status = "confirmed"  # neu
             self.entries[key] = e
+            outcome, conflict = "confirmed", False
+        elif cur.value == value:
+            # Evidence-Accumulation: niederer Trust darf den gespeicherten Trust NICHT senken (§10.7).
+            if new_trust > cur.trust:
+                e.supersedes = cur.version
+                e.status = "confirmed"
+                self.entries[key] = e
+            else:
+                e.status = "confirmed"  # bestätigt den Incumbent (Trust bleibt erhalten)
             outcome, conflict = "confirmed", False
         else:
             conflict = True

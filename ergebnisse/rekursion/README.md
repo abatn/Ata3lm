@@ -85,6 +85,11 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 058 | `058-fixes-p1.md` | System-Iteration (E2E-Fixes P1: F2/F1/S1) | approved: Batnini, 2026-10-05 | siehe File |
 | 059 | `059-fixes-p2.md` | System-Iteration (E2E-Fixes P2: F3/S2/S3) | approved: Batnini, 2026-10-05 | siehe File |
 | 060 | `060-fixes-p3.md` | System-Iteration (E2E-Fixes P3: F4/F5/A9) | approved: Batnini, 2026-10-05 | siehe File |
+| 061 | `061-e2e-pruefung.md` | System-Iteration (E2E-Prüfung N1–N7, Revision e1a61b9) | approved: Batnini, 2026-10-05 | siehe File |
+| 062 | `062-p1-n1-n2-n5-n3.md` | System-Iteration (P1-Fixes N1/N2/N5/N3) | approved: Batnini, 2026-10-05 | siehe File |
+| 063 | `063-p2-n4-n6-n7.md` | System-Iteration (P2-Fixes N4/N6/N7) | approved: Batnini, 2026-10-05 | siehe File |
+| 064 | `064-p3a-s1-s6.md` | System-Iteration (P3a-Struktur S1a/S1b/S3/S4/S5/S6) | approved: Batnini, 2026-10-05 | siehe File |
+| 065 | `065-p3b-ci.md` | System-Iteration (P3b-CI F1–F5) | approved: Batnini, 2026-10-05 | siehe File |
 
 ## Guardrail
 

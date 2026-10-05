@@ -125,4 +125,84 @@ def test_denied_lifecycle_stoppt_writes(tmp_path, monkeypatch):
     assert out["results"]["Gedächtnis"]["ok"] is False
     assert out["results"]["Handeln"]["skipped"] is True
     assert out["results"]["Wissen+"]["revised"] is False
-    assert "max@example.com" not in wm.search("raw:wo")["value"]  # PII entfernt
+    # N6 §9.1: kein raw-Write vor dem Mandat -> gar kein WM-Eintrag
+    assert wm.search("raw:wo") is None
+
+
+def test_n6_kein_raw_write_vor_mandat(tmp_path, monkeypatch):
+    """N6 §9.1: deny-Mandat -> kein `raw:`-Eintrag in Working Memory (keine Mutation vor Gate)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    deny = mandate.Mandate(
+        mandate_id="d",
+        principal="P",
+        agent="a",
+        actions=frozenset({"read:repo"}),
+        resources=frozenset({"data/memory"}),
+        amount_limit=1.0,
+        max_uses=100,
+        valid_from=0.0,
+        valid_until=1e12,
+        approval_threshold=0.5,
+    )
+    wm = lru_cache.WorkingMemory(capacity=15)
+    out = lr.run_cycle(
+        "Geheim?",
+        "Kontakt: max@example.com",
+        "x",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        wm=wm,
+        mandate_obj=deny,
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is False
+    assert wm.search("raw:geheim") is None  # N6: nichts vor dem Mandat geschrieben
+
+
+def test_n7_gate_drift_werden_durchgereicht(tmp_path, monkeypatch):
+    """N7 §9.3/§9.1c: Runner reicht self_update/approvers/drift an route_and_store durch."""
+    import bias_monitor
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    # (a) self_update + zwei Personen -> Schreibfreigabe über den Runner
+    out = lr.run_cycle(
+        "Gesetz X",
+        "neu",
+        "c",
+        classify_fn=lambda q, f, c: {"class": "write-update", "gate": "ask"},
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        now=1.0,
+        self_update=True,
+        approvers=["Batnini", "Verifier2"],
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is True
+    assert ("approval", "approved") in out["results"]["Gedächtnis"]["steps"]
+    # (b) explizites Drift-Gate ask -> kein Write vor Freigabe
+    drift = bias_monitor.BiasDriftMonitor(baseline={"non-write": 1.0}, tau=0.01)
+    out2 = lr.run_cycle(
+        "Q",
+        "F",
+        "C",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s2",
+        tier3_dir=tmp_path / "t2",
+        now=1.0,
+        drift=drift,
+    )
+    assert out2["results"]["Gedächtnis"]["ok"] is False
+    assert not (tmp_path / "s2").exists()
+
+
+def test_n7_wissen_plus_echte_verteilung(tmp_path, monkeypatch):
+    """N7 §9.1c: Stufe 8 nutzt die echte Klasse des Laufs (nicht die Konstante 0.5/0.5)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("non-write"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+    )
+    assert out["results"]["Wissen+"]["DI"] > 0.0  # nicht mehr konstant 0.0

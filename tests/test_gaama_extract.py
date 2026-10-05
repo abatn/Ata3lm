@@ -98,5 +98,11 @@ def test_persist_extracted_facts_real(tmp_path):
         {"fact_text": "Fakt B", "source": "web:untrusted", "verified": True},  # §9.2c: nicht vertrauenswürdig
         {"fact_text": "Fakt C", "source": "user", "verified": False},  # §9.2c: nicht verifiziert
     ]
-    out = call(ge.persist_extracted_facts, facts, structured_dir=tmp_path / "s", tier3_dir=tmp_path / "t3")
+    out = call(
+        ge.persist_extracted_facts,
+        facts,
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t3",
+        results_dir=tmp_path / "r",  # kein Write ins echte ergebnisse/rekursion
+    )
     assert out[0]["admitted"] is True and out[1]["admitted"] is False and out[2]["admitted"] is False

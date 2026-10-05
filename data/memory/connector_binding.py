@@ -149,6 +149,21 @@ def _record_binding(spec: dict, result: dict) -> dict:
         return {"via": "local-fallback", "reason": str(exc)[:80], "key": key}
 
 
+# Prozess-Executor: ehrliche Kennzeichnung (S3) — kein Fake als Integration (§6).
+# "integriert" = echte Betriebs-Funktion; "beispiel" = Beispiel-/synthetische Werte.
+PROCESS_MODE = {
+    "pipeline.py": "integriert",
+    "trust.py": "integriert",
+    "ingestion_hook.py": "integriert",
+    "reflective_agent.py": "beispiel",
+    "bias_monitor.py": "beispiel",
+    "shared_memory.py": "beispiel",
+    "evaluator_version.py": "beispiel",
+    "fast_write_router.py": "beispiel",
+    "lru_cache.py": "beispiel",
+}
+
+
 def bind(connector_path: Path, ctx: dict, *, registry: dict | None = None, mcp_record: bool = True) -> dict:
     """Bindet EINEN Connector: parse → SHACL-validieren → Prozess ausführen → MCP-Record."""
     spec = parse_connector(connector_path)
@@ -164,6 +179,7 @@ def bind(connector_path: Path, ctx: dict, *, registry: dict | None = None, mcp_r
         "connector": spec["name"],
         "process": spec["process"],
         "phase": spec["phase"],
+        "mode": PROCESS_MODE.get(spec["process"], "unbekannt"),  # S3: ehrlicher Integrationsgrad
         "shacl": validation,
         **executed,
         "recorded": recorded,

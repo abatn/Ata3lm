@@ -130,6 +130,57 @@ def test_memory_write_fallback(tmp_path, monkeypatch):
     assert out["via"] == "local-fallback" and (tmp_path / "tier3" / "f.md").exists()
 
 
+def test_n5_echter_ausfall_fallback_schreibt_pii_frei(tmp_path, monkeypatch):
+    """N5 §9.2a/§11: echter Transport-Ausfall -> Fallback, aber PII wird entfernt."""
+    monkeypatch.setattr(mcp_memory_server, "build_server", lambda: (_ for _ in ()).throw(RuntimeError("down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="pii.md", content="Mail max@example.com", trust="green")
+    assert r["ok"] is True and r["via"] == "local-fallback"
+    text = (tmp_path / "tier3" / "pii.md").read_text(encoding="utf-8")
+    assert "max@example.com" not in text  # §9.2a PII-Filter auch im Fallback
+
+
+def test_n5_fallback_rejectet_red(tmp_path, monkeypatch):
+    """N5 §9.2c: Fallback persistiert KEIN trust=red."""
+    monkeypatch.setattr(mcp_memory_server, "build_server", lambda: (_ for _ in ()).throw(RuntimeError("down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="red.md", content="RED", trust="red")
+    assert r["ok"] is False and r.get("status") == "rejected"
+    assert not (tmp_path / "tier3" / "red.md").exists()
+
+
+def test_n5_fallback_blockiert_path_traversal(tmp_path, monkeypatch):
+    """N5 §11: Fallback darf nicht aus tier3 heraus schreiben (`../`)."""
+    monkeypatch.setattr(mcp_memory_server, "build_server", lambda: (_ for _ in ()).throw(RuntimeError("down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="../ESCAPED.md", content="x")
+    assert r["ok"] is False
+    assert not (tmp_path / "ESCAPED.md").exists()
+    assert not (tmp_path / "tier3" / "ESCAPED.md").exists()
+
+
+def test_n5_fallback_ungueltige_trust_farbe(tmp_path, monkeypatch):
+    """N5: unbekannte Trust-Farbe -> Fallback rejected."""
+    monkeypatch.setattr(mcp_memory_server, "build_server", lambda: (_ for _ in ()).throw(RuntimeError("down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="x.md", content="x", trust="gelb")
+    assert r["ok"] is False and "ungültige Trust-Farbe" in r["reason"]
+    assert not (tmp_path / "tier3" / "x.md").exists()
+
+
+def test_n5_validierungsfehler_kein_fallback(tmp_path):
+    """N5: Validierungs-/Scope-Fehler (ValueError aus _path) -> Fehler, KEIN Fallback."""
+    r = si._run_memory_write(_ctx(tmp_path), scope="bogus-scope", key="x.md", content="x", trust="green")
+    assert r["ok"] is False and r.get("via") != "local-fallback"
+    assert not (tmp_path / "tier3" / "x.md").exists()
+
+
+def test_n5_mcp_sdk_fehlt_fallback(tmp_path, monkeypatch):
+    """N5 §11: echter Ausfall (SDK nicht importierbar) -> Fallback."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "mcp_memory_server", None)  # `import ...` -> ImportError
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="sdk.md", content="x", trust="green")
+    assert r["ok"] is True and r["via"] == "local-fallback"
+    assert (tmp_path / "tier3" / "sdk.md").exists()
+
+
 def test_parse_mcp_zweige():
     class _B:
         text = "kein json"

@@ -13,6 +13,7 @@ Kette: Mandat-Gate → FWR-Klassifikation → Trust (PII) → Approval (self_upd
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from typing import Callable, Optional
@@ -147,12 +148,26 @@ def route_and_store(
         written = [str(structured_file), str(Path(tier3_dir) / name)]
     else:  # write-update → alten Stand archivieren (invalidieren, NICHT löschen)
         if structured_file.exists():
-            archived = Path(structured_dir) / f"{_slug(question)}.superseded-{int(now)}.md"
-            archived.write_text(structured_file.read_text(encoding="utf-8"), encoding="utf-8")
+            # N3 §10.7: eindeutiger Archivname (ts + Inhalts-Hash) + Kollisions-Recheck,
+            # damit zwei Updates in derselben Sekunde einander nicht überschreiben.
+            old = structured_file.read_text(encoding="utf-8")
+            h = hashlib.sha1(old.encode("utf-8")).hexdigest()[:8]
+            archived = Path(structured_dir) / f"{_slug(question)}.superseded-{int(now)}-{h}.md"
+            n = 1
+            while archived.exists():
+                archived = Path(structured_dir) / f"{_slug(question)}.superseded-{int(now)}-{h}-{n}.md"
+                n += 1
+            archived.write_text(old, encoding="utf-8")
             superseded = {"key": _slug(question), "old_found": True, "archived": str(archived)}
         else:
             superseded = {"key": _slug(question), "old_found": False, "archived": None}
         structured_file.write_text(clean, encoding="utf-8")
         written = [str(structured_file)]
+        # N4 §10.7: Tier3-Arbeitskopie nicht auf dem alten Fakt belassen – nur
+        # eine bereits existierende Kopie aktualisieren (kein neuer Write-Pfad).
+        tier3_file = Path(tier3_dir) / name
+        if tier3_file.exists():
+            tier3_file.write_text(clean, encoding="utf-8")
+            written.append(str(tier3_file))
     steps.append(("write", cls))
     return {"ok": True, "action": cls, "written": written, "superseded": superseded, "gate": gate, "steps": steps}

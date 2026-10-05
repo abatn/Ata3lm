@@ -45,7 +45,7 @@ from typing import Any, Optional
 
 import pipeline
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (S6, CI-tauglich)
 DEFAULT_LOG = ROOT / "data/memory/tier3-working/ingestion_log.jsonl"
 
 # --- Konfiguration (Projekt-Vorgabe = Auftrag, KEINE Quellen-Behauptung) ---

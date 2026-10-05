@@ -80,3 +80,10 @@ def test_record_binding_fallback(tmp_path, monkeypatch):
     monkeypatch.setattr(mcp_memory_server, "build_server", _boom)
     r = cb._record_binding({"name": "x", "process": "trust.py", "phase": "p"}, {"fallback_dir": str(tmp_path)})
     assert r["via"] == "local-fallback" and (tmp_path / "binding-x.md").exists()
+
+
+def test_bind_liefert_integrations_modus(tmp_path, monkeypatch):
+    """S3: ehrlicher Integrationsgrad (integriert vs. beispiel)."""
+    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier2": tmp_path / "m"})
+    assert cb.bind(ROOT / "connectors/react.md", _ctx(tmp_path))["mode"] == "integriert"
+    assert cb.bind(ROOT / "connectors/mars-seaa.md", _ctx(tmp_path))["mode"] == "beispiel"

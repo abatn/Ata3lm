@@ -124,3 +124,26 @@ if __name__ == "__main__":
     test_inferenz_macht_invaliditaet_sichtbar()
     test_transitive_huelle_mehrere_runden()
     print("ok")
+
+
+def test_iterationsgrenze_als_unvollstaendig():
+    """S5/§6: Erreichte Iterationsgrenze -> Inferenz unvollständig, conforms nicht belastbar."""
+    g = rdflib.Graph()
+    g.parse(
+        data="@prefix ex: <http://example.org/> . ex:a ex:before ex:b . ex:b ex:before ex:c . ex:c ex:before ex:a .",
+        format="turtle",
+    )
+    rules = [
+        {
+            "id": "R",
+            "construct": "PREFIX ex: <http://example.org/> CONSTRUCT { ?a ex:before ?c } WHERE { ?a ex:before ?b . ?b ex:before ?c }",
+        }
+    ]
+    shape = rdflib.Graph()
+    shape.parse(
+        data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:before .",
+        format="turtle",
+    )
+    res = si.pipeline(g, rules, shape, max_rounds=1)
+    assert res["inference_status"] == "unvollständig"
+    assert res["conforms_reliable"] is False and res["hint"]

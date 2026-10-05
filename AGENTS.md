@@ -22,9 +22,9 @@ Der Agent nimmt Informationen auf, ohne sie zu interpretieren.
 Verfahren: Traces + States festhalten, keine Wertung (Bewertung ist
 Compare). Belegt in: Observe-Skill („nichts bewerten – nur festhalten"),
 ReAct-Observation (externe Rückmeldung einsammeln, Yao et al. 2023,
-https://arxiv.org/abs/2210.03629), LbO-State-Rekonstruktion (Salomaki et
+<https://arxiv.org/abs/2210.03629>), LbO-State-Rekonstruktion (Salomaki et
 al. 2005,
-https://aaai.org/papers/0021-fs05-07-021-learning-teleoreactive-logic-programs-by-observation/).
+<https://aaai.org/papers/0021-fs05-07-021-learning-teleoreactive-logic-programs-by-observation/>).
 
 ### 2. 📖 Aufgabe = Du — Status: Auftrag
 
@@ -49,7 +49,7 @@ Der Agent sucht in den Grenzen des Wissens und geht darüber hinaus –
 Aktion, neues Interface) braucht: Beleg-Trace + Quellen-Link + menschliche
 Freigabe. Ohne diese drei: `rejected`. (Vgl. Gödel Development Tips:
 neue Aktionen nur via `action_functions`-Eintrag + Implementierung,
-https://github.com/Arvid-pku/Godel_Agent.)
+<https://github.com/Arvid-pku/Godel_Agent>.)
 
 ### 5. ☁️ Wie eine Wolke — Status: Auftrag
 
@@ -64,7 +64,7 @@ Jede Antwort muss auf verifizierten Quellen basieren (Paper/Code mit Link).
 Verfahren (verbindlich): MD-first, Provenienz pro Iteration in
 `ergebnisse/rekursion/NNN-*.md`, Compare nur mit externem Signal
 (Grader/Code-Run/DB – sonst „konfidente Fehlanpassung", vgl.
-https://arxiv.org/abs/2609.08832). Erfundene Quellen, Scores oder Befunde
+<https://arxiv.org/abs/2609.08832>). Erfundene Quellen, Scores oder Befunde
 → `rejected`.
 
 ### 7. 🧠 Kognition & Metakognition — Status: Auftrag, Mechanismus belegt
@@ -72,9 +72,9 @@ https://arxiv.org/abs/2609.08832). Erfundene Quellen, Scores oder Befunde
 Der Agent versteht, verknüpft und reflektiert über sein eigenes Denken.
 Belegte Mechanismen: verbale Selbstreflexion `(τ, r, mem) → sr` mit
 episodischem Memory (Reflexion, Shinn et al. 2023,
-https://arxiv.org/abs/2303.11366); Antizipation + Behavior Selection aus
+<https://arxiv.org/abs/2303.11366>); Antizipation + Behavior Selection aus
 Sequential System vs. Episodic Memory (CCA, Xue et al. 2024,
-https://researchr.org/publication/XueLM24-0); hierarchische
+<https://researchr.org/publication/XueLM24-0>); hierarchische
 Skill-Rekonstruktion (LbO, 2005). Stufen-Abbildung: Kognition = Stufe 4,
 Denken (Metakognition) = Stufe 5, Self-Feedback = rekursives Signal.
 
@@ -84,7 +84,7 @@ Der Agent berücksichtigt Emotionen, Triebe, unbewusste Vorgänge und andere
 nicht-kognitive Einflüsse (z. B. Stress, Zeitdruck, implizite Bias) als
 eigene Stufe mit Schreibrecht nach Working Memory. Belegt: Emotions-Modul
 + Valenz als intrinsisches Feedback (JISEM 2025,
-https://jisem-journal.com/index.php/journal/article/view/12473);
+<https://jisem-journal.com/index.php/journal/article/view/12473>);
 autotelische + interactionale Selbstmotivation/Proclivity (CCA, 2024).
 **Nicht belegt und daher NICHT modelliert:** Stress, Zeitdruck und
 implizite Bias werden nur als protokollierte Kontextfaktoren
@@ -392,20 +392,20 @@ Anfrage ─▶ MCP-Layer (Cognee/Graphiti/HeLa-Mem)
 
 | Connector | Phase/Stufe | Connector-Datei | Kern-Referenz | Quellen-Link |
 |---|---|---|---|---|
-| AgentO (OWL/RDF) | Erfahrung (1) | `connectors/agento-ariadne.md:7-11` | AGENTS.md: — | https://arxiv.org/abs/2007.09454 |
-| ARIADNE (3-Tier Memory) | Erfahrung (1) | `connectors/agento-ariadne.md:13-14` | AGENTS.md: — | https://arxiv.org/abs/2105.09864 |
-| AWS Semantic Layer (Neurosymbolisch) | Wissen (2) | `connectors/hela-semantic.md:27-33`, `connectors/cognee-validation.md:11-14` | AGENTS.md: — | https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph.html |
-| HeLa-Mem (Hebbian Distillation) | Wissen (2), Wissen+ (8) | `connectors/hela-semantic.md:7-9`, `connectors/hela-evolution.md:8-13` | AGENTS.md: — | https://github.com/ReinerBRO/HeLa-Mem, https://aclanthology.org/2026.acl-long.625/ |
-| Cognee (Graph+Vektor, dual) | Gedächtnis (3), Kognition (4) | `connectors/cognee-memory.md:7-9`, `connectors/cognee-validation.md:9-10` | AGENTS.md: — | https://github.com/topoteretes/cognee |
-| Zep/Graphiti (temporal KG) | Gedächtnis (3) | `connectors/cognee-memory.md:12-13`, `connectors/hela-evolution.md:39-40` | AGENTS.md: — | https://github.com/getzep/graphiti |
-| MARS (Metacognitive Agent) | Denken (5) | `connectors/mars-seaa.md:10-11` | AGENTS.md: — | https://github.com/Paparare/MARS |
-| SEAA (HMM Trägheit) | Denken (5) | `connectors/mars-seaa.md:28-36` | AGENTS.md: — | https://arxiv.org/abs/2609.17331 |
-| HTAC (Hierarchical Task-Aware) | Handeln (7) | `connectors/htac-agentdice.md:6-9` | AGENTS.md: — | https://icml.cc/virtual/2026/poster/63033 |
-| Agent-Dice (Geometric Consensus) | Handeln (7) | `connectors/htac-agentdice.md:20-36` | AGENTS.md: — | https://github.com/Wuzheng02/Agent-Dice |
-| EvoPathBench (Benchmark) | Wissen+ (8) | `connectors/hela-evolution.md:41-45`, `knowledge/lifecycle/wissen-plus.md:42-59` | AGENTS.md: — | https://arxiv.org/abs/2609.24663 |
-| Bi-Temporal Modelle | Wissen+ (8) | `knowledge/lifecycle/wissen-plus.md:31-40` | AGENTS.md: — | https://github.com/getzep/graphiti |
-| Affective Computing + Psycho-Linguistisch | Nicht-Kognition (6) | `connectors/affective-signals.md:1` | AGENTS.md: — | https://jisem-journal.com/index.php/journal/article/view/12473 |
-| Fast Write Routing | Erfahrung (1) → Gedächtnis (3) | `connectors/fast-write-routing.md` | AGENTS.md: §10 | https://arxiv.org/abs/2608.22215 |
-| GAAMA (Graph-Memory, Hybrid-Retrieval) | Gedächtnis (3) | `connectors/gaama.md` | AGENTS.md: — | https://arxiv.org/abs/2603.27910 |
-| Kairos (Validation-Gated Hebbian Learning) | Gedächtnis (3) | `connectors/gaama.md` | AGENTS.md: — | https://nips.cc/virtual/2025/129852 |
-| Governance-MCP (Drift/Lyapunov/GLiNER) | Gedächtnis (3), Denken (5), Handeln (7) | `connectors/governance-mcp.md:11-15`, `connectors/governance-mcp.md:48-53` | AGENTS.md: §9, §11 | https://github.com/neogenesislab/WhyLab-NeurIPS2026, https://arxiv.org/abs/2605.10108 |
+| AgentO (OWL/RDF) | Erfahrung (1) | `connectors/agento-ariadne.md:7-11` | AGENTS.md: — | <https://arxiv.org/abs/2007.09454> |
+| ARIADNE (3-Tier Memory) | Erfahrung (1) | `connectors/agento-ariadne.md:13-14` | AGENTS.md: — | <https://arxiv.org/abs/2105.09864> |
+| AWS Semantic Layer (Neurosymbolisch) | Wissen (2) | `connectors/hela-semantic.md:27-33`, `connectors/cognee-validation.md:11-14` | AGENTS.md: — | <https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph.html> |
+| HeLa-Mem (Hebbian Distillation) | Wissen (2), Wissen+ (8) | `connectors/hela-semantic.md:7-9`, `connectors/hela-evolution.md:8-13` | AGENTS.md: — | <https://github.com/ReinerBRO/HeLa-Mem>, <https://aclanthology.org/2026.acl-long.625/> |
+| Cognee (Graph+Vektor, dual) | Gedächtnis (3), Kognition (4) | `connectors/cognee-memory.md:7-9`, `connectors/cognee-validation.md:9-10` | AGENTS.md: — | <https://github.com/topoteretes/cognee> |
+| Zep/Graphiti (temporal KG) | Gedächtnis (3) | `connectors/cognee-memory.md:12-13`, `connectors/hela-evolution.md:39-40` | AGENTS.md: — | <https://github.com/getzep/graphiti> |
+| MARS (Metacognitive Agent) | Denken (5) | `connectors/mars-seaa.md:10-11` | AGENTS.md: — | <https://github.com/Paparare/MARS> |
+| SEAA (HMM Trägheit) | Denken (5) | `connectors/mars-seaa.md:28-36` | AGENTS.md: — | <https://arxiv.org/abs/2609.17331> |
+| HTAC (Hierarchical Task-Aware) | Handeln (7) | `connectors/htac-agentdice.md:6-9` | AGENTS.md: — | <https://icml.cc/virtual/2026/poster/63033> |
+| Agent-Dice (Geometric Consensus) | Handeln (7) | `connectors/htac-agentdice.md:20-36` | AGENTS.md: — | <https://github.com/Wuzheng02/Agent-Dice> |
+| EvoPathBench (Benchmark) | Wissen+ (8) | `connectors/hela-evolution.md:41-45`, `knowledge/lifecycle/wissen-plus.md:42-59` | AGENTS.md: — | <https://arxiv.org/abs/2609.24663> |
+| Bi-Temporal Modelle | Wissen+ (8) | `knowledge/lifecycle/wissen-plus.md:31-40` | AGENTS.md: — | <https://github.com/getzep/graphiti> |
+| Affective Computing + Psycho-Linguistisch | Nicht-Kognition (6) | `connectors/affective-signals.md:1` | AGENTS.md: — | <https://jisem-journal.com/index.php/journal/article/view/12473> |
+| Fast Write Routing | Erfahrung (1) → Gedächtnis (3) | `connectors/fast-write-routing.md` | AGENTS.md: §10 | <https://arxiv.org/abs/2608.22215> |
+| GAAMA (Graph-Memory, Hybrid-Retrieval) | Gedächtnis (3) | `connectors/gaama.md` | AGENTS.md: — | <https://arxiv.org/abs/2603.27910> |
+| Kairos (Validation-Gated Hebbian Learning) | Gedächtnis (3) | `connectors/gaama.md` | AGENTS.md: — | <https://nips.cc/virtual/2025/129852> |
+| Governance-MCP (Drift/Lyapunov/GLiNER) | Gedächtnis (3), Denken (5), Handeln (7) | `connectors/governance-mcp.md:11-15`, `connectors/governance-mcp.md:48-53` | AGENTS.md: §9, §11 | <https://github.com/neogenesislab/WhyLab-NeurIPS2026>, <https://arxiv.org/abs/2605.10108> |

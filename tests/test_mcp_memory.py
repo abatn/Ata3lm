@@ -136,3 +136,36 @@ def test_write_fail_closed_ohne_tier2(tmp_path, monkeypatch):
     r = m.write("structured", "x.md", "y", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"
     assert not (tmp_path / "structured" / "x.md").exists()
+
+
+def test_n1_alias_key_teilt_trust_key(tmp_path, monkeypatch):
+    """N1 §9.2c: Alias-Key (`./`) muss denselben Trust-Key treffen wie kanonisch."""
+    scopes = _setup(tmp_path, monkeypatch)
+    assert m.write("structured", "cur.md", "Bestätigt", trust="blue")["ok"] is True
+    r = m.write("structured", "./cur.md", "Vorschlag", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"  # Blue-Schutz greift über Alias
+    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
+    assert list(m._load_trust_db(m._trust_db_path())) == ["cur.md"]  # nur kanonischer Key
+
+
+def test_n1_green_auf_green_erlaubt(tmp_path, monkeypatch):
+    """N1/N2: bekannter green-Key (Datei existiert) darf erneut geschrieben werden."""
+    scopes = _setup(tmp_path, monkeypatch)
+    assert m.write("structured", "x.md", "v1", trust="green")["ok"] is True
+    r = m.write("structured", "x.md", "v2", trust="green")
+    assert r["ok"] is True and (scopes["structured"] / "x.md").read_text(encoding="utf-8") == "v2"
+
+
+def test_n2_fail_closed_existierende_datei_unbekannter_trust(tmp_path, monkeypatch):
+    """N2 §9.2c/§9.3: existierende Zieldatei + unbekannter Trust -> fail-closed."""
+    scopes = _setup(tmp_path, monkeypatch)
+    assert m.write("structured", "keep.md", "Bestätigt", trust="blue")["ok"] is True
+    db = scopes["tier2"] / "mcp-trust.json"
+    db.write_text("{kaputt", encoding="utf-8")  # beschädigte Trust-DB
+    r = m.write("structured", "keep.md", "Clobber", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert (scopes["structured"] / "keep.md").read_text(encoding="utf-8") == "Bestätigt"
+    db.unlink()  # fehlende Trust-DB ebenso fail-closed
+    r2 = m.write("structured", "keep.md", "Clobber2", trust="green")
+    assert r2["ok"] is False and r2["status"] == "rejected"
+    assert (scopes["structured"] / "keep.md").read_text(encoding="utf-8") == "Bestätigt"

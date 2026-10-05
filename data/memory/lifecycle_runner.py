@@ -77,9 +77,18 @@ def _default_mandate() -> "mandate.Mandate":
 
 def _stage_erfahrung(ctx: dict) -> dict:
     entities = ingestion_hook.resolve_entities(ctx["fact"])
+    ctx["entities"] = [e.get("span", str(e)) if isinstance(e, dict) else str(e) for e in entities]
+    # N6 §9.1: KEINE Mutation vor dem Mandat-Gate – der `raw:`-Write erfolgt erst,
+    # wenn das Mandat `write:memory` erlaubt (Vorab-Prüfung in `run_cycle`).
+    if not ctx.get("mandate_allow", False):
+        return {
+            "stage": "Erfahrung",
+            "entities": ctx["entities"],
+            "stored": None,
+            "reason": "Mandat nicht ALLOW – kein WM-Write (§9.1)",
+        }
     key = "raw:" + _slug(ctx["question"])
     ctx["wm"].store(key, trust.PIIFilter().minimize(ctx["fact"]))  # §9.2a: PII vor M
-    ctx["entities"] = [e.get("span", str(e)) if isinstance(e, dict) else str(e) for e in entities]
     return {"stage": "Erfahrung", "entities": ctx["entities"], "stored": key}
 
 
@@ -98,6 +107,10 @@ def _stage_gedaechtnis(ctx: dict) -> dict:
         now=ctx["now"],
         structured_dir=ctx["structured_dir"],
         tier3_dir=ctx["tier3_dir"],
+        # N7 §9.1c/§10.4: Gate/Drift an die Pipeline durchreichen.
+        self_update=ctx["self_update"],
+        approvers=ctx["approvers"],
+        drift=ctx["drift_write"],
     )
     action = res.get("action") or res.get("gate")
     return {"stage": "Gedächtnis", "ok": res.get("ok"), "action": action, "steps": res.get("steps")}
@@ -144,8 +157,11 @@ def _stage_handeln(ctx: dict) -> dict:
 
 
 def _stage_wissen_plus(ctx: dict) -> dict:
-    monitor = bias_monitor.BiasDriftMonitor(baseline=ctx["drift_baseline"], tau=ctx["tau"])
-    d = monitor.observe({"non-write": 0.5, "write": 0.5}, step=1)
+    # N7 §9.1c: echte Klasse des Laufs (nicht die Konstante 0.5/0.5). Die FWR-Klasse
+    # wird in den Baseline-Labelraum abgebildet (write-* -> "write").
+    action = ctx["results"]["Gedächtnis"].get("action")
+    label = "write" if action in ("write-new", "write-update") else "non-write"
+    d = ctx["drift_monitor"].observe({label: 1.0}, step=1)
     revised = bool(ctx["results"]["Gedächtnis"].get("ok"))  # §9: keine Revision nach Ablehnung
     return {"stage": "Wissen+", "DI": d["DI"], "gate": d["gate"], "revised": revised}
 
@@ -183,8 +199,18 @@ def run_cycle(
     drift_baseline=None,
     tau: float = 0.10,
     mandate_obj=None,
+    self_update: bool = False,
+    approvers=None,
+    drift=None,
 ) -> dict:
     """Führt die 8 Stufen in gesetzter Reihenfolge aus und liefert die echte Spur."""
+    mandate_obj = mandate_obj if mandate_obj is not None else _default_mandate()
+    baseline = drift_baseline if drift_baseline is not None else {"non-write": 0.5, "write": 0.5}
+    # N6 §9.1: Mandat VOR jeder Mutation prüfen (Stufe 1 schreibt `raw:` in WM).
+    dec0 = mandate.assess(mandate_obj, action="write:memory", resource="data/memory", amount=0.0, now=now)
+    # N7 §9.1c: Drift-Monitor für Stufe 8 (Compare/Revise); ein explizit übergebener
+    # Drift schützt zusätzlich den Write in Stufe 3.
+    drift_monitor = drift if drift is not None else bias_monitor.BiasDriftMonitor(baseline=baseline, tau=tau)
     ctx = {
         "question": question,
         "fact": fact,
@@ -202,9 +228,14 @@ def run_cycle(
         "k": k,
         "reflect_fn": reflect_fn if reflect_fn is not None else reflective_agent.parse_transition_delta,
         "energies": energies if energies is not None else [1.0, 0.9],
-        "drift_baseline": drift_baseline if drift_baseline is not None else {"non-write": 0.5, "write": 0.5},
+        "drift_baseline": baseline,
         "tau": tau,
-        "mandate_obj": mandate_obj if mandate_obj is not None else _default_mandate(),
+        "mandate_obj": mandate_obj,
+        "mandate_allow": dec0["decision"] == "ALLOW",
+        "self_update": self_update,
+        "approvers": approvers,
+        "drift_write": drift,
+        "drift_monitor": drift_monitor,
         "entities": [],
         "results": {},
     }

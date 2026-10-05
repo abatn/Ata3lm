@@ -19,11 +19,24 @@ jobs:
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # ci_drift braucht den Vorcommit (HEAD~1)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Abhängigkeiten installieren
         run: pip install -r requirements-dev.txt
+
+      - name: Secret-Scan (gitleaks, blockierend)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - name: Drift vs. Vorcommit (AGENTS.md + tier1-base, blockierend)
+        env:
+          CI_DRIFT_BASE: HEAD~1
+        run: python scripts/ci_drift.py
 
       - name: Ruff (Lint + Format)
         run: |

@@ -42,7 +42,7 @@ import zlib
 from collections import OrderedDict
 from pathlib import Path
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[3]  # repo-relativ (S6, CI-tauglich)
 TIER3 = ROOT / "data/memory/tier3-working"
 TIER2 = ROOT / "data/memory/tier2-index"
 STRUCTURED = ROOT / "knowledge/structured"  # Ingestion-Output

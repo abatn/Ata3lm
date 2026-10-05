@@ -39,6 +39,24 @@ def test_trust_entscheidet_konflikt():
     assert t.history[-1].status == "contested"
 
 
+def test_gleicher_wert_senkt_trust_nicht():
+    """§10.7/S4: gleicher Wert + niederer Trust darf den gespeicherten Trust NICHT senken."""
+    t = _tier()
+    assert t.write("agentB", "k", "v")["outcome"] == "confirmed"  # trust 0.9
+    r = t.write("agentC", "k", "v")  # gleicher Wert, trust 0.3
+    assert r["outcome"] == "confirmed"
+    assert t.entries["k"].trust == 0.9  # Incumbent-Trust bleibt
+
+
+def test_gleicher_wert_hoeherer_trust_ersetzt():
+    """§10.7/S4: gleicher Wert + höherer Trust ersetzt (Incumbent wird angehoben)."""
+    t = _tier()
+    assert t.write("agentA", "k", "v")["outcome"] == "confirmed"  # trust 0.5
+    r = t.write("agentB", "k", "v")  # gleicher Wert, trust 0.9 > 0.5
+    assert r["outcome"] == "confirmed"
+    assert t.entries["k"].trust == 0.9
+
+
 def test_read_ohne_eintrag_und_mit_eintrag():
     t = _tier()
     assert t.read("agentA", "nie-geschrieben") == {

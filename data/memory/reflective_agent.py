@@ -20,7 +20,7 @@ import os
 from pathlib import Path
 
 # Projekt-Pfade (Auftrag)
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (S6, CI-tauglich)
 GRAPH_FILE = Path(os.environ.get("HELA_GRAPH", str(ROOT / "data/memory/tier1-base/episodic_graph.json")))
 STRUCTURED = ROOT / "knowledge/structured"
 INDEX_DIR = ROOT / "data/memory/tier2-index"

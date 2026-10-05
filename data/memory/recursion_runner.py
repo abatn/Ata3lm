@@ -51,12 +51,23 @@ def _phase_observe(ctx: dict) -> dict:
 
 def _phase_compare(ctx: dict) -> dict:
     """Compare: externes Signal — Belief aus Erfolgen/Fehlern (`evaluator_version`)."""
+    observed = (ctx["successes"] + ctx["failures"]) > 0
     belief = evaluator_version.best_belief(ctx["successes"], ctx["failures"])
-    return {"phase": "Compare", "belief": round(float(belief), 4), "signal": "externes Ground-Truth-Signal"}
+    signal = (
+        "externes Ground-Truth-Signal"
+        if observed
+        else "kein externes Signal (unbeobachtet) – kein Ground-Truth-Claim (§1/§6)"
+    )
+    return {"phase": "Compare", "belief": round(float(belief), 4), "signal": signal, "observed": observed}
 
 
 def _phase_revise(ctx: dict) -> dict:
-    """Revise: Reflexion aktualisiert die HMM-Übergangsmatrix (SEAA Eq. 2)."""
+    """Revise: Reflexion aktualisiert die HMM-Übergangsmatrix (SEAA Eq. 2).
+
+    §9: Nach einer abgelehnten `Akt`-Aktion (`deny`/`ask`) KEINE Revision.
+    """
+    if not ctx["results"]["Akt"].get("ok"):
+        return {"phase": "Revise", "skipped": True, "reason": "Akt abgelehnt (deny/ask) – keine Revision (§9)"}
     out = ctx["hmm"].update_from_reflection(ctx["reflection_text"], delta=ctx["delta"])
     return {"phase": "Revise", "skipped": out["skipped"], "lr": out["lr"]}
 

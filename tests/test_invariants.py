@@ -76,3 +76,19 @@ def test_structured_pflichtfelder():
         text = datei.read_text(encoding="utf-8").lower()
         for feld in PFLICHTFELDER:
             assert feld in text, f"{datei.name} ohne Pflichtfeld '{feld}'"
+
+
+def test_root_repo_relativ():
+    """S6: keine harten /home/opc-Pfade – ROOT == Repo-Wurzel."""
+    from pathlib import Path
+
+    import gaama_extract
+    import ingestion_hook
+    import lru_cache
+    import mcp_memory_server
+    import reflective_agent
+    import shared_memory
+
+    repo = Path(__file__).resolve().parents[1]
+    for m in (ingestion_hook, reflective_agent, gaama_extract, shared_memory, lru_cache, mcp_memory_server):
+        assert Path(m.ROOT).resolve() == repo

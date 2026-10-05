@@ -11,13 +11,26 @@ Exit-Code: 0 = Endpoint erreichbar, 1 = nicht erreichbar.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
+from pathlib import Path
 
 DEFAULT_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
 MAX_ATTEMPTS = 8
 TRANSIENT_MARKERS = ("overloaded", "rate limit", "429", "503", "temporarily")
+_CFG = Path.home() / ".config/opencode/opencode.json"
+
+
+def _load_opencode_keys() -> dict:
+    """Liest apiKey/baseURL aus `opencode.json` (wie `tests/conftest.py`); gibt KEINE Keys aus."""
+    try:
+        data = json.loads(_CFG.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    opt = data.get("provider", {}).get("nvidia-llama-nemotron", {}).get("options", {})
+    return {"api_key": opt.get("apiKey", ""), "base_url": opt.get("baseURL", "")}
 
 
 def is_transient(exc: Exception) -> bool:
@@ -31,8 +44,9 @@ def is_transient(exc: Exception) -> bool:
 
 def main() -> int:
     """Führt den Preflight-Call aus und liefert den Exit-Code."""
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    base_url = os.environ.get("OPENAI_BASE_URL", "").strip()
+    cfg = _load_opencode_keys()
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip() or cfg.get("api_key", "").strip()
+    base_url = os.environ.get("OPENAI_BASE_URL", "").strip() or cfg.get("base_url", "").strip()
     model = os.environ.get("FWR_SMALL_MODEL", "").strip() or DEFAULT_MODEL
 
     if not api_key:

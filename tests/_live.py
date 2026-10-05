@@ -5,6 +5,7 @@ Netz-/Überlastfehler (503/429/…) werden mit Backoff wiederholt — das ist ec
 Verifikation, keine skriptete Antwort.
 """
 
+import random
 import time
 
 _RETRYABLE = (
@@ -23,7 +24,7 @@ _RETRYABLE = (
 )
 
 
-def call(fn, *args, attempts: int = 12, base_delay: float = 4.0, **kwargs):
+def call(fn, *args, attempts: int = 18, base_delay: float = 4.0, max_delay: float = 20.0, **kwargs):
     """Echte Funktion aufrufen; nur transiente Fehler wiederholen."""
     last = None
     for i in range(attempts):
@@ -33,5 +34,5 @@ def call(fn, *args, attempts: int = 12, base_delay: float = 4.0, **kwargs):
             last = exc
             if not any(m in str(exc).lower() for m in _RETRYABLE):
                 raise
-            time.sleep(base_delay * (i + 1))
+            time.sleep(min(max_delay, base_delay * (i + 1)) + random.uniform(0, 1))
     raise last

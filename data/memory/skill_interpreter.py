@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pipeline
 import procedural_memory
+import trust
 
 
 def _section(text: str, keyword: str) -> str:
@@ -111,27 +112,59 @@ def _parse_mcp(result) -> dict:
     return {"ok": False, "reason": "leeres MCP-Ergebnis"}
 
 
+def _local_fallback(ctx: dict, key: str, content: str, trust_color: str, reason: str) -> dict:
+    """§11-Fallback bei echtem MCP-Ausfall – mit denselben Schutzregeln (§9.2a/§9.2c).
+
+    N5: `red` wird nicht persistiert, der Key darf nicht aus `tier3` entkommen,
+    PII wird VOR dem Store entfernt; geschrieben wird nur innerhalb `tier3_dir`.
+    """
+    if trust_color == "red":
+        return {
+            "ok": False,
+            "status": "rejected",
+            "via": "local-fallback",
+            "reason": "Tri-Color Red: Verstoß – nicht gespeichert",
+        }
+    if trust_color not in ("blue", "green", "red"):
+        return {"ok": False, "via": "local-fallback", "reason": f"ungültige Trust-Farbe {trust_color!r}"}
+    if not key or ".." in key or key.startswith("/") or "/" in key or "\\" in key:
+        return {"ok": False, "via": "local-fallback", "reason": f"ungültiger key: {key!r}"}
+    clean = trust.PIIFilter().minimize(content)  # §9.2a: PII vor dem Store entfernen
+    fallback_dir = Path(ctx["tier3_dir"])
+    fallback_dir.mkdir(parents=True, exist_ok=True)
+    target = fallback_dir / key
+    target.write_text(clean, encoding="utf-8")
+    return {"ok": True, "via": "local-fallback", "reason": reason[:80], "written": str(target), "trust": trust_color}
+
+
 def _run_memory_write(ctx: dict, scope: str = "tier3", key: str = "", content: str = "", trust: str = "green") -> dict:
     """Echter Executor für das MCP-Tool `memory.write` (in-process via FastMCP, §11).
 
     Offizieller MCP-Pfad: `FastMCP.call_tool` (in-process, kein Subprozess).
-    **§11-Fallback:** schlägt MCP fehl → lokale Memory (kein Datenverlust).
+    **§11-Fallback N5:** NUR bei echtem Ausfall (SDK/Transport). Validierungs- und
+    Scope-Fehler (`ValueError` aus `_path`/`_scope_dir`) werden als Fehler gemeldet –
+    KEIN Fallback. Der Fallback validiert Pfad, filtert PII und lehnt `red` ab.
     """
     key = key or (re.sub(r"[^a-z0-9]+", "-", (ctx["question"] or "").lower()).strip("-")[:60] + ".md")
     content = content or ctx["fact"]
     try:
         import mcp_memory_server
-
+    except ImportError as exc:  # echter Ausfall: SDK nicht verfügbar -> §11-Fallback
+        return _local_fallback(ctx, key, content, trust, f"MCP-SDK fehlt: {exc}")
+    try:
         server = mcp_memory_server.build_server()
         result = asyncio.run(
             server.call_tool("memory.write", {"scope": scope, "key": key, "content": content, "trust": trust})
         )
         return {"via": "mcp", "result": _parse_mcp(result)}
-    except Exception as exc:  # noqa: BLE001 - §11-Fallback
-        fallback_dir = Path(ctx["tier3_dir"])
-        fallback_dir.mkdir(parents=True, exist_ok=True)
-        (fallback_dir / key).write_text(content, encoding="utf-8")
-        return {"via": "local-fallback", "reason": str(exc)[:80], "written": str(fallback_dir / key)}
+    except Exception as exc:  # noqa: BLE001 - echte Ausführung
+        # FastMCP verpackt Funktionsfehler in `ToolError` mit `from <fehler>`; der
+        # ursprüngliche Validierungs-/Scope-Fehler (`ValueError` aus `_path`/`_scope_dir`)
+        # bleibt als `__cause__` erhalten -> melden, KEIN Fallback (N5).
+        cause = exc.__cause__
+        if isinstance(cause, ValueError):
+            return {"ok": False, "via": "mcp", "reason": str(cause)[:80]}
+        return _local_fallback(ctx, key, content, trust, str(exc))
 
 
 # Registrierte Executoren (Tool-/Prozessname -> echte Funktion).

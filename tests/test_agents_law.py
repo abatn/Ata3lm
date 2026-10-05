@@ -104,3 +104,5 @@ def test_ci_workflow_deckt_lint_und_tests():
     assert "ruff check" in wf and "ruff format --check" in wf
     assert "make test" in wf
     assert "requirements-dev.txt" in wf
+    assert "ci_drift.py" in wf and "CI_DRIFT_BASE" in wf  # F2: Drift verdrahtet
+    assert "gitleaks" in wf  # F2: Secret-Scan verdrahtet

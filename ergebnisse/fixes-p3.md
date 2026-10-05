@@ -33,3 +33,6 @@
 - Guardrail 6: **kein Commit** ohne Erlaubnis.
 - **Ehrliche Grenzen:** F4-`as_of` ist die korrigierte Semantik (nur eine Test-Erwartung angepasst, begründet);
   `data/memory/tier1-base/ontology.md` beschreibt das neue Feld `valid_to_known_at` **nicht** (nicht geändert → kein §9.1b-Snapshot).
+
+> **Stand 064 (2026-10-05):** aktuell **359 Tests / 100 % (2757/670)**. Die oben genannten
+> Zahlen fixieren den **damaligen** Iterationsstand (Provenienz, §3/§9.1d) und wurden bewusst NICHT ersetzt.

@@ -19,7 +19,7 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path("/home/opc/knowledge-agent")
+ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (S6, CI-tauglich)
 
 # GAAMA Table 1 (wörtlich: 5 Kantentypen) + Table 2 (Gewichte)
 NODE_KINDS = ("episode", "fact", "reflection", "concept")

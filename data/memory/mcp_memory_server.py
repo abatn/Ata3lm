@@ -31,7 +31,7 @@ from typing import Optional
 
 import trust as trust_mod
 
-ROOT = Path(os.environ.get("MCP_MEMORY_ROOT", "/home/opc/knowledge-agent"))
+ROOT = Path(os.environ.get("MCP_MEMORY_ROOT", str(Path(__file__).resolve().parents[2])))
 
 # Tri-Color Trust (ATHENA): Blue = Mensch, Green = KI-Vorschlag, Red = Verstoß
 TRUST_COLORS = ("blue", "green", "red")
@@ -128,7 +128,17 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
             "reason": "Trust-Metadaten (tier2) nicht verfügbar → fail-closed (§9.2c/§9.3)",
         }
     db = _load_trust_db(db_path)
-    db_key = f"{scope}/{key}"
+    db_key = path.relative_to(_scope_dir(scope)).as_posix()  # N1: aufgelöster Pfad, kein Roh-Key
+    if path.exists() and db.get(db_key) is None:
+        # N2 §9.2c/§9.3: existierende Zieldatei + unbekannter Trust -> fail-closed.
+        # Nur „keine Datei" darf grün sein (auch bei fehlender/kaputter Trust-DB).
+        return {
+            "ok": False,
+            "status": "rejected",
+            "scope": scope,
+            "key": key,
+            "reason": "existierende Zieldatei + unbekannter Trust → fail-closed (§9.2c/§9.3)",
+        }
     if db.get(db_key) == "blue" and trust == "green":
         return {
             "ok": False,

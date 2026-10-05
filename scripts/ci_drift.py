@@ -10,6 +10,7 @@ Exit-Code: 0 = innerhalb des Bounds, 1 = Bound überschritten.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -41,8 +42,13 @@ def count_lines(path: Path) -> int:
 
 
 def numstat(root: Path) -> list:
-    """Liefert (Pfad, added, deleted) je geänderter Datei oder None bei Fehler."""
-    result = git("diff", "--numstat", "HEAD", "--", *TARGETS)
+    """Liefert (Pfad, added, deleted) je geänderter Datei oder None bei Fehler.
+
+    Basis: `CI_DRIFT_BASE` (Default `HEAD`). In CI wird `HEAD~1` gesetzt, damit der
+    **gepushte Commit** geprüft wird (Arbeitsbaum ↔ HEAD wäre in CI immer sauber).
+    """
+    base = os.environ.get("CI_DRIFT_BASE", "HEAD")
+    result = git("diff", "--numstat", base, "--", *TARGETS)
     if result.returncode != 0:
         print(f"FAIL: git diff fehlgeschlagen: {result.stderr.strip()}")
         return None

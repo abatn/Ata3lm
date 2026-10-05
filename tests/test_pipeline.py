@@ -111,8 +111,63 @@ def test_write_update_archiviert_alten_stand(tmp_path):
         tier3_dir=t3,
     )
     assert out["superseded"]["old_found"] is True
-    assert (s / "hauptstadt-x.superseded-5.md").read_text(encoding="utf-8") == "ALT"
+    archived = list(s.glob("hauptstadt-x.superseded-5-*.md"))
+    assert len(archived) == 1 and archived[0].read_text(encoding="utf-8") == "ALT"
     assert (s / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"
+
+
+def test_n3_update_archiv_kollision_same_second(tmp_path):
+    """N3 §10.7: zwei Updates in derselben Sekunde -> zwei Archive, kein Verlust."""
+    s, t3 = _dirs(tmp_path)
+    s.mkdir(parents=True)
+    (s / "alpha.md").write_text("ORIGINAL", encoding="utf-8")
+    common = dict(question="Alpha", correct="x", mandate_obj=_mandate(), now=100.0, structured_dir=s, tier3_dir=t3)
+    pipeline.route_and_store(fact="UPDATE-ONE", classify_fn=_cls("write-update"), **common)
+    pipeline.route_and_store(fact="UPDATE-TWO", classify_fn=_cls("write-update"), **common)
+    archives = list(s.glob("alpha.superseded-*.md"))
+    assert len(archives) == 2  # kein Überschreiben des ersten Archivs
+    assert {p.read_text(encoding="utf-8") for p in archives} == {"ORIGINAL", "UPDATE-ONE"}
+    assert (s / "alpha.md").read_text(encoding="utf-8") == "UPDATE-TWO"
+
+
+def test_n4_write_update_aktualisiert_tier3(tmp_path):
+    """N4 §10.7: write-update darf die Tier3-Arbeitskopie nicht auf dem alten Fakt belassen."""
+    s, t3 = _dirs(tmp_path)
+    pipeline.route_and_store(
+        question="Hauptstadt X",
+        fact="ALT",
+        correct="ALT",
+        classify_fn=_cls("write-new"),
+        mandate_obj=_mandate(),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert (t3 / "hauptstadt-x.md").read_text(encoding="utf-8") == "ALT"
+    out = pipeline.route_and_store(
+        question="Hauptstadt X",
+        fact="NEU",
+        correct="NEU",
+        classify_fn=_cls("write-update"),
+        mandate_obj=_mandate(),
+        now=2.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert (s / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"
+    assert (t3 / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"  # nicht mehr veraltet
+    assert str(t3 / "hauptstadt-x.md") in out["written"]
+
+
+def test_n3_update_archiv_identischer_inhalt_kollision(tmp_path):
+    """N3: identischer Altinhalt -> Hash-Kollision -> Suffix-Recheck, kein Verlust."""
+    s, t3 = _dirs(tmp_path)
+    s.mkdir(parents=True)
+    (s / "alpha.md").write_text("SAME", encoding="utf-8")
+    common = dict(question="Alpha", correct="x", mandate_obj=_mandate(), now=100.0, structured_dir=s, tier3_dir=t3)
+    pipeline.route_and_store(fact="SAME", classify_fn=_cls("write-update"), **common)
+    pipeline.route_and_store(fact="SAME", classify_fn=_cls("write-update"), **common)
+    assert len(list(s.glob("alpha.superseded-*.md"))) == 2
 
 
 def test_trust_entfernt_pii_vor_store(tmp_path):

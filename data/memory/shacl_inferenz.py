@@ -54,7 +54,23 @@ def validate(graph, shapes_graph):
 
 
 def pipeline(data_graph, rules, shapes_graph, max_rounds: int = DEFAULT_MAX_ROUNDS):
-    """Inferenz (Fixpunkt) → Validierung. Rückgabe: Ergebnis-Dict."""
+    """Inferenz (Fixpunkt) → Validierung. Rückgabe: Ergebnis-Dict.
+
+    §6: Erreicht der Fixpunkt die Iterationsgrenze (`max_rounds`) **nicht**, wird die
+    Inferenz als **unvollständig** ausgewiesen; `conforms` ist dann nicht belastbar.
+    """
     data_graph, trace = run_rules_to_fixpoint(data_graph, rules, max_rounds)
     conforms, report = validate(data_graph, shapes_graph)
-    return {"conforms": conforms, "report": report, "trace": trace, "graph": data_graph}
+    complete = (not trace) or (not trace[-1]["new"])
+    return {
+        "conforms": conforms,
+        "report": report,
+        "trace": trace,
+        "graph": data_graph,
+        "inference_status": "vollständig" if complete else "unvollständig",
+        "inference_complete": complete,
+        "conforms_reliable": complete,
+        "hint": None
+        if complete
+        else "Iterationsgrenze max_rounds erreicht – Fixpunkt NICHT garantiert, conforms nicht belastbar",
+    }

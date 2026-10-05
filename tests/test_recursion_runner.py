@@ -56,3 +56,17 @@ def test_noop_ohne_llm(tmp_path, monkeypatch):
 def test_akt_gate_deny(tmp_path):
     out = _run(tmp_path, mandate_obj=_mandate(actions=frozenset()), delta=np.full((4, 4), 0.05))
     assert out["results"]["Akt"]["ok"] is False and out["results"]["Akt"]["action"] == "deny"
+
+
+def test_deny_keine_revision(tmp_path):
+    """S1a/§9: abgelehnte Akt-Aktion -> keine Revision."""
+    out = _run(tmp_path, mandate_obj=_mandate(actions=frozenset()), delta=np.full((4, 4), 0.05))
+    assert out["results"]["Akt"]["ok"] is False
+    assert out["results"]["Revise"]["skipped"] is True
+
+
+def test_compare_ohne_beobachtung_kein_ground_truth(tmp_path):
+    """S1b/§1/§6: ohne externe Beobachtung kein Ground-Truth-Label."""
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05))  # 0/0 Beobachtungen
+    assert out["results"]["Compare"]["observed"] is False
+    assert "kein externes Signal" in out["results"]["Compare"]["signal"]
