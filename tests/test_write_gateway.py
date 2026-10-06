@@ -336,3 +336,59 @@ def test_is_domain_rejection_und_domain_rejected_guard(tmp_path):
     assert issubclass(wg.DomainRejection, Exception)
     r = wg.store_file(target=tmp_path / "d.md", content="x", now=1.0, domain_rejected=True)
     assert r["ok"] is False and r["gate"] == "deny" and not (tmp_path / "d.md").exists()
+
+
+# ------------------------------------------------- K5: Lock/Concurrency-Pfade
+def test_acquire_lock_stale_wird_ersetzt(tmp_path):
+    import os
+    import time
+
+    lock = tmp_path / "x.lock"
+    lock.write_text("", encoding="utf-8")
+    alt = time.time() - (wg.LOCK_STALE_S + 10)
+    os.utime(lock, (alt, alt))  # abgebrochener Schreiber -> stale
+    fd = wg._acquire_lock(lock)
+    assert isinstance(fd, int)  # Lock ersetzt und neu gehalten
+    os.close(fd)
+    lock.unlink(missing_ok=True)
+
+
+def test_acquire_lock_frisch_ist_gehalten(tmp_path):
+    lock = tmp_path / "y.lock"
+    lock.write_text("", encoding="utf-8")  # frischer Lock -> gehalten
+    assert wg._acquire_lock(lock) is None
+
+
+def test_store_file_lock_konflikt_kein_write(tmp_path):
+    t = tmp_path / "s" / "fakt.md"
+    t.parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "s" / "fakt.md.lock").write_text("", encoding="utf-8")  # paralleler Schreiber
+    r = wg.store_file(target=t, content="neu", now=1.0, origin="user", verified=True)
+    assert r["ok"] is False and r["gate"] == "ask" and "lock" in r["reason"]
+    assert not t.exists()  # Konflikt -> KEIN Write
+
+
+def test_store_lock_konflikt_kein_write(tmp_path):
+    s = tmp_path / "s"
+    s.mkdir()
+    (s / "gesetz-x.md.lock").write_text("", encoding="utf-8")
+    r = wg.store(
+        question="Gesetz X",
+        fact="neu",
+        correct="c",
+        classify_fn=_cls("write-new"),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=tmp_path / "t3",
+        mandate_obj=_mandate(),
+    )
+    assert r["ok"] is False and r["gate"] == "ask" and "lock" in r["reason"]
+    assert not (s / "gesetz-x.md").exists()
+
+
+def test_supersede_entry_lock_konflikt(tmp_path):
+    t1 = tmp_path / "t1"
+    t1.mkdir()
+    (t1 / "k.md.lock").write_text("", encoding="utf-8")
+    r = wg.supersede_entry(t1, "k", "neu", 7.0)
+    assert r["ok"] is False and "lock" in r["reason"]

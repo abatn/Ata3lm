@@ -239,3 +239,53 @@ def test_runner_teilen_state_ueber_beide_laeufe(tmp_path, monkeypatch):
     assert st["runner"] == "recursion-runner"
     assert st["hmm"] is not None  # HMM im gemeinsamen State
     assert "raw:wo" in st["wm"]["items"]  # WM-Inhalt aus dem 1. Lauf erhalten
+
+
+def test_recursion_state_coldstart_ohne_state_file(tmp_path, monkeypatch):
+    """K1: `run_recursion` mit state_path, aber ohne vorhandenen State (Cold-Start-Zweig)."""
+    import lifecycle_runner as lr
+    import recursion_runner as rr
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    p = tmp_path / "neu.json"  # existiert NICHT -> resumed is None
+    out = rr.run_recursion(
+        "Q",
+        "F",
+        "C",
+        classify_fn=lambda q, f, c: {"class": "non-write"},
+        mandate_obj=lr._default_mandate(),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        state_path=p,
+    )
+    assert out["results"]["Konstrukt"]["pi0"] == "uniform (SEAA Listing 1)"
+    assert p.exists()  # State wird nach dem Lauf gespeichert
+
+
+def test_lifecycle_state_resume_zweiter_lauf(tmp_path, monkeypatch):
+    """K1: der 8-Stufen-Runner setzt beim 2. Lauf den gespeicherten State fort (359-361)."""
+    import lifecycle_runner as lr
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(tmp_path / "drift.json"))
+    p = tmp_path / "state.json"
+    lr.run_cycle(
+        "Wo?",
+        "Fakt A",
+        "Fakt A",
+        classify_fn=lambda q, f, c: {"class": "write-new"},
+        structured_dir=tmp_path / "s1",
+        tier3_dir=tmp_path / "t1",
+        state_path=p,
+    )
+    out2 = lr.run_cycle(  # 2. Lauf -> `resumed is not None` (Resume-Zweig)
+        "Wo?",
+        "Fakt B",
+        "Fakt B",
+        classify_fn=lambda q, f, c: {"class": "write-new"},
+        structured_dir=tmp_path / "s2",
+        tier3_dir=tmp_path / "t2",
+        state_path=p,
+    )
+    assert out2["results"]["Erfahrung"]["stored"].startswith("raw:")
+    assert "raw:wo" in rs.load(p)["wm"]["items"]  # WM-Inhalt über den Restart erhalten

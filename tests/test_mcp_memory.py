@@ -169,3 +169,12 @@ def test_n2_fail_closed_existierende_datei_unbekannter_trust(tmp_path, monkeypat
     r2 = m.write("structured", "keep.md", "Clobber2", trust="green")
     assert r2["ok"] is False and r2["status"] == "rejected"
     assert (scopes["structured"] / "keep.md").read_text(encoding="utf-8") == "Bestätigt"
+
+
+def test_write_lock_konflikt_wird_rejected(tmp_path, monkeypatch):
+    """K5/K2: hält ein paralleler Schreiber den Lock, wird der Write abgelehnt (kein Clobber)."""
+    scopes = _setup(tmp_path, monkeypatch)
+    (scopes["structured"] / "neu.md.lock").write_text("", encoding="utf-8")  # paralleler Schreiber
+    r = m.write("structured", "neu.md", "x", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert not (scopes["structured"] / "neu.md").exists()
