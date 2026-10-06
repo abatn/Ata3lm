@@ -99,6 +99,49 @@ def test_b6_gate_ask_keine_revision():
     assert r["skipped"] is True and "ausdrücklich zulässig" in r["reason"]
 
 
+def test_r10_niedriger_score_keine_revision():
+    """R10/§9: 1 Erfolg / 99 Fehler (Score 0.01 < 0.70) → keine Revision."""
+
+    class _HMM:
+        def update_from_reflection(self, text, delta=None):  # pragma: no cover - darf nie laufen
+            raise AssertionError("Revision trotz Score < 70 %")
+
+    ctx = {
+        "results": {"Akt": {"ok": True, "gate": "allow"}, "Compare": {"observed": True}},
+        "successes": 1,
+        "failures": 99,
+        "hmm": _HMM(),
+        "reflection_text": "",
+        "delta": None,
+    }
+    r = rr._phase_revise(ctx)
+    assert r["skipped"] is True and "Score" in r["reason"]
+
+
+def test_r10_schwelle_70_prozent_revidiert(tmp_path):
+    """R10: Score == 0.70 (7/10) ist noch zulässig (§9, ≥ 70 %)."""
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=7, failures=3)
+    assert out["results"]["Revise"]["skipped"] is False
+
+
+def test_r07_r18_recursion_state_save(tmp_path):
+    """R07/R18: `save`-Rückgabe sichtbar; deny persistiert keinen State; rev wächst."""
+    p = tmp_path / "state.json"
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=3, failures=1, state_path=p)
+    assert out["state_save"]["ok"] is True and out["state_save"]["rev"] == 1
+    out2 = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=3, failures=1, state_path=p)
+    assert out2["state_save"]["rev"] == 2
+    p2 = tmp_path / "deny.json"
+    out3 = _run(
+        tmp_path,
+        mandate_obj=_mandate(actions=frozenset()),
+        delta=np.full((4, 4), 0.05),
+        state_path=p2,
+    )
+    assert out3["results"]["Akt"]["ok"] is False
+    assert out3["state_save"]["ok"] is False and not p2.exists()
+
+
 def test_b6_ok_ohne_evidenz_skipped_reason():
     """B6 (K6): ok + gate allow, aber kein externes Signal ⇒ keine Revision."""
 

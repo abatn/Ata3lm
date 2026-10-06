@@ -53,6 +53,16 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
 
 
+def _approval_sha(content: str, target) -> str:
+    """R01 (Auftrag): Freigabe an den **aktuellen Inhalt + Ziel** binden (Replay-Schutz, §9.3).
+
+    Der Diff-Hash wird aus Inhalt UND Zielpfad gebildet, damit eine alte, für einen
+    anderen Inhalt/Ziel erteilte Zwei-Personen-Freigabe nicht wiederverwendet werden
+    kann (Freigabe-Replay). Bindung = sha256-Inhalt-Hash aus `provenance`.
+    """
+    return provenance.content_hash(f"{content}\x00{target}")
+
+
 def default_mandate(agent: str = "knowledge-agent") -> "mandate.Mandate":
     """System-Mandat der Gateway-Schreibpfade: `write:memory` auf `data/memory` (§9)."""
     return mandate.Mandate(
@@ -94,8 +104,21 @@ def _gate_poisoning(origin: str, verified: bool):
 
 
 def _gate_approval(approval_obj, approvers, subject: str, diff_sha: str):
-    """§9.3 Zwei-Personen-Freigabe; Rückgabe: (state, Bindung für PROV-O)."""
-    a = approval_obj or approval.TwoPersonApproval(subject=subject)
+    """§9.3 Zwei-Personen-Freigabe; Rückgabe: (state, Bindung für PROV-O).
+
+    R01 (Auftrag): Ist eine bestehende Freigabe (`approval_obj`) an einen **anderen**
+    Diff gebunden als den aktuell zu schreibenden Inhalt/Ziel (`diff_sha`), wird sie
+    abgelehnt (`state="rejected"`, `replay=True`) – Freigabe-Replay-Schutz.
+    """
+    a = approval_obj if approval_obj is not None else approval.TwoPersonApproval(subject=subject)
+    if a.diff_sha is not None and a.diff_sha != diff_sha:
+        return "rejected", {
+            "state": "rejected",
+            "approvers": list(a.approvers),
+            "diff_sha": a.diff_sha,
+            "expected_diff_sha": diff_sha,
+            "replay": True,
+        }
     for person in approvers or []:
         a.approve(person, diff_sha=diff_sha)
     a.finalize()
@@ -149,14 +172,23 @@ def _archive_file(path: Path, now: float) -> Path:
     return archived
 
 
-def _commit(targets, now: float, supersede_existing: bool) -> dict:
+def _commit(targets, now: float, supersede_existing: bool, append: bool = False) -> dict:
     """EINZIGER Mutation-Punkt: Ziele schreiben, alten Stand archivieren (falls gefordert).
 
     `targets` = Liste aus (Pfad, Inhalt); erster Eintrag = Primärziel (dessen alter
     Stand archiviert und als `superseded` gemeldet wird). K5: Lock am Primärziel
     gegen parallele Schreibkonflikte – `conflict != None` ⇒ KEIN Write.
+
+    R08 (Auftrag): Mehrziel-Write **atomar** – erst ALLE Ziele prüfen (z. B. kein
+    Verzeichnis als Dateiziel), dann schreiben. Ist ein Ziel ungültig, wird NICHTS
+    geschrieben (`error`), kein halb-geschriebener Zustand. `append=True` hängt an
+    (JSONL-Historie, R20) statt zu überschreiben.
     """
     primary = Path(targets[0][0])
+    for target, _content in targets:  # R08: Vorprüfung VOR jeder Mutation
+        t = Path(target)
+        if t.exists() and t.is_dir():
+            return {"written": [], "superseded": None, "conflict": None, "error": f"Ziel ist ein Verzeichnis: {t}"}
     lock = Path(str(primary) + ".lock")
     fd = _acquire_lock(lock)
     if fd is None:
@@ -178,7 +210,12 @@ def _commit(targets, now: float, supersede_existing: bool) -> dict:
                     }
                 else:
                     superseded = {"key": target.stem, "old_found": False, "archived": None, "at": now}
-            target.write_text(content, encoding="utf-8")
+            if append:
+                # R20: JSONL-Anhang – genau ein Event pro Zeile (Trust/PII strippt \n).
+                with target.open("a", encoding="utf-8") as fh:
+                    fh.write(content.rstrip("\n") + "\n")
+            else:
+                target.write_text(content, encoding="utf-8")
             written.append(str(target))
         return {"written": written, "superseded": superseded, "conflict": None}
     finally:
@@ -249,6 +286,7 @@ def store_file(
     shared_key: Optional[str] = None,
     provenance_log=None,
     domain_rejected: bool = False,
+    append: bool = False,
 ) -> dict:
     """EIN Schreibpfad (K2) für einen direkten Datei-Write mit voller Gate-Kette.
 
@@ -257,6 +295,11 @@ def store_file(
 
     K7/B3 (§9, §11): `domain_rejected=True` ist ein **harter Backstop** — ein
     fachliches `rejected` wird nie geschrieben, auch nicht über einen Fallback.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** `append=True` (R20)
+    hängt an ein Ziel an (statt zu überschreiben) — für JSONL-Historien, damit
+    wiederholte Events erhalten bleiben. Die Freigabe wird nun an den **aktuellen
+    Inhalt + Ziel** gebunden (`_approval_sha`, R01) statt nur an den Inhalt.
     """
     steps: list = []
     if domain_rejected:
@@ -287,20 +330,24 @@ def store_file(
             "steps": steps,
         }
 
+    target = Path(target)
     binding = None
     if require_approval:
         state, binding = _gate_approval(
-            approval_obj, approvers, approval_subject or str(target), provenance.content_hash(clean)[:16]
+            approval_obj, approvers, approval_subject or str(target), _approval_sha(clean, target)
         )
         steps.append(("approval", state))
         if state != "approved":
+            replay = bool((binding or {}).get("replay"))
             return {
                 "ok": False,
-                "gate": gate_labels.ASK,
+                "gate": gate_labels.DENY if replay else gate_labels.ASK,
                 "approval": state,
                 "written": [],
                 "superseded": None,
-                "reason": "Zwei-Personen-Freigabe nicht approved (§9.3)",
+                "reason": "Freigabe-Replay: diff_sha passt nicht zu Inhalt/Ziel (§9.3)"
+                if replay
+                else "Zwei-Personen-Freigabe nicht approved (§9.3)",
                 "steps": steps,
             }
 
@@ -318,7 +365,6 @@ def store_file(
         }
 
     # K3-STOPP VOR der Mutation: Record mit Inhalt-Hash + Freigabe-Bindung bauen.
-    target = Path(target)
     old_content = target.read_text(encoding="utf-8") if (supersede and target.exists()) else None
     try:
         record = provenance.build_record(
@@ -343,14 +389,14 @@ def store_file(
         }
 
     targets = [(target, clean)] + [(Path(p), clean) for p in (also_write or [])]
-    res = _commit(targets, now, supersede_existing=supersede)
-    if res.get("conflict"):
+    res = _commit(targets, now, supersede_existing=supersede, append=append)
+    if res.get("conflict") or res.get("error"):
         return {
             "ok": False,
             "gate": gate_labels.ASK,
             "written": [],
             "superseded": None,
-            "reason": res["conflict"],
+            "reason": res.get("conflict") or res.get("error"),
             "steps": steps,
         }
     steps.append(("write", activity))
@@ -403,6 +449,12 @@ def store(
     Layout (AGENTS.md §10.7): non-write → nur Historie · write-new → `structured/`
     + `tier3/` · write-update → `structured/` (+Archiv), `tier3/` falls vorhanden,
     optionaler tier1-Supersede (§10.7).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** Die Zwei-Personen-
+    Freigabe wird an **Inhalt + Ziel** gebunden (`_approval_sha`, R01). Die
+    non-write-Historie wird **angehängt** (JSONL, R20) statt überschrieben. Ein
+    tier1-Supersede-Konflikt führt zu einem **Teilfehler** (R09: `ok=False`,
+    `partial=True`) — nicht mehr zu `ok=True`.
     """
     steps: list = []
     dec, gate = _gate_mandate(mandate_obj, agent, now)
@@ -414,6 +466,7 @@ def store(
     cls = router["class"]
     steps.append(("fwr", cls))
     name = f"{_slug(question)}.md"
+    structured_file = Path(structured_dir) / name
 
     if cls == "non-write":
         out = {
@@ -438,6 +491,7 @@ def store(
                 verified=verified,
                 supersede=False,
                 provenance_log=provenance_log,
+                append=True,  # R20: wiederholte non-write-Events erhalten (JSONL append)
             )
             out["written"] = hres.get("written", [])
             out["ok"] = hres["ok"]
@@ -484,14 +538,19 @@ def store(
 
     binding = None
     if self_update:
-        state, binding = _gate_approval(approval_obj, approvers, question, _slug(clean))
+        state, binding = _gate_approval(approval_obj, approvers, question, _approval_sha(clean, structured_file))
         steps.append(("approval", state))
         if state != "approved":
+            replay = bool((binding or {}).get("replay"))
             return {
                 "ok": False,
-                "gate": gate_labels.ASK,
+                "action": cls,
+                "gate": gate_labels.DENY if replay else gate_labels.ASK,
                 "approval": state,
                 "written": [],
+                "reason": "Freigabe-Replay: diff_sha passt nicht zu Inhalt/Ziel (§9.3)"
+                if replay
+                else "Zwei-Personen-Freigabe nicht approved (§9.3)",
                 "steps": steps,
             }
 
@@ -508,7 +567,6 @@ def store(
             "steps": steps,
         }
 
-    structured_file = Path(structured_dir) / name
     tier3_file = Path(tier3_dir) / name
     targets = [(structured_file, clean)]
     if cls == "write-new":
@@ -540,13 +598,13 @@ def store(
         }
 
     res = _commit(targets, now, supersede_existing=(cls == "write-update"))
-    if res.get("conflict"):
+    if res.get("conflict") or res.get("error"):
         return {
             "ok": False,
             "action": cls,
             "gate": gate_labels.ASK,
             "written": [],
-            "reason": res["conflict"],
+            "reason": res.get("conflict") or res.get("error"),
             "steps": steps,
         }
     steps.append(("write", cls))
@@ -557,6 +615,25 @@ def store(
         # §10.7: alten tier1-Eintrag supersedieren (invalidieren, NICHT löschen)
         superseded_tier1 = (supersede_fn or supersede_entry)(tier1_dir, _slug(question), clean, now)
         steps.append(("supersede", superseded_tier1.get("old_found")))
+        if not superseded_tier1.get("ok", True):
+            # R09 (Auftrag): tier1-Konflikt ⇒ Gesamt-Update unvollständig, NICHT ok=True.
+            log = Path(provenance_log) if provenance_log is not None else Path(tier3_dir) / "provenance.jsonl"
+            provenance.append_record(log, record)  # K3: der geschriebene Teil bleibt belegt
+            steps.append(("provenance", record["entity"]["sha256"][:12]))
+            return {
+                "ok": False,
+                "action": cls,
+                "gate": gate_labels.ASK,
+                "partial": True,
+                "written": res["written"],
+                "superseded": superseded_structured,
+                "superseded_structured": superseded_structured,
+                "superseded_tier1": superseded_tier1,
+                "provenance": record,
+                "provenance_log": str(log),
+                "reason": f"tier1-Konflikt: Update unvollständig ({superseded_tier1.get('reason')})",
+                "steps": steps,
+            }
 
     shared_res = None
     if shared_tier is not None:

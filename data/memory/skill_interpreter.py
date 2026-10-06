@@ -29,8 +29,10 @@ from pathlib import Path
 import bias_monitor
 import evaluator_version
 import fast_write_router
+import gate_labels
 import ingestion_hook
 import jsonschema
+import mandate
 import pipeline
 import procedural_memory
 import reflective_agent
@@ -123,6 +125,22 @@ def _parse_mcp(result) -> dict:
     return {"ok": False, "reason": "leeres MCP-Ergebnis"}
 
 
+def _mandate_write_denied(ctx: dict) -> str | None:
+    """R02 §9: Das Kontext-Mandat muss `write:memory` erlauben – sonst fail-closed.
+
+    Das Skill-Mandat wird hier **wirksam** (zuvor ignorierte der Executor es und
+    der MCP-Write nutzte ein Default-Schreibmandat). Ohne Mandat oder bei einem
+    Read-only-Mandat (`read:memory`) erfolgt KEIN Write.
+    """
+    m = ctx.get("mandate_obj")
+    if m is None:
+        return "kein Mandat im Kontext → fail-closed (§9)"
+    dec = mandate.assess(m, action="write:memory", resource="data/memory", amount=0.0, now=float(ctx.get("now", 0.0)))
+    if not gate_labels.is_allow(dec["gate"]):
+        return f"Mandat verweigert Write ({dec['gate']}): {dec['reason']} (§9)"
+    return None
+
+
 def _fallback_domain_violation(ctx: dict, key: str, trust_color: str) -> str | None:
     """K7/B3 §9.2c/§9.3: fail-closed im Fallback.
 
@@ -140,7 +158,7 @@ def _fallback_domain_violation(ctx: dict, key: str, trust_color: str) -> str | N
         db = None
     if db is None:
         return "Trust-Metadaten nicht verfügbar – fail-closed (§9.2c/§9.3)" if target.exists() else None
-    current = db.get(key)
+    current = db.get(f"tier3/{key}")  # R11/R13/R14: Scope-qualifizierter Trust-Schlüssel
     if current == "blue" and trust_color == "green":
         return "green darf bestätigtes blue nicht überschreiben (§9.2c/§10.7)"
     if target.exists() and current is None:
@@ -162,6 +180,9 @@ def _local_fallback(ctx: dict, key: str, content: str, trust_color: str, reason:
             "via": "local-fallback",
             "reason": "Tri-Color Red: Verstoß – nicht gespeichert",
         }
+    denied = _mandate_write_denied(ctx)  # R02 §9: Read-only-Mandat blockiert den Write
+    if denied is not None:
+        return {"ok": False, "status": "rejected", "via": "local-fallback", "reason": denied[:80]}
     if trust_color not in ("blue", "green", "red"):
         return {"ok": False, "via": "local-fallback", "reason": f"ungültige Trust-Farbe {trust_color!r}"}
     if not key or ".." in key or key.startswith("/") or "/" in key or "\\" in key:
@@ -199,6 +220,9 @@ def _run_memory_write(ctx: dict, scope: str = "tier3", key: str = "", content: s
     """
     key = key or (re.sub(r"[^a-z0-9]+", "-", (ctx["question"] or "").lower()).strip("-")[:60] + ".md")
     content = content or ctx["fact"]
+    denied = _mandate_write_denied(ctx)  # R02 §9: Kontext-Mandat VOR dem echten MCP-Aufruf
+    if denied is not None:
+        return {"ok": False, "via": "mandate", "status": "rejected", "reason": denied[:80]}
     try:
         import mcp_memory_server
     except ImportError as exc:  # echter Ausfall: SDK nicht verfügbar -> §11-Fallback

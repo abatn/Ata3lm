@@ -23,6 +23,9 @@ import runner_state
 
 PHASES = ("Konstrukt", "Akt", "Observe", "Compare", "Revise")
 
+# R10/§9: Revision nur bei Score ≥ 70 % (automatisches Gate §9: < 70 % = blockiert).
+REVISE_MIN_SCORE = 0.70
+
 
 def _phase_konstrukt(ctx: dict) -> dict:
     """Konstrukt: π0 aus Ziel + Wissen — initialisiert die HMM-Trägheit (SEAA).
@@ -93,12 +96,18 @@ def _phase_revise(ctx: dict) -> dict:
         }
     vergleich = ctx["results"]["Compare"]
     # §9.1d: passende Evidenz = externes Signal mit ≥ 1 positivem Beleg.
-    evidence_ok = bool(vergleich.get("observed")) and ctx["successes"] >= 1
+    n = ctx["successes"] + ctx["failures"]
+    score = (ctx["successes"] / n) if n else 0.0
+    # R10/§9: Score < 70 % ⇒ keine Revision (1 Erfolg / 99 Fehler lernt nicht).
+    evidence_ok = bool(vergleich.get("observed")) and ctx["successes"] >= 1 and score >= REVISE_MIN_SCORE
     if not evidence_ok:
         return {
             "phase": "Revise",
             "skipped": True,
-            "reason": "keine passende Evidenz (§9.1d): Signal negativ/unzureichend – keine Revision",
+            "reason": (
+                f"keine passende Evidenz (§9.1d/R10): Score {score:.2f} < {REVISE_MIN_SCORE:.2f} "
+                "oder Signal negativ/unzureichend – keine Revision"
+            ),
         }
     out = ctx["hmm"].update_from_reflection(ctx["reflection_text"], delta=ctx["delta"])
     return {"phase": "Revise", "skipped": out["skipped"], "lr": out["lr"]}
@@ -162,20 +171,38 @@ def run_recursion(
         result = _PHASE_FN[phase](ctx)
         ctx["results"][phase] = result
         trace.append(result)
+    state_save = None
     if state_path is not None:
-        runner_state.save(
-            runner_state.snapshot(
-                wm=rec_wm,
-                graph=rec_graph,
-                hmm=ctx["hmm"],
-                drift_reference=(resumed or {}).get("drift", {}).get("reference"),
-                schema=(resumed or {}).get("schema", {}),
-                open_approvals=(resumed or {}).get("open_approvals", []),
-                runner="recursion-runner",
-            ),
-            state_path,
-        )
-    return {"phases": list(PHASES), "results": ctx["results"], "trace": trace, "hmm": ctx["hmm"]}
+        # R18: ein abgelehnter Akt persistiert KEINEN neuen Wissenszustand (§9).
+        akt_ok = bool(ctx["results"].get("Akt", {}).get("ok"))
+        if not akt_ok:
+            state_save = {
+                "ok": False,
+                "path": str(state_path),
+                "reason": "Akt abgelehnt (ok=False) – kein neuer Wissenszustand persistiert (R18/§9)",
+            }
+        else:
+            # R06: CAS über den geladenen Revisionsstand; R07: Rückgabe wird berichtet.
+            state_save = runner_state.save(
+                runner_state.snapshot(
+                    wm=rec_wm,
+                    graph=rec_graph,
+                    hmm=ctx["hmm"],
+                    drift_reference=(resumed or {}).get("drift", {}).get("reference"),
+                    schema=(resumed or {}).get("schema", {}),
+                    open_approvals=(resumed or {}).get("open_approvals", []),
+                    runner="recursion-runner",
+                ),
+                state_path,
+                expected_rev=(resumed or {}).get("rev", 0),
+            )
+    return {
+        "phases": list(PHASES),
+        "results": ctx["results"],
+        "trace": trace,
+        "hmm": ctx["hmm"],
+        "state_save": state_save,
+    }
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI

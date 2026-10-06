@@ -103,6 +103,32 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
 
 
+def _drift_label(value) -> str:
+    """EIN Drift-Labelraum vor UND nach dem Write (R16): ``write`` | ``non-write``."""
+    v = str(value or "").strip().lower()
+    if v in ("write-new", "write-update", "write"):
+        return "write"
+    if v in ("non-write", "none", "non_write"):
+        return "non-write"
+    return v
+
+
+class _CanonicalDriftMonitor:
+    """Reicht das Write-Label kanonisiert an den Monitor (R16: ein Labelraum).
+
+    Der Write-Gateway ruft `observe({cls: 1.0})` mit `write-new`/`write-update`; Stufe 8
+    nutzt `write`/`non-write`. Ohne Kanonisierung sähe der Monitor zwei Klassenräume und
+    würde fälschlich `ask` melden.
+    """
+
+    def __init__(self, monitor):
+        self._monitor = monitor
+
+    def observe(self, distribution, step=None):
+        label = next(iter(distribution), "")
+        return self._monitor.observe({_drift_label(label): 1.0}, step=step)
+
+
 def _default_mandate() -> "mandate.Mandate":
     """Minimales Mandat, das `write:memory` auf `data/memory` erlaubt (§9)."""
     return mandate.Mandate(
@@ -322,7 +348,17 @@ def run_cycle(
     dec0 = mandate.assess(mandate_obj, action="write:memory", resource="data/memory", amount=0.0, now=now)
     # N7/S1 §9.1c: ein explizit übergebener Drift schützt den Write in Stufe 3 und wird
     # in Stufe 8 genutzt; sonst löst Stufe 8 die Referenz auf (Checkpoint / Cold-Start).
+    # R04: auch die Default-Erwartung (`LIFECYCLE_DRIFT_BASELINE`) gatet VOR der Mutation.
+    # R16: vor (Write-Gateway) und nach (Stufe 8) gilt EIN kanonischer Labelraum.
     drift_monitor = drift
+    if drift is not None:
+        drift_write = _CanonicalDriftMonitor(drift)
+    elif baseline is not None:
+        # R04: Default-Erwartung gatet VOR der Mutation; Stufe 8 nutzt weiter die
+        # Referenz/den Checkpoint (§9.2b) – nur der Write-Pfad bekommt den Monitor.
+        drift_write = _CanonicalDriftMonitor(bias_monitor.BiasDriftMonitor(baseline=baseline, tau=tau))
+    else:
+        drift_write = None
     ctx = {
         "question": question,
         "fact": fact,
@@ -346,7 +382,7 @@ def run_cycle(
         "mandate_allow": gate_labels.is_allow(dec0["decision"]),
         "self_update": self_update,
         "approvers": approvers,
-        "drift_write": drift,
+        "drift_write": drift_write,
         "drift_monitor": drift_monitor,
         "entities": [],
         "results": {},
@@ -357,28 +393,53 @@ def run_cycle(
         resumed = runner_state.load(state_path)
         if resumed is not None:
             rec = runner_state.reconstruct(resumed)
-            ctx["wm"] = ctx["wm"] if wm is not None else rec["wm"]
-            ctx["graph"] = ctx["graph"] if graph is not None else rec["graph"]
+            # R05: fehlende Teile (None) NICHT über gesetzte Defaults legen. Ein
+            # 5-Phasen-Cold-Start persistiert wm/graph=None; der 8-Stufen-Resume darf
+            # die bereits erzeugten Default-Objekte dann nicht durch None ersetzen.
+            ctx["wm"] = ctx["wm"] if wm is not None else (rec["wm"] if rec["wm"] is not None else ctx["wm"])
+            ctx["graph"] = (
+                ctx["graph"] if graph is not None else (rec["graph"] if rec["graph"] is not None else ctx["graph"])
+            )
     trace = []
     for stage in STAGES:
         result = _STAGE_FN[stage](ctx)
         ctx["results"][stage] = result
         trace.append(result)
+    state_save = None
     if state_path is not None:
-        # K1: Zustand nach dem Lauf persistieren (Inhalte + Metadaten + offene Freigaben)
-        runner_state.save(
-            runner_state.snapshot(
-                wm=ctx["wm"],
-                graph=ctx["graph"],
-                hmm=rec.get("hmm"),  # K1: fremdes HMM im Shared State erhalten
-                drift_reference=_load_drift_reference(),
-                schema=(resumed or {}).get("schema", {}),
-                open_approvals=(resumed or {}).get("open_approvals", []),
-                runner="lifecycle-runner",
-            ),
-            state_path,
-        )
-    return {"stages": list(STAGES), "results": ctx["results"], "trace": trace, "wm": ctx["wm"]}
+        # R18: ein abgelehnter Akt (Gedächtnis ok=False) persistiert KEINEN neuen
+        # Wissenszustand – der Runner-State wird dann nicht fortgeschrieben (§9).
+        akt_ok = bool(ctx["results"].get("Gedächtnis", {}).get("ok"))
+        if not akt_ok:
+            state_save = {
+                "ok": False,
+                "path": str(state_path),
+                "reason": "Akt abgelehnt (Gedächtnis ok=False) – kein neuer Wissenszustand persistiert (R18/§9)",
+            }
+        else:
+            # K1: Zustand nach dem Lauf persistieren (Inhalte + Metadaten + offene Freigaben).
+            # R06: CAS über den geladenen Revisionsstand (Lost-Update verhindern).
+            # R07: die Rückgabe wird NICHT verschwiegen (Feld `state_save` im Ergebnis).
+            state_save = runner_state.save(
+                runner_state.snapshot(
+                    wm=ctx["wm"],
+                    graph=ctx["graph"],
+                    hmm=rec.get("hmm"),  # K1: fremdes HMM im Shared State erhalten
+                    drift_reference=_load_drift_reference(),
+                    schema=(resumed or {}).get("schema", {}),
+                    open_approvals=(resumed or {}).get("open_approvals", []),
+                    runner="lifecycle-runner",
+                ),
+                state_path,
+                expected_rev=(resumed or {}).get("rev", 0),
+            )
+    return {
+        "stages": list(STAGES),
+        "results": ctx["results"],
+        "trace": trace,
+        "wm": ctx["wm"],
+        "state_save": state_save,
+    }
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI

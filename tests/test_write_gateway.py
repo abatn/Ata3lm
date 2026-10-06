@@ -392,3 +392,126 @@ def test_supersede_entry_lock_konflikt(tmp_path):
     (t1 / "k.md.lock").write_text("", encoding="utf-8")
     r = wg.supersede_entry(t1, "k", "neu", 7.0)
     assert r["ok"] is False and "lock" in r["reason"]
+
+
+# ------------------------------------------------- R01: Freigabe-Replay-Schutz
+def test_store_file_freigabe_replay_anderer_inhalt_wird_abgelehnt(tmp_path):
+    """R01: alte, für anderen Inhalt/Ziel erteilte Freigabe darf NICHT wiederverwendet werden."""
+    import approval
+
+    target = tmp_path / "f.md"
+    old = approval.TwoPersonApproval(subject=str(target))
+    old.approve("Batnini", diff_sha=wg._approval_sha("ALT", target))
+    old.approve("Verifier2", diff_sha=wg._approval_sha("ALT", target))
+    assert old.finalize()["state"] == "approved"
+    r = wg.store_file(
+        target=target,
+        content="NEU",  # anderer Inhalt -> anderer diff_sha
+        now=1.0,
+        require_approval=True,
+        approval_obj=old,
+        activity="self-update",
+    )
+    assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
+    assert not target.exists()  # kein Write bei Replay
+
+
+def test_store_file_freigabe_gleicher_inhalt_wird_akzeptiert(tmp_path):
+    """R01: Freigabe, die an DENSELBEN Inhalt/Ziel gebunden ist, wird akzeptiert."""
+    import approval
+
+    target = tmp_path / "f.md"
+    sha = wg._approval_sha("NEU", target)
+    obj = approval.TwoPersonApproval(subject=str(target))
+    obj.approve("Batnini", diff_sha=sha)
+    obj.approve("Verifier2", diff_sha=sha)
+    obj.finalize()
+    r = wg.store_file(
+        target=target, content="NEU", now=1.0, require_approval=True, approval_obj=obj, activity="self-update"
+    )
+    assert r["ok"] is True and r["provenance"]["approval"]["diff_sha"] == sha
+
+
+def test_store_freigabe_replay_anderer_inhalt_wird_abgelehnt(tmp_path):
+    """R01 im store()-Pfad (write-update/self_update)."""
+    import approval
+
+    structured = tmp_path / "s" / "gesetz-x.md"
+    old = approval.TwoPersonApproval(subject="alt")
+    old.approve("Batnini", diff_sha=wg._approval_sha("ALT", structured))
+    old.approve("Verifier2", diff_sha=wg._approval_sha("ALT", structured))
+    old.finalize()
+    r = wg.store(
+        question="Gesetz X",
+        fact="neu",  # anderer Inhalt/Target als freigegeben
+        correct="c",
+        classify_fn=_cls("write-update", gate="ask"),
+        now=1.0,
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t3",
+        mandate_obj=_mandate(),
+        self_update=True,
+        approval_obj=old,
+    )
+    assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
+    assert not structured.exists()
+
+
+# ------------------------------------------------- R08: atomarer Mehrziel-Write
+def test_store_file_mehrziel_verzeichnis_kein_halb_write(tmp_path):
+    """R08: ungültiges zweites Ziel (Verzeichnis) -> KEIN Write, keine Provenienz."""
+    t = tmp_path / "prim.md"
+    d = tmp_path / "ziel"
+    d.mkdir()
+    prov = tmp_path / "prov.jsonl"
+    r = wg.store_file(target=t, content="X", now=1.0, origin="user", verified=True, also_write=[d], provenance_log=prov)
+    assert r["ok"] is False and r["gate"] == "ask" and "Verzeichnis" in r["reason"]
+    assert not t.exists()  # Primärdatei NICHT geschrieben (kein halb-geschrieben)
+    assert not d.is_file()
+    assert not prov.exists()  # keine Provenienz ohne Write (konsistent)
+
+
+# ------------------------------------------------- R09: tier1-Konflikt = Teilfehler
+def test_store_write_update_tier1_konflikt_ist_teilfehler(tmp_path):
+    """R09: tier1-Lock gehalten -> Gesamt-Update NICHT ok=True (Teilfehler gemeldet)."""
+    t1 = tmp_path / "tier1"
+    t1.mkdir()
+    (t1 / "gesetz-x.md.lock").write_text("", encoding="utf-8")  # tier1-Konflikt
+    s = tmp_path / "s"
+    r = wg.store(
+        question="Gesetz X",
+        fact="neu",
+        correct="c",
+        classify_fn=_cls("write-update"),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=tmp_path / "t3",
+        tier1_dir=t1,
+        mandate_obj=_mandate(),
+    )
+    assert r["ok"] is False and r["gate"] == "ask" and r.get("partial") is True
+    assert (s / "gesetz-x.md").exists()  # strukturierter Teil wurde geschrieben ...
+    assert (tmp_path / "t3" / "provenance.jsonl").exists()  # ... und ist belegt (K3)
+
+
+# ------------------------------------------------- R20: non-write-Historie append
+def test_store_non_write_historie_haengt_an(tmp_path):
+    """R20: zwei Aufrufe derselben Frage -> BEIDE Events bleiben (JSONL append)."""
+    s, t3 = tmp_path / "s", tmp_path / "t3"
+    for at in (100.0, 101.0):
+        wg.store(
+            question="Q",
+            fact="F",
+            correct="C",
+            classify_fn=_cls("non-write"),
+            now=at,
+            structured_dir=s,
+            tier3_dir=t3,
+            history_dir=tmp_path / "hist",
+            mandate_obj=_mandate(),
+        )
+    hist = list((tmp_path / "hist").glob("*.non-write.jsonl"))
+    assert len(hist) == 1
+    lines = hist[0].read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 2  # beide Events erhalten
+    assert [json.loads(line)["at"] for line in lines] == [100.0, 101.0]

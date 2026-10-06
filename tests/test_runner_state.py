@@ -262,6 +262,96 @@ def test_recursion_state_coldstart_ohne_state_file(tmp_path, monkeypatch):
     assert p.exists()  # State wird nach dem Lauf gespeichert
 
 
+# ------------------------------------------------------- R06: echtes CAS (rev)
+def test_cas_verhindert_lost_update(tmp_path):
+    """R06: zwei Leser ab rev 0 → der zweite Schreiber verliert nicht still (kein Overwrite)."""
+    wm, graph, hmm = _wm_graph_hmm()
+    p = tmp_path / "state.json"
+    assert rs.save(rs.snapshot(wm=wm, graph=graph, hmm=hmm, now=1.0), p, expected_rev=0)["ok"] is True
+    assert rs.load(p)["rev"] == 1
+    # Leser B hat noch rev 0 im Kopf, A hat inzwischen rev 1 geschrieben
+    res = rs.save(rs.snapshot(now=2.0), p, expected_rev=0)
+    assert res["ok"] is False and "CAS" in res["reason"] and res["rev"] == 1
+    assert rs.load(p)["rev"] == 1  # A's Stand bleibt erhalten
+    # Leser B liest frisch (rev 1) → Schreiben gelingt, rev wird monoton fortgesetzt
+    fresh = rs.load(p)
+    assert rs.save(rs.snapshot(now=3.0), p, expected_rev=fresh["rev"])["ok"] is True
+    assert rs.load(p)["rev"] == 2
+
+
+def test_cas_ohne_expected_rev_ist_rueckwaertskompatibel(tmp_path):
+    """R06: ohne `expected_rev` bleibt der alte Vertrag; `rev` wird trotzdem fortgeschrieben."""
+    st = rs.snapshot(now=1.0)
+    p = tmp_path / "state.json"
+    assert rs.save(st, p)["ok"] is True and rs.load(p)["rev"] == 1
+    assert rs.save(st, p)["ok"] is True and rs.load(p)["rev"] == 2
+
+
+def test_current_rev_fehlt_korrupt_und_gueltig(tmp_path):
+    """R06: `_current_rev` fällt bei fehlender/korrupter/nicht-int Revision auf 0 zurück."""
+    p = tmp_path / "state.json"
+    assert rs._current_rev(p) == 0  # fehlt
+    p.write_text("{kaputt", encoding="utf-8")
+    assert rs._current_rev(p) == 0  # korruptes JSON
+    p.write_text("[1, 2]", encoding="utf-8")
+    assert rs._current_rev(p) == 0  # kein Dict
+    p.write_text('{"rev": "x"}', encoding="utf-8")
+    assert rs._current_rev(p) == 0  # nicht int-bar
+    p.write_text('{"rev": 5}', encoding="utf-8")
+    assert rs._current_rev(p) == 5
+
+
+# ----------------------------------------------- R19: Policy + LRU-Reihenfolge
+def test_snapshot_policy_und_reihenfolge_bleiben(tmp_path):
+    """R19: Restart darf Policy + Eintragsreihenfolge (z→a) nicht verändern."""
+    wm = lru_cache.WorkingMemory(capacity=15, policy="lru")
+    for key in ("z", "a", "m"):
+        wm.store(key, key.upper())
+    st = rs.snapshot(wm=wm, now=1.0)
+    assert st["wm"]["policy"] == "lru"
+    assert list(st["wm"]["items"].keys()) == ["z", "a", "m"]
+    rec = rs.reconstruct(st)
+    assert rec["wm"].policy == "lru"
+    assert list(rec["wm"].items.keys()) == ["z", "a", "m"]  # nicht alphabetisch sortiert
+    p = tmp_path / "state.json"
+    rs.save(st, p)
+    assert list(rs.load(p)["wm"]["items"].keys()) == ["z", "a", "m"]  # kein sort_keys
+
+
+# ------------------------------- R05: Richtungswechsel 5-Phasen -> 8-Stufen
+def test_richtungswechsel_5zu8_legt_keine_none_defaults(tmp_path, monkeypatch):
+    """R05: 5-Phasen-Cold-Start (wm/graph=None) → 8-Stufen-Resume darf Defaults nicht überschreiben."""
+    import lifecycle_runner as lr
+    import recursion_runner as rr
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(tmp_path / "drift.json"))
+    p = tmp_path / "state.json"
+    rr.run_recursion(
+        "Q",
+        "F",
+        "C",
+        classify_fn=lambda q, f, c: {"class": "non-write"},
+        mandate_obj=lr._default_mandate(),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        state_path=p,
+    )
+    st = rs.load(p)
+    assert st["wm"] is None and st["graph"] is None  # Cold-Start-Zustand (R05-Auslöser)
+    out = lr.run_cycle(  # 8-Stufen-Resume: früher AttributeError (NoneType.store)
+        "Wo?",
+        "Fakt",
+        "Fakt",
+        classify_fn=lambda q, f, c: {"class": "write-new"},
+        structured_dir=tmp_path / "s2",
+        tier3_dir=tmp_path / "t2",
+        state_path=p,
+    )
+    assert out["results"]["Erfahrung"]["stored"].startswith("raw:")
+    assert rs.load(p)["wm"] is not None  # Defaults fortan persistiert
+
+
 def test_lifecycle_state_resume_zweiter_lauf(tmp_path, monkeypatch):
     """K1: der 8-Stufen-Runner setzt beim 2. Lauf den gespeicherten State fort (359-361)."""
     import lifecycle_runner as lr

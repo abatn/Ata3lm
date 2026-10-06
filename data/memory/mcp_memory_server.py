@@ -60,12 +60,33 @@ def _scope_dir(scope: str) -> Path:
     return SCOPES[scope]
 
 
+def _within(base: Path, target: Path) -> bool:
+    """True, wenn `target` innerhalb von `base` liegt (beide aufgelöst/absolut)."""
+    return target.is_relative_to(base)
+
+
 def _path(scope: str, key: str) -> Path:
     base = _scope_dir(scope)
     key = (key or "").strip()
     if not key or ".." in key or key.startswith("/"):
         raise ValueError(f"ungültiger key: {key!r}")
-    return base / key
+    path = base / key
+    # R12 §9.2c/§9.3: das AUFGELÖSTE Ziel muss im Scope liegen. Ein dangling/externer
+    # Symlink würde den Schreibpfad aus dem Scope herausführen → reject (fail-closed).
+    if not _within(base.resolve(), path.resolve()):
+        raise ValueError(f"key verlässt den Scope (Symlink/Auflösung): {key!r}")
+    return path
+
+
+def _trust_key(scope: str, key_path: Path) -> str:
+    """R11/R13/R14 §9.2c: Trust-Identität = **Scope + kanonischer key**.
+
+    Der Scope ist Teil des Schlüssels, damit gleiche Dateinamen in verschiedenen
+    Scopes unabhängig sind (keine Cross-Scope-Kollision/Umgehung). Das Format
+    `"{scope}/{relpfad}"` entspricht dem Altschema und liest bestehende Trust-DBs.
+    """
+    rel = key_path.relative_to(_scope_dir(scope)).as_posix()
+    return f"{scope}/{rel}"
 
 
 def _trust_db_path() -> Optional[Path]:
@@ -75,13 +96,34 @@ def _trust_db_path() -> Optional[Path]:
 
 
 def _load_trust_db(p: Path) -> dict:
-    """Tri-Color-Trust je `scope/key` (blue = bestätigt, green = Vorschlag)."""
+    """Tri-Color-Trust je `scope/key` (blue = bestätigt, green = Vorschlag).
+
+    Robust (R15): fehltypisierte/undekodierbare Metadaten liefern `{}` statt zu
+    crashen (der strenge Reject erfolgt in `write` über `_trust_db_malformed`).
+    """
     if not p.exists():
         return {}
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
+        data = json.loads(p.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _trust_db_malformed(p: Path) -> bool:
+    """R15 §9.2c/§9.3: True, wenn die DB parsebar, aber KEIN Objekt ist (`[]`, `"x"`).
+
+    Ein reiner Parse-Fehler (`{kaputt`) gilt als „keine Metadaten" (bestehendes
+    Verhalten); ein gültiges JSON des falschen Typs ist strukturell ungültig und
+    wird kontrolliert abgelehnt (kein `AttributeError`).
+    """
+    if not p.exists():
+        return False
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    return not isinstance(data, dict)
 
 
 def _save_trust_db(p: Path, db: dict) -> None:
@@ -130,7 +172,16 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
             "reason": "Trust-Metadaten (tier2) nicht verfügbar → fail-closed (§9.2c/§9.3)",
         }
     db = _load_trust_db(db_path)
-    db_key = path.relative_to(_scope_dir(scope)).as_posix()  # N1: aufgelöster Pfad, kein Roh-Key
+    if _trust_db_malformed(db_path):
+        # R15 §9.2c/§9.3: parsebar, aber kein Objekt (`[]`) → kontrolliert ablehnen.
+        return {
+            "ok": False,
+            "status": "rejected",
+            "scope": scope,
+            "key": key,
+            "reason": "Trust-Metadaten fehltypisiert (kein Objekt) → fail-closed (§9.2c/§9.3)",
+        }
+    db_key = _trust_key(scope, path)  # R11/R13/R14: Scope + kanonischer key
     if path.exists() and db.get(db_key) is None:
         # N2 §9.2c/§9.3: existierende Zieldatei + unbekannter Trust -> fail-closed.
         # Nur „keine Datei" darf grün sein (auch bei fehlender/kaputter Trust-DB).

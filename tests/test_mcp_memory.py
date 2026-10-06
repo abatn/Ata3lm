@@ -4,6 +4,9 @@ Echte Verifikation (Guardrail 7): ROOT/Scopes auf tmp_path; `build_server` mit d
 **echten** mcp-SDK (skip, falls nicht installiert) – kein Fake.
 """
 
+import json
+import os
+
 import mcp_memory_server as m
 import pytest
 
@@ -145,7 +148,7 @@ def test_n1_alias_key_teilt_trust_key(tmp_path, monkeypatch):
     r = m.write("structured", "./cur.md", "Vorschlag", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"  # Blue-Schutz greift über Alias
     assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
-    assert list(m._load_trust_db(m._trust_db_path())) == ["cur.md"]  # nur kanonischer Key
+    assert list(m._load_trust_db(m._trust_db_path())) == ["structured/cur.md"]  # Scope+kanonischer Key
 
 
 def test_n1_green_auf_green_erlaubt(tmp_path, monkeypatch):
@@ -178,3 +181,71 @@ def test_write_lock_konflikt_wird_rejected(tmp_path, monkeypatch):
     r = m.write("structured", "neu.md", "x", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"
     assert not (scopes["structured"] / "neu.md").exists()
+
+
+# --- R11/R12/R13/R14/R15: Scope + kanonischer Trust-Key, Symlink-Schranke, Typ-Guard ---
+
+
+def test_r13_scope_trennung_gleicher_key(tmp_path, monkeypatch):
+    """R13: Blue `structured/cur.md` blockiert Green `tier3/cur.md` NICHT (Scope im Key)."""
+    scopes = _setup(tmp_path, monkeypatch)
+    assert m.write("structured", "cur.md", "Bestätigt", trust="blue")["ok"] is True
+    r = m.write("tier3", "cur.md", "Vorschlag", trust="green")
+    assert r["ok"] is True and r["status"] == "proposed"
+    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
+    assert (scopes["tier3"] / "cur.md").read_text(encoding="utf-8") == "Vorschlag"
+    db = m._load_trust_db(m._trust_db_path())
+    assert db["structured/cur.md"] == "blue" and db["tier3/cur.md"] == "green"
+
+
+def test_r11_db_verlust_kein_cross_scope_repair(tmp_path, monkeypatch):
+    """R11: nach Metadatenverlust „repariert" Green in Tier3 NICHT das Blue in Structured."""
+    scopes = _setup(tmp_path, monkeypatch)
+    assert m.write("structured", "cur.md", "BLUE", trust="blue")["ok"] is True
+    (scopes["tier2"] / "mcp-trust.json").write_text("{}", encoding="utf-8")  # DB-Verlust
+    assert m.write("tier3", "cur.md", "GREEN", trust="green")["ok"] is True
+    r = m.write("structured", "cur.md", "CLOBBER", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "BLUE"
+
+
+def test_r14_altformat_scope_qualified_akzeptiert(tmp_path, monkeypatch):
+    """R14: alte Trust-DB (`structured/cur.md`) wird gelesen (kein Migrationszwang)."""
+    scopes = _setup(tmp_path, monkeypatch)
+    (scopes["structured"] / "cur.md").write_text("Bestätigt", encoding="utf-8")
+    (scopes["tier2"] / "mcp-trust.json").write_text(json.dumps({"structured/cur.md": "blue"}), encoding="utf-8")
+    green = m.write("structured", "cur.md", "Vorschlag", trust="green")
+    assert green["ok"] is False and green["status"] == "rejected"  # Blue-Schutz aus Altformat
+    blue = m.write("structured", "cur.md", "Neu bestätigt", trust="blue")
+    assert blue["ok"] is True and (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Neu bestätigt"
+
+
+def test_r12_symlink_ausserhalb_scope_rejected(tmp_path, monkeypatch):
+    """R12 §9.2c: dangling/externer Symlink darf den Scope nicht verlassen."""
+    scopes = _setup(tmp_path, monkeypatch)
+    outside = tmp_path / "OUTSIDE.md"
+    os.symlink(outside, scopes["structured"] / "link.md")
+    with pytest.raises(ValueError):
+        m.write("structured", "link.md", "EXTERN", trust="green")
+    assert not outside.exists()  # kein externer Write
+
+
+def test_r12_symlink_im_scope_erlaubt(tmp_path, monkeypatch):
+    """R12: Symlink, dessen Ziel IM Scope liegt, ist zulässig."""
+    scopes = _setup(tmp_path, monkeypatch)
+    inside = scopes["structured"] / "ziel.md"
+    inside.write_text("Ziel", encoding="utf-8")
+    os.symlink(inside, scopes["structured"] / "kurz.md")
+    (scopes["tier2"] / "mcp-trust.json").write_text(json.dumps({"structured/kurz.md": "green"}), encoding="utf-8")
+    r = m.write("structured", "kurz.md", "Neu", trust="green")
+    assert r["ok"] is True and inside.read_text(encoding="utf-8") == "Neu"
+
+
+def test_r15_metadaten_falscher_typ_rejected(tmp_path, monkeypatch):
+    """R15 §9.2c: JSON `[]` als Trust-DB → kontrolliert rejected, kein AttributeError."""
+    scopes = _setup(tmp_path, monkeypatch)
+    (scopes["structured"] / "cur.md").write_text("Bestätigt", encoding="utf-8")
+    (scopes["tier2"] / "mcp-trust.json").write_text("[]", encoding="utf-8")
+    r = m.write("structured", "cur.md", "Clobber", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected"
+    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"

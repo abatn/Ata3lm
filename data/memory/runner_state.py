@@ -45,10 +45,12 @@ def _wm_state(wm) -> Optional[dict]:
         return None
     return {
         "capacity": wm.capacity,
+        # R19: Policy im Snapshot erhalten (Restart darf die Eviction-Policy nicht ändern).
+        "policy": getattr(wm, "policy", "value"),
         "tick": wm.tick,
         "evicted": list(wm.evicted),
         "log": list(wm.log),
-        # K1: INHALTE + Metadaten, nicht nur Schlüssel
+        # K1: INHALTE + Metadaten, nicht nur Schlüssel; Reihenfolge (LRU) bleibt erhalten.
         "items": {key: dict(meta) for key, meta in wm.items.items()},
     }
 
@@ -78,13 +80,19 @@ def snapshot(
     open_approvals=None,
     runner: str = "",
     now: Optional[float] = None,
+    rev: int = 0,
 ) -> dict:
     """Vollständiger Snapshot: WM-Inhalte+Metadaten, Graph, HMM, Drift-Checkpoint,
-    Schema-/Revisionsstand (`schema`) und offene Freigaben (`open_approvals`)."""
+    Schema-/Revisionsstand (`schema`) und offene Freigaben (`open_approvals`).
+
+    `rev` ist der **CAS-Revisionsstand** (R06; §9-pflichtige Interface-Erweiterung).
+    `save(..., expected_rev=...)` setzt ihn beim Schreiben monoton fort.
+    """
     state = {
         "schema_version": SCHEMA_VERSION,
         "runner": runner,
         "created": _iso(now),
+        "rev": int(rev),
         "wm": _wm_state(wm),
         "graph": _graph_state(graph),
         "hmm": _hmm_state(hmm),
@@ -121,12 +129,31 @@ def validate(state: dict) -> None:
 
 
 # -------------------------------------------------- Persistenz (atomar + Lock)
-def save(state: dict, path) -> dict:
+def _current_rev(path: Path) -> int:
+    """Revisionsstand der Datei lesen; fehlend/korrupt ⇒ 0 (Cold-Start)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    if not isinstance(data, dict):
+        return 0
+    try:
+        return int(data.get("rev", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def save(state: dict, path, expected_rev: Optional[int] = None) -> dict:
     """Atomar speichern (tmp + `os.replace`) mit Lock gegen parallele Schreiber.
 
     - Schreibabbruch: tmp bleibt liegen, die alte Datei bleibt gültig (Atomicität).
     - Nebenläufigkeit: zweiter Schreiber bekommt `ok: False` (Lock) statt still
-      zu überschreiben (Compare-and-swap-Ersatz; Auftrag K1).
+      zu überschreiben.
+    - **CAS (R06, §9-pflichtige Interface-Erweiterung):** mit `expected_rev` wird
+      vor dem Replace der aktuelle Revisionsstand geprüft. Weicht er ab (ein anderer
+      Leser hat inzwischen geschrieben), ⇒ `ok: False` **ohne Overwrite** (Lost-Update
+      verhindert). Bei Erfolg wird `rev` monoton auf `aktuell + 1` gesetzt.
+      `expected_rev=None` ⇒ kein CAS-Check (rückwärtskompatibel).
     """
     validate(state)  # K1-STOPP vor jedem Schreiben
     path = Path(path)
@@ -136,10 +163,22 @@ def save(state: dict, path) -> dict:
     if fd is None:
         return {"ok": False, "path": str(path), "reason": "lock gehalten (Nebenläufigkeit)", "lock": str(lock)}
     try:
+        current_rev = _current_rev(path)
+        if expected_rev is not None and current_rev != expected_rev:
+            return {
+                "ok": False,
+                "path": str(path),
+                "reason": f"rev-Konflikt (erwartet {expected_rev}, Datei {current_rev}) – kein Overwrite (CAS, R06)",
+                "expected_rev": expected_rev,
+                "rev": current_rev,
+            }
+        new_state = dict(state)
+        new_state["rev"] = current_rev + 1  # monotone Revision
         tmp = Path(str(path) + ".tmp")
-        tmp.write_text(json.dumps(state, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        # R19: KEIN `sort_keys` – die LRU-Reihenfolge der WM-Items bleibt erhalten.
+        tmp.write_text(json.dumps(new_state, ensure_ascii=False), encoding="utf-8")
         os.replace(tmp, path)  # atomar: nie halb geschriebener Zustand sichtbar
-        return {"ok": True, "path": str(path), "bytes": path.stat().st_size}
+        return {"ok": True, "path": str(path), "bytes": path.stat().st_size, "rev": current_rev + 1}
     finally:
         os.close(fd)
         lock.unlink(missing_ok=True)
@@ -199,7 +238,8 @@ def reconstruct(state: dict) -> dict:
     wm = None
     if state.get("wm") is not None:
         w = state["wm"]
-        wm = lru_cache.WorkingMemory(capacity=w.get("capacity", 15))
+        # R19: Policy + Reihenfolge fortsetzen (keine stille Änderung der LRU-Policy).
+        wm = lru_cache.WorkingMemory(capacity=w.get("capacity", 15), policy=w.get("policy", "value"))
         wm.items.update({key: dict(meta) for key, meta in w.get("items", {}).items()})
         wm.tick = w.get("tick", 0)
         wm.evicted = list(w.get("evicted", []))

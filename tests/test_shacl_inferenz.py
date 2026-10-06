@@ -126,6 +126,46 @@ if __name__ == "__main__":
     print("ok")
 
 
+def test_r17_ohne_inferenzrunde_nicht_verlaesslich():
+    """R17: Regeln vorhanden, aber `max_rounds=0` → keine Runde → conforms nicht belastbar."""
+    g = rdflib.Graph()
+    g.parse(
+        data="@prefix ex: <http://example.org/> . ex:a ex:before ex:b . ex:b ex:before ex:c . ex:c ex:before ex:a .",
+        format="turtle",
+    )
+    rules = [
+        {
+            "id": "R",
+            "construct": "PREFIX ex: <http://example.org/> CONSTRUCT { ?a ex:before ?c } WHERE { ?a ex:before ?b . ?b ex:before ?c }",
+        }
+    ]
+    shape = rdflib.Graph()
+    shape.parse(
+        data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:before .",
+        format="turtle",
+    )
+    res = si.pipeline(g, rules, shape, max_rounds=0)
+    assert res["trace"] == []
+    assert res["inference_status"] == "unvollständig"
+    assert res["inference_complete"] is False
+    assert res["conforms_reliable"] is False and res["hint"]
+
+
+def test_pipeline_ohne_regeln_bleibt_verlaesslich():
+    """R17: ohne Regeln gibt es nichts zu inferieren → Validierung bleibt belastbar."""
+    g = rdflib.Graph()
+    g.parse(data="@prefix ex: <http://example.org/> . ex:a ex:before ex:b .", format="turtle")
+    shape = rdflib.Graph()
+    shape.parse(
+        data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:before .",
+        format="turtle",
+    )
+    res = si.pipeline(g, [], shape)
+    assert all(not r["new"] for r in res["trace"])  # keine Regeln → keine neuen Triples
+    assert res["inference_status"] == "vollständig"
+    assert res["conforms_reliable"] is True and res["hint"] is None
+
+
 def test_iterationsgrenze_als_unvollstaendig():
     """S5/§6: Erreichte Iterationsgrenze -> Inferenz unvollständig, conforms nicht belastbar."""
     g = rdflib.Graph()

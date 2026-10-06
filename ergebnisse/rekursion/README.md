@@ -93,6 +93,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 066 | `066-p3d-s1-korrekt.md` | System-Iteration (P3d/S1-korrekt: Drift-Referenz §9.1c/§9.2b) | approved: Batnini, 2026-10-05 („go mit Bedingung 1–3") | siehe File |
 | 067 | `067-k4-skill-binding.md` | System-Iteration (K4: Skills maschinell an Executoren gebunden) | **approved**: Batnini, 2026-10-06 | siehe File |
 | 068 | `068-mcp-trace-audit.md` | System-Iteration (K7: DomainRejection fail-closed + OTel-Spans + Audit) | **approved**: Batnini, 2026-10-06 | siehe File |
+| 069 | `069-p1p2-kopplung-3.md` | System-Iteration (P1/P2-Kopplung, 3. Prüfung: R04/R05/R06/R07/R10/R16/R17/R18/R19) | **approved**: Batnini, 2026-10-06 | siehe File |
 
 ## Guardrail
 

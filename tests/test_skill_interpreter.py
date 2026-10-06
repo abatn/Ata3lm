@@ -253,7 +253,7 @@ def test_k7_fallback_blue_geschuetzt(tmp_path, monkeypatch):
     tier3.mkdir()
     (tier3 / "b.md").write_text("ALT-BLUE", encoding="utf-8")
     db = tmp_path / "mcp-trust.json"
-    db.write_text(json.dumps({"b.md": "blue"}), encoding="utf-8")
+    db.write_text(json.dumps({"tier3/b.md": "blue"}), encoding="utf-8")
     monkeypatch.setattr(mcp_memory_server, "_trust_db_path", lambda: db)
     monkeypatch.setattr(mcp_memory_server, "build_server", _boom_servers(exc=RuntimeError("MCP down")))
     r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="b.md", content="NEU-GREEN", trust="green")
@@ -305,3 +305,66 @@ def test_run_skill_agent_mit_recorder(tmp_path):
     names = [json.loads(line)["name"] for line in (tmp_path / "spans.jsonl").read_text(encoding="utf-8").splitlines()]
     assert {"skill.run", "skill.tool"} <= set(names)  # Execution-Graph
     rec.shutdown()
+
+
+# --- R02: Kontext-Mandat wirkt im Skill-Executor (Read-only ⇒ kein Write) ---
+
+
+def _readonly_ctx(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx["mandate_obj"] = mandate.Mandate(
+        mandate_id="ro",
+        principal="Batnini",
+        agent="knowledge-agent",
+        actions=frozenset({"read:memory"}),
+        resources=frozenset({"data/memory"}),
+        amount_limit=1.0,
+        max_uses=100,
+        valid_from=0.0,
+        valid_until=1e12,
+        approval_threshold=0.5,
+    )
+    return ctx
+
+
+def test_r02_readonly_mandat_blockiert_write(tmp_path, monkeypatch):
+    """R02 §9: Read-only-Mandat → `memory.write` schreibt NICHTS (kein denied.md)."""
+    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier2": tmp_path / "t2", "tier3": tmp_path / "t3"})
+    (tmp_path / "t2").mkdir()
+    (tmp_path / "t3").mkdir()
+    r = si._run_memory_write(_readonly_ctx(tmp_path), scope="tier3", key="denied.md", content="GEHEIM", trust="green")
+    assert r["ok"] is False and r["status"] == "rejected" and r["via"] == "mandate"
+    assert not (tmp_path / "t3" / "denied.md").exists()
+
+
+def test_r02_ohne_mandat_fail_closed(tmp_path):
+    """R02 §9: ohne Mandat im Kontext kein Write (fail-closed)."""
+    ctx = _ctx(tmp_path)
+    del ctx["mandate_obj"]
+    r = si._run_memory_write(ctx, scope="tier3", key="x.md", content="x", trust="green")
+    assert r["ok"] is False and r["via"] == "mandate" and "kein Mandat" in r["reason"]
+    assert not (tmp_path / "tier3" / "x.md").exists()
+
+
+def test_r02_fallback_readonly_mandat_blockiert(tmp_path):
+    """R02 §9: Auch der §11-Fallback respektiert das Read-only-Mandat."""
+    r = si._local_fallback(_readonly_ctx(tmp_path), "ro.md", "GEHEIM", "green", "test")
+    assert r["ok"] is False and r["status"] == "rejected" and r["via"] == "local-fallback"
+    assert not (tmp_path / "tier3" / "ro.md").exists()
+
+
+def test_r02_agent_loop_readonly_mandat(tmp_path, monkeypatch):
+    """R02 §9: der ReAct-Loop führt `memory.write` unter Read-only-Mandat nicht aus."""
+    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier2": tmp_path / "t2", "tier3": tmp_path / "t3"})
+    (tmp_path / "t2").mkdir()
+    (tmp_path / "t3").mkdir()
+    llm = _llm(
+        [
+            {"tool": "memory.write", "args": {"scope": "tier3", "key": "denied.md", "content": "x", "trust": "green"}},
+            {"final": "ok"},
+        ]
+    )
+    out = si.run_skill_agent(ROOT / "skills/act/SKILL.md", _readonly_ctx(tmp_path), llm_fn=llm)
+    step = [t for t in out["trace"] if t["action"] == "tool"][0]
+    assert step["result"]["ok"] is False
+    assert not (tmp_path / "t3" / "denied.md").exists()

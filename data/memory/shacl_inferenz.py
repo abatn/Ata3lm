@@ -58,10 +58,21 @@ def pipeline(data_graph, rules, shapes_graph, max_rounds: int = DEFAULT_MAX_ROUN
 
     §6: Erreicht der Fixpunkt die Iterationsgrenze (`max_rounds`) **nicht**, wird die
     Inferenz als **unvollständig** ausgewiesen; `conforms` ist dann nicht belastbar.
+    R17: Wurden bei vorhandenen Regeln **keine** Runden ausgeführt (z. B. `max_rounds=0`),
+    ist die Inferenz ebenfalls **nicht** belastbar – `conforms_reliable=False`.
     """
     data_graph, trace = run_rules_to_fixpoint(data_graph, rules, max_rounds)
     conforms, report = validate(data_graph, shapes_graph)
-    complete = (not trace) or (not trace[-1]["new"])
+    if not rules:
+        complete, hint = True, None  # nichts zu inferieren ⇒ Validierung belastbar
+    elif not trace:
+        complete = False  # R17: Regeln vorhanden, aber keine Runde ausgeführt
+        hint = "Keine Inferenzrunde ausgeführt (max_rounds=0) – Fixpunkt NICHT garantiert, conforms nicht belastbar"
+    elif trace[-1]["new"]:
+        complete = False
+        hint = "Iterationsgrenze max_rounds erreicht – Fixpunkt NICHT garantiert, conforms nicht belastbar"
+    else:
+        complete, hint = True, None
     return {
         "conforms": conforms,
         "report": report,
@@ -70,7 +81,5 @@ def pipeline(data_graph, rules, shapes_graph, max_rounds: int = DEFAULT_MAX_ROUN
         "inference_status": "vollständig" if complete else "unvollständig",
         "inference_complete": complete,
         "conforms_reliable": complete,
-        "hint": None
-        if complete
-        else "Iterationsgrenze max_rounds erreicht – Fixpunkt NICHT garantiert, conforms nicht belastbar",
+        "hint": hint,
     }

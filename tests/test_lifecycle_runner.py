@@ -425,6 +425,112 @@ def test_b4_keine_graph_oder_wm_mutation_ohne_mandat(tmp_path, monkeypatch):
     assert not ref.exists()  # B4: kein Bootstrap ohne Mandat
 
 
+# ------------------------------------------ R04/R16: Drift VOR dem Write, ein Labelraum
+def test_r04_default_drift_gatet_vor_write(tmp_path, monkeypatch):
+    """R04: die Default-Env-Erwartung muss VOR der Mutation (Stufe 3) greifen."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("LIFECYCLE_DRIFT_BASELINE", '{"write": 0.5, "non-write": 0.5}')
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        tau=0.01,  # Verschiebung {write:1.0} vs Baseline → ask VOR dem Write
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is False
+    assert not (tmp_path / "s").exists()  # kein Write vor der Freigabe (§9.1c)
+
+
+def test_r16_ein_labelraum_vor_und_nach_write(tmp_path, monkeypatch):
+    """R16: derselbe Labelraum vor/nach dem Write → kein falsches `ask`."""
+    import bias_monitor
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    drift = bias_monitor.BiasDriftMonitor(baseline={"write": 1.0}, tau=0.10)
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        drift=drift,
+        tau=0.10,
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is True  # {write} == Baseline → allow
+    assert out["results"]["Wissen+"]["gate"] == "allow"
+
+
+def test_drift_label_kanonisierung():
+    """R16: `_drift_label` bildet beide Write-Schreibweisen auf EINEN Labelraum ab."""
+    assert lr._drift_label("write-new") == "write"
+    assert lr._drift_label("write-update") == "write"
+    assert lr._drift_label("non-write") == "non-write"
+    assert lr._drift_label("none") == "non-write"
+    assert lr._drift_label("unbekannt") == "unbekannt"
+
+
+# ------------------------------------------------ R07/R18: State-Save sichtbar + deny
+def test_r07_state_save_wird_berichtet_und_cas_fortgesetzt(tmp_path, monkeypatch):
+    """R07: `run_cycle` meldet das `save`-Ergebnis (kein Verschweigen); rev wächst monoton."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(tmp_path / "d.json"))
+    p = tmp_path / "state.json"
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        state_path=p,
+    )
+    assert out["state_save"]["ok"] is True and out["state_save"]["rev"] == 1
+    out2 = lr.run_cycle(
+        "Q2",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s2",
+        tier3_dir=tmp_path / "t2",
+        state_path=p,
+    )
+    assert out2["state_save"]["rev"] == 2  # CAS via gelesener Revision
+
+
+def test_r18_deny_persistiert_keinen_state(tmp_path, monkeypatch):
+    """R18: abgelehnter Akt (Gedächtnis ok=False) → kein neuer Wissenszustand."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    deny = mandate.Mandate(
+        mandate_id="d",
+        principal="P",
+        agent="a",
+        actions=frozenset({"read:repo"}),
+        resources=frozenset({"data/memory"}),
+        amount_limit=1.0,
+        max_uses=100,
+        valid_from=0.0,
+        valid_until=1e12,
+        approval_threshold=0.5,
+    )
+    p = tmp_path / "state.json"
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "x",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        mandate_obj=deny,
+        state_path=p,
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is False
+    assert out["state_save"]["ok"] is False and "kein neuer Wissenszustand" in out["state_save"]["reason"]
+    assert not p.exists()  # R18: kein State-Write
+
+
 def test_b5_deny_gate_revised_false(tmp_path, monkeypatch):
     """B5 (K6): deny-Gate ⇒ revised=False – auch bei ok=True (NIE `gate != ask`)."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

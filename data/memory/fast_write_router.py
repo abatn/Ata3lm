@@ -166,6 +166,9 @@ def apply_write_action(
     results_dir=None,
     now: float = 0.0,
     supersede_fn=None,
+    approval_obj=None,
+    approvers=None,
+    self_update=False,
 ) -> dict:
     """Write-Aktion der 3 Klassen (AGENTS.md §10.7, wörtlich).
 
@@ -176,6 +179,14 @@ def apply_write_action(
     Gate (§9/§10.4, Labelraum `allow|ask|deny`, K6/B5): non-write = allow ·
     write-new = neue Quelle -> ask · write-update = self_update -> ask.
 
+    R03 (Auftrag): Das Gate wird **VOR** jeder Mutation bestimmt und an
+    `write_gateway.store` übergeben. Write-Klassen (`ask`) schreiben nur mit
+    Zwei-Personen-Freigabe (`self_update=True` + `approvers`/`approval_obj`); ohne
+    Freigabe hält `store` **vor** dem Write an (`gate=ask`, kein Write).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
+    Parameter `approval_obj`, `approvers`, `self_update` (Freigabe vor Mutation).
+
     K2: DELEGATION an `write_gateway.store` (EIN Schreibpfad, feste Reihenfolge
     Mandat → FWR → Trust/PII → Poisoning → Freigabe → Drift → Supersede → Write
     → Shared → Provenienz). Kein direkter Write mehr (K2-STOPP).
@@ -184,11 +195,13 @@ def apply_write_action(
         return {"ok": False, "action": cls, "gate": "ask", "written": [], "reason": "unbekannte Klasse"}
     import write_gateway
 
+    # R03: Gate VOR der Mutation (non-write = allow; Write-Klassen = ask/Human-Gate).
+    cls_gate = gate_labels.ALLOW if cls == "non-write" else gate_labels.ASK
     res = write_gateway.store(
         question=question,
         fact=fact,
         correct="",
-        classify_fn=lambda q, f, c: {"class": cls},
+        classify_fn=lambda q, f, c: {"class": cls, "gate": cls_gate},
         now=now,
         structured_dir=structured_dir,
         tier3_dir=tier3_dir,
@@ -198,6 +211,9 @@ def apply_write_action(
         agent="fast-write-router",
         origin="tool:verified",
         verified=True,
+        approval_obj=approval_obj,
+        approvers=approvers,
+        self_update=self_update,
     )
     res["action"] = cls
     res["superseded"] = res.get("superseded_tier1")
