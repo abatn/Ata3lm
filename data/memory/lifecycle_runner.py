@@ -21,7 +21,10 @@ Ablauf (Lese-/Schreib-Semantik aus dem Auftrag):
 
 from __future__ import annotations
 
+import json
+import os
 import re
+from pathlib import Path
 
 import bias_monitor
 import ingestion_hook
@@ -53,6 +56,45 @@ STAGE_MECHANISM = {
     "Handeln": "lru_cache.WorkingMemory.store",
     "Wissen+": "bias_monitor.BiasDriftMonitor.observe",
 }
+
+
+# S1 §9.1c/§9.2b: persistierte Drift-Referenz = Ground-Truth-Checkpoint (M(t)→M(t+1)).
+# Pfad via `LIFECYCLE_DRIFT_REFERENCE` überschreibbar (Test-Isolation); Default tier2-index
+# (nicht AGENTS.md/tier1-base ⇒ kein §9.1b-Snapshot).
+DEFAULT_DRIFT_REFERENCE = "data/memory/tier2-index/drift-reference.json"
+
+
+def _drift_reference_path() -> Path:
+    """Pfad der persistierten Drift-Referenz (Umgebungsvariable oder Default)."""
+    return Path(os.environ.get("LIFECYCLE_DRIFT_REFERENCE", DEFAULT_DRIFT_REFERENCE))
+
+
+def _load_drift_reference():
+    """Persistierten Checkpoint lesen; fehlend/ungültig ⇒ None (Cold-Start)."""
+    try:
+        data = json.loads(_drift_reference_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) and data else None
+
+
+def _save_drift_reference(distribution: dict) -> None:
+    """Checkpoint schreiben (M(t+1), §9.2b Ground-Truth-Checkpoint)."""
+    path = _drift_reference_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(distribution, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+
+def _configured_drift_baseline():
+    """Konfigurierte Erwartung (§9.1c) aus `LIFECYCLE_DRIFT_BASELINE` (JSON-Dict) oder None."""
+    raw = os.environ.get("LIFECYCLE_DRIFT_BASELINE", "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) and parsed else None
 
 
 def _slug(text: str) -> str:
@@ -157,13 +199,39 @@ def _stage_handeln(ctx: dict) -> dict:
 
 
 def _stage_wissen_plus(ctx: dict) -> dict:
-    # N7 §9.1c: echte Klasse des Laufs (nicht die Konstante 0.5/0.5). Die FWR-Klasse
-    # wird in den Baseline-Labelraum abgebildet (write-* -> "write").
+    # N7/S1 §9.1c: echte Klasse des Laufs (nicht 0.5/0.5). Referenz = **Checkpoint**
+    # (§9.2b), NIE die eigene Beobachtung. Cold-Start (§10.4): unsicher ⇒ `ask`
+    # (niemals still `ok`) + einmaliger Bootstrap der Referenz (Initialisierung,
+    # KEIN Fortschreiben). `revised`=False bei abgelehntem Akt (§9-Analogie).
     action = ctx["results"]["Gedächtnis"].get("action")
     label = "write" if action in ("write-new", "write-update") else "non-write"
-    d = ctx["drift_monitor"].observe({label: 1.0}, step=1)
-    revised = bool(ctx["results"]["Gedächtnis"].get("ok"))  # §9: keine Revision nach Ablehnung
-    return {"stage": "Wissen+", "DI": d["DI"], "gate": d["gate"], "revised": revised}
+    observed = {label: 1.0}
+    ok = bool(ctx["results"]["Gedächtnis"].get("ok"))  # §9: keine Revision nach Ablehnung
+    monitor = ctx["drift_monitor"]
+    if monitor is not None:  # explizit übergebener Monitor (Test / Write-Schutz)
+        d = monitor.observe(observed, step=1)
+        return {"stage": "Wissen+", "DI": d["DI"], "gate": d["gate"], "revised": ok, "reference": "monitor"}
+    reference = ctx["drift_baseline"] if ctx["drift_baseline"] is not None else _load_drift_reference()
+    if reference is None:
+        _save_drift_reference(observed)  # Cold-Start-Bootstrap (Initialisierung, Lesart A)
+        return {
+            "stage": "Wissen+",
+            "DI": None,
+            "gate": "ask",
+            "reason": "keine Referenz (Cold-Start §10.4) – Bootstrap gesetzt",
+            "revised": ok,
+            "reference": "bootstrap",
+        }
+    d = bias_monitor.BiasDriftMonitor(baseline=reference, tau=ctx["tau"]).observe(observed, step=1)
+    if ok:
+        _save_drift_reference(observed)  # M(t)->M(t+1) nur bei freigegebenem Akt (§9)
+    return {
+        "stage": "Wissen+",
+        "DI": d["DI"],
+        "gate": d["gate"],
+        "revised": ok,
+        "reference": "checkpoint" if ok else "checkpoint(kept)",
+    }
 
 
 _STAGE_FN = {
@@ -205,12 +273,13 @@ def run_cycle(
 ) -> dict:
     """Führt die 8 Stufen in gesetzter Reihenfolge aus und liefert die echte Spur."""
     mandate_obj = mandate_obj if mandate_obj is not None else _default_mandate()
-    baseline = drift_baseline if drift_baseline is not None else {"non-write": 0.5, "write": 0.5}
+    # S1 §9.1c: Referenz-Priorität (explizit > Env-Erwartung > persistierter Checkpoint > keine).
+    baseline = drift_baseline if drift_baseline is not None else _configured_drift_baseline()
     # N6 §9.1: Mandat VOR jeder Mutation prüfen (Stufe 1 schreibt `raw:` in WM).
     dec0 = mandate.assess(mandate_obj, action="write:memory", resource="data/memory", amount=0.0, now=now)
-    # N7 §9.1c: Drift-Monitor für Stufe 8 (Compare/Revise); ein explizit übergebener
-    # Drift schützt zusätzlich den Write in Stufe 3.
-    drift_monitor = drift if drift is not None else bias_monitor.BiasDriftMonitor(baseline=baseline, tau=tau)
+    # N7/S1 §9.1c: ein explizit übergebener Drift schützt den Write in Stufe 3 und wird
+    # in Stufe 8 genutzt; sonst löst Stufe 8 die Referenz auf (Checkpoint / Cold-Start).
+    drift_monitor = drift
     ctx = {
         "question": question,
         "fact": fact,

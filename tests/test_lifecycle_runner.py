@@ -5,6 +5,8 @@ Ohne Key/Endpoint → **NOOP** (None), keine erfundene Matrix. Der Matrix-Zweig 
 realen Parser `_matrix_from_raw` (echter Code, echte Eingabe) als Test-Seam geprüft.
 """
 
+import json
+
 import ingestion_hook
 import lifecycle_runner as lr
 import lru_cache
@@ -195,7 +197,7 @@ def test_n7_gate_drift_werden_durchgereicht(tmp_path, monkeypatch):
 
 
 def test_n7_wissen_plus_echte_verteilung(tmp_path, monkeypatch):
-    """N7 §9.1c: Stufe 8 nutzt die echte Klasse des Laufs (nicht die Konstante 0.5/0.5)."""
+    """N7 §9.1c: Stufe 8 nutzt die echte Klasse des Laufs gegen die injizierte Referenz."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     out = lr.run_cycle(
         "Q",
@@ -204,5 +206,154 @@ def test_n7_wissen_plus_echte_verteilung(tmp_path, monkeypatch):
         classify_fn=_classify("non-write"),
         structured_dir=tmp_path / "s",
         tier3_dir=tmp_path / "t",
+        drift_baseline={"non-write": 0.5, "write": 0.5},  # Bedingung 3: injizierte Referenz
     )
     assert out["results"]["Wissen+"]["DI"] > 0.0  # nicht mehr konstant 0.0
+
+
+# --------------------------------------------------------------- S1 §9.1c/§9.2b
+
+
+def test_s1_coldstart_ohne_referenz_ask(tmp_path, monkeypatch):
+    """S1 §10.4: ohne Referenz ⇒ `ask` (nie still `ok`); Bootstrap wird gesetzt (Lesart A)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    ref = tmp_path / "r.json"
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("non-write"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+    )
+    w = out["results"]["Wissen+"]
+    assert w["gate"] == "ask" and w["DI"] is None
+    assert ref.exists()  # Cold-Start-Bootstrap (Initialisierung, kein Fortschreiben)
+
+
+def test_s1_checkpoint_gleich_ok(tmp_path, monkeypatch):
+    """S1 §9.2b: Lauf == Checkpoint ⇒ DI=0, gate=ok (echte Referenz, nicht self)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    ref = tmp_path / "r.json"
+    ref.write_text('{"non-write": 1.0}', encoding="utf-8")
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("non-write"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+    )
+    w = out["results"]["Wissen+"]
+    assert w["DI"] == 0.0 and w["gate"] == "ok"
+
+
+def test_s1_verschobene_verteilung_ask(tmp_path, monkeypatch):
+    """S1 §9.2b: verschobene Verteilung ⇒ DI>0, gate=ask."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    ref = tmp_path / "r.json"
+    ref.write_text('{"write": 1.0}', encoding="utf-8")
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("non-write"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+    )
+    w = out["results"]["Wissen+"]
+    assert w["DI"] > 0.0 and w["gate"] == "ask"
+
+
+def test_s1_checkpoint_nur_bei_ok_fortschreiben(tmp_path, monkeypatch):
+    """S1 §9: bei freigegebenem Akt M(t)→M(t+1); bei deny/ask KEIN Fortschreiben."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    ref = tmp_path / "r.json"
+    ref.write_text('{"non-write": 1.0}', encoding="utf-8")
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    # (a) write-new gegen {"non-write":1.0} ⇒ Akt ok ⇒ Checkpoint wird fortgeschrieben
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s1",
+        tier3_dir=tmp_path / "t1",
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is True
+    assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 1.0}
+    # (b) deny-Mandat ⇒ Akt nicht ok ⇒ Referenz bleibt unverändert
+    deny = mandate.Mandate(
+        mandate_id="d",
+        principal="P",
+        agent="a",
+        actions=frozenset({"read:repo"}),
+        resources=frozenset({"data/memory"}),
+        amount_limit=1.0,
+        max_uses=100,
+        valid_from=0.0,
+        valid_until=1e12,
+        approval_threshold=0.5,
+    )
+    out2 = lr.run_cycle(
+        "Q2",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s2",
+        tier3_dir=tmp_path / "t2",
+        mandate_obj=deny,
+    )
+    assert out2["results"]["Gedächtnis"]["ok"] is False
+    assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 1.0}  # unverändert
+
+
+def test_s1_helfer_referenz(tmp_path, monkeypatch):
+    """S1: Load/Save der Checkpoint-Referenz inkl. Fehlerzweige (fehlt/kaputt/leer)."""
+    ref = tmp_path / "sub" / "r.json"
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    assert lr._load_drift_reference() is None  # fehlt -> None
+    ref.parent.mkdir(parents=True, exist_ok=True)
+    ref.write_text("{kaputt", encoding="utf-8")
+    assert lr._load_drift_reference() is None  # ungültiges JSON -> None
+    ref.write_text("{}", encoding="utf-8")
+    assert lr._load_drift_reference() is None  # leeres Dict -> None
+    lr._save_drift_reference({"write": 1.0})
+    assert lr._load_drift_reference() == {"write": 1.0}
+
+
+def test_s1_konfigurierte_baseline_env(monkeypatch):
+    """S1 §9.1c: `LIFECYCLE_DRIFT_BASELINE` (JSON) — alle Zweige."""
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    assert lr._configured_drift_baseline() is None  # unset
+    monkeypatch.setenv("LIFECYCLE_DRIFT_BASELINE", "   ")
+    assert lr._configured_drift_baseline() is None  # leer
+    monkeypatch.setenv("LIFECYCLE_DRIFT_BASELINE", "kein json")
+    assert lr._configured_drift_baseline() is None  # ungültiges JSON
+    monkeypatch.setenv("LIFECYCLE_DRIFT_BASELINE", "[1, 2]")
+    assert lr._configured_drift_baseline() is None  # kein Dict
+    monkeypatch.setenv("LIFECYCLE_DRIFT_BASELINE", '{"write": 1.0}')
+    assert lr._configured_drift_baseline() == {"write": 1.0}  # gültig
+
+
+def test_s1_env_baseline_im_lauf(tmp_path, monkeypatch):
+    """S1: Env-Erwartung steuert Stufe 8 (verschoben ⇒ ask) — ohne Datei-Referenz."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(tmp_path / "r.json"))
+    monkeypatch.setenv("LIFECYCLE_DRIFT_BASELINE", '{"write": 1.0}')
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("non-write"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+    )
+    assert out["results"]["Wissen+"]["gate"] == "ask"  # gegen Env-Erwartung verschoben

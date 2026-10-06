@@ -6,6 +6,7 @@ node_modules/
 *.log
 data/memory/tier3-working/ingestion_log.jsonl
 data/memory/shared/shared_store.jsonl
+data/memory/tier2-index/drift-reference.json
 .pytest_cache/
 .coverage
 coverage.xml

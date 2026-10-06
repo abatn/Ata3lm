@@ -12,6 +12,7 @@
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,3 +31,7 @@ if not os.environ.get("OPENAI_API_KEY") and _CFG.exists():
 
 for _p in ["data/memory", "data/memory/shared", "data/memory/tier3-working", "skills"]:
     sys.path.insert(0, str(ROOT / _p))
+
+# Bedingung 1 (S1-korrekt): Die persistierte Drift-Referenz NIE ins Repo schreiben.
+# Global auf einen tmp-Pfad zwingen; einzelne Tests dürfen ihn per monkeypatch überschreiben.
+os.environ["LIFECYCLE_DRIFT_REFERENCE"] = str(Path(tempfile.mkdtemp(prefix="ka-drift-ref-")) / "drift-reference.json")

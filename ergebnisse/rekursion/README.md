@@ -90,6 +90,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 063 | `063-p2-n4-n6-n7.md` | System-Iteration (P2-Fixes N4/N6/N7) | approved: Batnini, 2026-10-05 | siehe File |
 | 064 | `064-p3a-s1-s6.md` | System-Iteration (P3a-Struktur S1a/S1b/S3/S4/S5/S6) | approved: Batnini, 2026-10-05 | siehe File |
 | 065 | `065-p3b-ci.md` | System-Iteration (P3b-CI F1–F5) | approved: Batnini, 2026-10-05 | siehe File |
+| 066 | `066-p3d-s1-korrekt.md` | System-Iteration (P3d/S1-korrekt: Drift-Referenz §9.1c/§9.2b) | approved: Batnini, 2026-10-05 („go mit Bedingung 1–3") | siehe File |
 
 ## Guardrail
 
