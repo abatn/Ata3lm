@@ -15,15 +15,22 @@ Phasenfolge = **Auftrag** (gesetzte Ordnung, kein Paper-Claim).
 from __future__ import annotations
 
 import evaluator_version
+import gate_labels
 import ingestion_hook
 import pipeline
 import reflective_agent
+import runner_state
 
 PHASES = ("Konstrukt", "Akt", "Observe", "Compare", "Revise")
 
 
 def _phase_konstrukt(ctx: dict) -> dict:
-    """Konstrukt: π0 aus Ziel + Wissen — initialisiert die HMM-Trägheit (SEAA)."""
+    """Konstrukt: π0 aus Ziel + Wissen — initialisiert die HMM-Trägheit (SEAA).
+
+    K1: ein fortgesetzter Runner-Zustand (Restart) wird NICHT neu initialisiert.
+    """
+    if ctx.get("hmm") is not None:
+        return {"phase": "Konstrukt", "K": ctx["hmm"].K, "pi0": "fortgesetzt (K1 Runner-State)"}
     ctx["hmm"] = reflective_agent.HMMInertia()
     return {"phase": "Konstrukt", "K": ctx["hmm"].K, "pi0": "uniform (SEAA Listing 1)"}
 
@@ -40,7 +47,13 @@ def _phase_akt(ctx: dict) -> dict:
         structured_dir=ctx["structured_dir"],
         tier3_dir=ctx["tier3_dir"],
     )
-    return {"phase": "Akt", "ok": res.get("ok"), "action": res.get("action") or res.get("gate")}
+    # K6/B5: `gate` im einheitlichen Labelraum (allow|ask|deny) mitführen.
+    return {
+        "phase": "Akt",
+        "ok": res.get("ok"),
+        "action": res.get("action") or res.get("gate"),
+        "gate": gate_labels.normalize(res.get("gate")),
+    }
 
 
 def _phase_observe(ctx: dict) -> dict:
@@ -65,9 +78,28 @@ def _phase_revise(ctx: dict) -> dict:
     """Revise: Reflexion aktualisiert die HMM-Übergangsmatrix (SEAA Eq. 2).
 
     §9: Nach einer abgelehnten `Akt`-Aktion (`deny`/`ask`) KEINE Revision.
+    B6 (K6): Revision braucht eine **ausdrücklich zulässige Entscheidung**
+    (`ok` AND `gate == "allow"`) **und** passende, zur Änderung gehörende
+    Evidenz (§9.1d). `Compare.observed=True` genügt **nicht** – Beobachtungen
+    können negativ/unzureichend sein (Review-Korrektur 4).
     """
-    if not ctx["results"]["Akt"].get("ok"):
-        return {"phase": "Revise", "skipped": True, "reason": "Akt abgelehnt (deny/ask) – keine Revision (§9)"}
+    akt = ctx["results"]["Akt"]
+    gate = gate_labels.normalize(akt.get("gate"))
+    if not (akt.get("ok") and gate_labels.is_allow(gate)):
+        return {
+            "phase": "Revise",
+            "skipped": True,
+            "reason": f"Akt nicht ausdrücklich zulässig (ok={akt.get('ok')}, gate={gate}) – keine Revision (§9)",
+        }
+    vergleich = ctx["results"]["Compare"]
+    # §9.1d: passende Evidenz = externes Signal mit ≥ 1 positivem Beleg.
+    evidence_ok = bool(vergleich.get("observed")) and ctx["successes"] >= 1
+    if not evidence_ok:
+        return {
+            "phase": "Revise",
+            "skipped": True,
+            "reason": "keine passende Evidenz (§9.1d): Signal negativ/unzureichend – keine Revision",
+        }
     out = ctx["hmm"].update_from_reflection(ctx["reflection_text"], delta=ctx["delta"])
     return {"phase": "Revise", "skipped": out["skipped"], "lr": out["lr"]}
 
@@ -95,8 +127,13 @@ def run_recursion(
     delta=None,
     successes: int = 0,
     failures: int = 0,
+    state_path=None,
 ) -> dict:
-    """Führt die 5 Phasen in gesetzter Reihenfolge aus und liefert die echte Spur."""
+    """Führt die 5 Phasen in gesetzter Reihenfolge aus und liefert die echte Spur.
+
+    K1: `state_path` setzt den geteilten Runner-Zustand (inkl. HMM) fort und
+    persistiert ihn danach – gemeinsamer Zustand mit dem 8-Stufen-Runner.
+    """
     ctx = {
         "question": question,
         "fact": fact,
@@ -113,11 +150,31 @@ def run_recursion(
         "hmm": None,
         "results": {},
     }
+    # K1: geteilter persistenter Runner-Zustand – vor dem Lauf fortsetzen (Restart)
+    resumed, rec_wm, rec_graph = None, None, None
+    if state_path is not None:
+        resumed = runner_state.load(state_path)
+        if resumed is not None:
+            rec = runner_state.reconstruct(resumed)
+            ctx["hmm"], rec_wm, rec_graph = rec["hmm"], rec["wm"], rec["graph"]
     trace = []
     for phase in PHASES:
         result = _PHASE_FN[phase](ctx)
         ctx["results"][phase] = result
         trace.append(result)
+    if state_path is not None:
+        runner_state.save(
+            runner_state.snapshot(
+                wm=rec_wm,
+                graph=rec_graph,
+                hmm=ctx["hmm"],
+                drift_reference=(resumed or {}).get("drift", {}).get("reference"),
+                schema=(resumed or {}).get("schema", {}),
+                open_approvals=(resumed or {}).get("open_approvals", []),
+                runner="recursion-runner",
+            ),
+            state_path,
+        )
     return {"phases": list(PHASES), "results": ctx["results"], "trace": trace, "hmm": ctx["hmm"]}
 
 

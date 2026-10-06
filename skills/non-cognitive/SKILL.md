@@ -1,5 +1,6 @@
 ---
 name: non-cognitive
+process: trust.py
 description: "Stufe-6-Skill für Nicht-Kognition (Prinzip 8): Kontextfaktoren erheben, Einflussfaktoren-Log schreiben, Dämpfungsempfehlung für Handeln geben."
 ---
 

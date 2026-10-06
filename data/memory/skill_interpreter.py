@@ -26,9 +26,18 @@ import os
 import re
 from pathlib import Path
 
+import bias_monitor
+import evaluator_version
+import fast_write_router
+import ingestion_hook
+import jsonschema
 import pipeline
 import procedural_memory
+import reflective_agent
+import shared_memory
+import trace_audit
 import trust
+import write_gateway
 
 
 def _section(text: str, keyword: str) -> str:
@@ -55,6 +64,7 @@ def parse_skill(path: Path) -> dict:
     fm = _frontmatter(text)
     name_m = re.search(r"^name:\s*(.+)$", fm, re.M)
     desc_m = re.search(r"^description:\s*(.+)$", fm, re.M)
+    process_m = re.search(r"^process:\s*(.+)$", fm, re.M)
     steps = [
         re.sub(r"\*\*", "", m.group(1)).strip()
         for m in re.finditer(r"^\s*\d+\.\s+(.*)$", _section(text, "ablauf"), re.M)
@@ -73,6 +83,7 @@ def parse_skill(path: Path) -> dict:
     return {
         "name": name_m.group(1).strip() if name_m else path.parent.name,
         "description": desc_m.group(1).strip() if desc_m else "",
+        "process": process_m.group(1).strip() if process_m else None,
         "steps": steps,
         "processes": processes,
         "mcp_tools": mcp_tools,
@@ -112,11 +123,37 @@ def _parse_mcp(result) -> dict:
     return {"ok": False, "reason": "leeres MCP-Ergebnis"}
 
 
+def _fallback_domain_violation(ctx: dict, key: str, trust_color: str) -> str | None:
+    """K7/B3 §9.2c/§9.3: fail-closed im Fallback.
+
+    Ein *fachliches* `rejected` (blue-geschützt, unbekannter Trust) darf auch im
+    lokalen Fallback nicht geschrieben werden. Bei fehlenden Trust-Metadaten wird
+    eine **existierende** Zieldatei abgelehnt (nie fail-open).
+    """
+    target = Path(ctx["tier3_dir"]) / key
+    try:
+        import mcp_memory_server as mcp_server
+
+        db_path = mcp_server._trust_db_path()
+        db = mcp_server._load_trust_db(db_path) if db_path is not None else None
+    except ImportError:  # SDK/Modul nicht verfügbar → keine Metadaten
+        db = None
+    if db is None:
+        return "Trust-Metadaten nicht verfügbar – fail-closed (§9.2c/§9.3)" if target.exists() else None
+    current = db.get(key)
+    if current == "blue" and trust_color == "green":
+        return "green darf bestätigtes blue nicht überschreiben (§9.2c/§10.7)"
+    if target.exists() and current is None:
+        return "existierende Zieldatei + unbekannter Trust – fail-closed (§9.2c/§9.3)"
+    return None
+
+
 def _local_fallback(ctx: dict, key: str, content: str, trust_color: str, reason: str) -> dict:
     """§11-Fallback bei echtem MCP-Ausfall – mit denselben Schutzregeln (§9.2a/§9.2c).
 
     N5: `red` wird nicht persistiert, der Key darf nicht aus `tier3` entkommen,
     PII wird VOR dem Store entfernt; geschrieben wird nur innerhalb `tier3_dir`.
+    K7/B3: blue-geschützte/ungültige Trust-Kombinationen werden fail-closed abgelehnt.
     """
     if trust_color == "red":
         return {
@@ -129,12 +166,27 @@ def _local_fallback(ctx: dict, key: str, content: str, trust_color: str, reason:
         return {"ok": False, "via": "local-fallback", "reason": f"ungültige Trust-Farbe {trust_color!r}"}
     if not key or ".." in key or key.startswith("/") or "/" in key or "\\" in key:
         return {"ok": False, "via": "local-fallback", "reason": f"ungültiger key: {key!r}"}
-    clean = trust.PIIFilter().minimize(content)  # §9.2a: PII vor dem Store entfernen
-    fallback_dir = Path(ctx["tier3_dir"])
-    fallback_dir.mkdir(parents=True, exist_ok=True)
-    target = fallback_dir / key
-    target.write_text(clean, encoding="utf-8")
-    return {"ok": True, "via": "local-fallback", "reason": reason[:80], "written": str(target), "trust": trust_color}
+    violation = _fallback_domain_violation(ctx, key, trust_color)
+    if violation is not None:
+        return {"ok": False, "status": "rejected", "via": "local-fallback", "reason": violation}
+    # K2: EIN Schreibpfad – die Mutation läuft durch das Write-Gateway (inkl. PII + Provenienz).
+    target = Path(ctx["tier3_dir"]) / key
+    res = write_gateway.store_file(
+        target=target,
+        content=content,
+        now=float(ctx.get("now", 0.0)),
+        activity="skill-memory-write",
+        agent="skill-interpreter",
+        origin="user",
+        verified=True,
+    )
+    return {
+        "ok": res["ok"],
+        "via": "local-fallback",
+        "reason": (res.get("reason") or reason)[:80],
+        "written": (res.get("written") or [None])[0],
+        "trust": trust_color,
+    }
 
 
 def _run_memory_write(ctx: dict, scope: str = "tier3", key: str = "", content: str = "", trust: str = "green") -> dict:
@@ -156,19 +208,127 @@ def _run_memory_write(ctx: dict, scope: str = "tier3", key: str = "", content: s
         result = asyncio.run(
             server.call_tool("memory.write", {"scope": scope, "key": key, "content": content, "trust": trust})
         )
-        return {"via": "mcp", "result": _parse_mcp(result)}
     except Exception as exc:  # noqa: BLE001 - echte Ausführung
         # FastMCP verpackt Funktionsfehler in `ToolError` mit `from <fehler>`; der
-        # ursprüngliche Validierungs-/Scope-Fehler (`ValueError` aus `_path`/`_scope_dir`)
-        # bleibt als `__cause__` erhalten -> melden, KEIN Fallback (N5).
-        cause = exc.__cause__
-        if isinstance(cause, ValueError):
-            return {"ok": False, "via": "mcp", "reason": str(cause)[:80]}
+        # ursprüngliche Fehler bleibt als `__cause__` erhalten.
+        # K7/B3: eine fachliche Ablehnung (`DomainRejection`) ist KEIN Transportausfall
+        # und darf NIE in den lokalen Fallback; Validierungs-/Scope-Fehler ebenso.
+        if isinstance(exc, write_gateway.DomainRejection) or isinstance(exc.__cause__, write_gateway.DomainRejection):
+            return {"ok": False, "via": "mcp", "status": "rejected", "reason": str(exc)[:80]}
+        if isinstance(exc.__cause__, ValueError):
+            return {"ok": False, "via": "mcp", "reason": str(exc.__cause__)[:80]}
         return _local_fallback(ctx, key, content, trust, str(exc))
+    parsed = _parse_mcp(result)
+    if write_gateway.is_domain_rejection(parsed):  # fachliches `rejected` → NIE Fallback
+        return {
+            "ok": False,
+            "via": "mcp",
+            "status": "rejected",
+            "reason": parsed.get("reason", ""),
+            "result": parsed,
+        }
+    return {"via": "mcp", "result": parsed}
+
+
+def _run_ingestion_hook(ctx: dict, **_ignored) -> dict:
+    """Stufe 1: Encoding-Gate (Berechtigung) + Entity-Resolution (Ergebnis)."""
+    decision = ingestion_hook.EncodingGate().check(ctx["fact"], "prompt", 1.0)
+    return {
+        "accepted": decision.accepted,
+        "reason": decision.reason,
+        "entities": ingestion_hook.resolve_entities(ctx["fact"], backend="rules"),
+    }
+
+
+def _run_fast_write_router(ctx: dict, **_ignored) -> dict:
+    """Stufe 2: 3-Klassen-Entscheidung §10.7 (Eingabe = Zero-Shot-Checks)."""
+    cls, gate = fast_write_router._decide(
+        bool(ctx.get("refusal", False)),
+        bool(ctx.get("large_correct", True)),
+        bool(ctx.get("memory_correct", True)),
+    )
+    return {"class": cls, "gate": gate}
+
+
+def _run_trust(ctx: dict, **_ignored) -> dict:
+    """Stufe 6: Privacy (PII löschen) + Poisoning-Guard + Bias-Check (§9.2)."""
+    admission = trust.PoisoningGuard().admit(
+        {"source": ctx.get("origin", "user"), "verified": bool(ctx.get("verified", True))}
+    )
+    bias = trust.BiasCheck(checkpoint=float(ctx.get("checkpoint", 0.0)), tau=float(ctx.get("tau", 0.10))).check(
+        float(ctx.get("bias_current", 0.0))
+    )
+    return {"minimized": trust.PIIFilter().minimize(ctx["fact"]), "admission": admission, "bias": bias}
+
+
+def _run_bias_monitor(ctx: dict, **_ignored) -> dict:
+    """Stufe 5: Drift-Index (§9.1c) aus Baseline vs. aktueller Verteilung."""
+    monitor = bias_monitor.BiasDriftMonitor(baseline=ctx["baseline"], tau=float(ctx.get("tau", 0.10)))
+    return monitor.observe(ctx["distribution"], step=ctx.get("step", 1))
+
+
+def _run_shared_memory(ctx: dict, **_ignored) -> dict:
+    """Stufe 8: Shared-Tier-Write mit ACL-Berechtigung + Konfliktauflösung."""
+    agent = ctx.get("agent", "agent")
+    tier = shared_memory.SharedTier(
+        acl={agent: {"read": {"*"}, "write": {"*"}}},
+        trust={agent: float(ctx.get("trust", 0.5))},
+    )
+    write = tier.write(agent, ctx.get("key", "skill"), ctx.get("value", ctx["fact"]))
+    return {"write": write, "sync": tier.sync()}
+
+
+def _run_reflective_agent(ctx: dict, **_ignored) -> dict:
+    """Stufe 4/5: HMM-Trägheits-Update aus Reflexions-Matrix (SEAA Eq. 2)."""
+    update = reflective_agent.HMMInertia().update_from_reflection(
+        ctx.get("reflection", ""), delta=ctx["reflection_delta"]
+    )
+    return {"skipped": update["skipped"], "after": update["after"]}
+
+
+def _run_evaluator(ctx: dict, **_ignored) -> dict:
+    """Compare: ε-Best-Belief + Cohen's κ auf externen Rater-Listen (Red-Queen)."""
+    return {
+        "best_belief": evaluator_version.best_belief(int(ctx.get("successes", 3)), int(ctx.get("failures", 1))),
+        "kappa": evaluator_version.cohens_kappa(ctx["rater_a"], ctx["rater_b"]),
+    }
 
 
 # Registrierte Executoren (Tool-/Prozessname -> echte Funktion).
-DEFAULT_REGISTRY = {"pipeline.py": _run_pipeline, "memory.write": _run_memory_write}
+DEFAULT_REGISTRY = {
+    "pipeline.py": _run_pipeline,
+    "memory.write": _run_memory_write,
+    "ingestion_hook.py": _run_ingestion_hook,
+    "fast_write_router.py": _run_fast_write_router,
+    "trust.py": _run_trust,
+    "bias_monitor.py": _run_bias_monitor,
+    "shared_memory.py": _run_shared_memory,
+    "reflective_agent.py": _run_reflective_agent,
+    "evaluator_version.py": _run_evaluator,
+}
+
+# K4: maschinenlesbares Frontmatter-Feld `process:` (JSON Schema Draft 2020-12).
+# Quelle (Belegt): JSON-Schema-Spec https://json-schema.org/specification.
+# Hinweis (§6): JSON Schema prüft nur die STRUKTUR – die echte Ausführung
+# belegt `bind_skill` (Eingabe→Berechtigung→Ergebnis).
+PROCESS_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "SKILL.md frontmatter `process:` (K4)",
+    "type": "object",
+    "properties": {
+        "process": {"type": "string", "enum": sorted([*DEFAULT_REGISTRY, "doc-only"])},
+    },
+    "required": ["process"],
+    "additionalProperties": False,
+}
+
+
+def validate_process(spec: dict) -> dict:
+    """Validiert die Struktur des `process:`-Feldes gegen `PROCESS_SCHEMA`."""
+    value = {"process": spec.get("process")}
+    errors = sorted(jsonschema.Draft202012Validator(PROCESS_SCHEMA).iter_errors(value), key=lambda e: list(e.path))
+    return {"valid": not errors, "errors": [e.message for e in errors]}
+
 
 # Tool-Beschreibungen (Auftrag) für das Function-Calling-Schema.
 TOOL_SPECS = {
@@ -221,6 +381,50 @@ def run_skill(skill_path: Path, ctx: dict, registry: dict | None = None) -> dict
     return {"skill": spec["name"], "steps": spec["steps"], "processes": spec["processes"], "trace": trace}
 
 
+def bind_skill(skill_path: Path, ctx: dict, registry: dict | None = None) -> dict:
+    """Bindet EINEN Skill an seinen Executor (K4): parse → Schema prüfen → ausführen.
+
+    `process: doc-only` wird ehrlich als solches gemeldet (kein Executor, keine
+    Ausführung). Ein Wert ohne registrierten Executor → `unbound` (kein Fake).
+    """
+    spec = parse_skill(skill_path)
+    reg = DEFAULT_REGISTRY if registry is None else registry
+    validation = validate_process(spec)
+    proc = spec.get("process")
+    if proc == "doc-only":
+        return {
+            "skill": spec["name"],
+            "process": proc,
+            "valid": validation["valid"],
+            "status": "doc-only",
+            "executed": False,
+            "reason": "doc-only: kein Executor (ehrlich gekennzeichnet)",
+        }
+    fn = reg.get(proc)
+    if fn is None:
+        return {
+            "skill": spec["name"],
+            "process": proc,
+            "valid": validation["valid"],
+            "status": "unbound",
+            "executed": False,
+            "reason": f"kein Executor für {proc!r}",
+        }
+    return {
+        "skill": spec["name"],
+        "process": proc,
+        "valid": validation["valid"],
+        "status": "lauffähig",
+        "executed": True,
+        "result": fn(ctx),
+    }
+
+
+def bind_all_skills(ctx: dict, registry: dict | None = None) -> list:
+    """Bindet alle aktiven Skills (`procedural_memory.active_skills`, 14)."""
+    return [bind_skill(p, ctx, registry=registry) for p in list_skills()]
+
+
 def _task_prompt(spec: dict) -> str:
     steps = "\n".join(f"{i}. {s}" for i, s in enumerate(spec["steps"], 1))
     return f"Skill: {spec['name']} — {spec['description']}\n\nAblauf:\n{steps}\n\nFühre die passenden Tools aus."
@@ -255,48 +459,77 @@ def _default_llm(messages: list, tools: list):  # pragma: no cover - Netzbetrieb
     return {"final": msg.content or ""}
 
 
+def _result_field(result, name):
+    """Feld aus einem Tool-Ergebnis (dict) – sonst None (Audit-robust)."""
+    return result.get(name) if isinstance(result, dict) else None
+
+
 def run_skill_agent(
-    skill_path: Path, ctx: dict, *, llm_fn=None, registry: dict | None = None, max_steps: int = 8
+    skill_path: Path,
+    ctx: dict,
+    *,
+    llm_fn=None,
+    registry: dict | None = None,
+    max_steps: int = 8,
+    recorder=None,
 ) -> dict:
-    """ReAct-Loop (Agent Skills/ReAct): LLM liest `## Ablauf` und ruft registrierte Tools auf."""
+    """ReAct-Loop (Agent Skills/ReAct): LLM liest `## Ablauf` und ruft registrierte Tools auf.
+
+    K7/B3: optionaler `recorder` (OTel-Spans + Audit, `trace_audit`); ohne Angabe
+    wird `KNOWLEDGE_TRACE_DIR` ausgewertet (ungesetzt → NOOP, kein Write).
+    """
     spec = parse_skill(skill_path)
     reg = DEFAULT_REGISTRY if registry is None else registry
     llm = llm_fn if llm_fn is not None else _default_llm
+    rec = recorder if recorder is not None else trace_audit.Recorder.from_env()
     messages = [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": _task_prompt(spec)}]
     tools = _tool_specs(reg)
     name_map = {_fn_name(k): k for k in reg}
     trace, final, stopped = [], None, False
-    for step in range(1, max_steps + 1):
-        call = llm(messages, tools)
-        if call is None:
-            trace.append({"step": step, "action": "noop", "reason": "kein LLM/Endpoint"})
-            stopped = True
-            break
-        if "final" in call:
-            final = call["final"]
-            trace.append({"step": step, "action": "final", "content": final})
-            stopped = True
-            break
-        name, args = call.get("tool"), call.get("args") or {}
-        name = name_map.get(name, name)
-        fn = reg.get(name)
-        if fn is None:
-            trace.append({"step": step, "action": "error", "tool": name, "reason": "unbekanntes Tool"})
-            stopped = True
-            break
-        result = fn(ctx, **args)
-        trace.append({"step": step, "action": "tool", "tool": name, "result": result})
-        call_id = call.get("id") or f"call-{step}"
-        messages.append(
-            {
-                "role": "assistant",
-                "content": None,
-                "tool_calls": [
-                    {"id": call_id, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}
-                ],
-            }
-        )
-        messages.append({"role": "tool", "tool_call_id": call_id, "content": json.dumps(result, ensure_ascii=False)})
+    with rec.span("skill.run", **{"skill.name": spec["name"], "skill.processes": len(spec["processes"])}):
+        for step in range(1, max_steps + 1):
+            call = llm(messages, tools)
+            if call is None:
+                trace.append({"step": step, "action": "noop", "reason": "kein LLM/Endpoint"})
+                stopped = True
+                break
+            if "final" in call:
+                final = call["final"]
+                trace.append({"step": step, "action": "final", "content": final})
+                stopped = True
+                break
+            name, args = call.get("tool"), call.get("args") or {}
+            name = name_map.get(name, name)
+            fn = reg.get(name)
+            if fn is None:
+                trace.append({"step": step, "action": "error", "tool": name, "reason": "unbekanntes Tool"})
+                stopped = True
+                break
+            with rec.span("skill.tool", **{"tool": name, "step": step}):
+                result = fn(ctx, **args)
+                rec.audit(
+                    "skill.tool",
+                    step=step,
+                    tool=name,
+                    ok=_result_field(result, "ok"),
+                    via=_result_field(result, "via"),
+                )
+            trace.append({"step": step, "action": "tool", "tool": name, "result": result})
+            call_id = call.get("id") or f"call-{step}"
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {"id": call_id, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}
+                    ],
+                }
+            )
+            messages.append(
+                {"role": "tool", "tool_call_id": call_id, "content": json.dumps(result, ensure_ascii=False)}
+            )
+        rec.audit("skill.finish", stopped=stopped, steps=len(trace), final=final is not None)
+    rec.flush()
     return {"skill": spec["name"], "steps": spec["steps"], "trace": trace, "final": final, "stopped": stopped}
 
 

@@ -27,11 +27,13 @@ import re
 from pathlib import Path
 
 import bias_monitor
+import gate_labels
 import ingestion_hook
 import lru_cache
 import mandate
 import pipeline
 import reflective_agent
+import runner_state
 import trust
 
 STAGES = (
@@ -135,6 +137,15 @@ def _stage_erfahrung(ctx: dict) -> dict:
 
 
 def _stage_wissen(ctx: dict) -> dict:
+    # B4 (K6): Mandat vor JEDER Mutation – auch Graph (§9). Ohne Mandat kein Delta.
+    if not ctx.get("mandate_allow", False):
+        return {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0,
+            "skipped": True,
+            "reason": "Mandat nicht ALLOW – keine Graph-Mutation (§9, B4)",
+        }
     delta = ingestion_hook.update_graph(ctx["graph"], ctx["entities"], ctx["relations"])
     return {"stage": "Wissen", "added_nodes": delta["added_nodes"], "added_edges": len(delta["added_edges"])}
 
@@ -159,6 +170,15 @@ def _stage_gedaechtnis(ctx: dict) -> dict:
 
 
 def _stage_kognition(ctx: dict) -> dict:
+    # B4 (K6): WM-Edge-Konsolidierung ist eine Mutation ⇒ nur mit Mandat (§9).
+    if not ctx.get("mandate_allow", False):
+        return {
+            "stage": "Kognition",
+            "consolidated": False,
+            "strengthened": [],
+            "skipped": True,
+            "reason": "Mandat nicht ALLOW – keine WM-Mutation (§9, B4)",
+        }
     res = ctx["wm"].consolidate_edges(ctx["edges"], ctx["dims"])
     return {"stage": "Kognition", "consolidated": res["consolidated"], "strengthened": res["strengthened"]}
 
@@ -202,35 +222,53 @@ def _stage_wissen_plus(ctx: dict) -> dict:
     # N7/S1 §9.1c: echte Klasse des Laufs (nicht 0.5/0.5). Referenz = **Checkpoint**
     # (§9.2b), NIE die eigene Beobachtung. Cold-Start (§10.4): unsicher ⇒ `ask`
     # (niemals still `ok`) + einmaliger Bootstrap der Referenz (Initialisierung,
-    # KEIN Fortschreiben). `revised`=False bei abgelehntem Akt (§9-Analogie).
+    # KEIN Fortschreiben).
+    # B5 (K6): `revised` = ok AND gate == "allow" (NIE `gate != ask` – das ließe
+    # `deny` durch!). M(t)→M(t+1) nur bei `revised` ⇒ `deny`/`ask` ⇒ revised=False.
+    # B4 (K6): jede Referenz-Schreibung ist eine Mutation ⇒ nur mit Mandat (§9).
     action = ctx["results"]["Gedächtnis"].get("action")
     label = "write" if action in ("write-new", "write-update") else "non-write"
     observed = {label: 1.0}
     ok = bool(ctx["results"]["Gedächtnis"].get("ok"))  # §9: keine Revision nach Ablehnung
+    allow = ctx.get("mandate_allow", False)
     monitor = ctx["drift_monitor"]
     if monitor is not None:  # explizit übergebener Monitor (Test / Write-Schutz)
         d = monitor.observe(observed, step=1)
-        return {"stage": "Wissen+", "DI": d["DI"], "gate": d["gate"], "revised": ok, "reference": "monitor"}
+        gate = gate_labels.normalize(d["gate"])
+        return {
+            "stage": "Wissen+",
+            "DI": d["DI"],
+            "gate": gate,
+            "revised": ok and gate_labels.is_allow(gate),
+            "reference": "monitor",
+        }
     reference = ctx["drift_baseline"] if ctx["drift_baseline"] is not None else _load_drift_reference()
     if reference is None:
-        _save_drift_reference(observed)  # Cold-Start-Bootstrap (Initialisierung, Lesart A)
+        if allow:  # B4: Bootstrap ist Initialisierung – aber keine Mutation ohne Mandat
+            _save_drift_reference(observed)  # Cold-Start-Bootstrap (Initialisierung, Lesart A)
         return {
             "stage": "Wissen+",
             "DI": None,
-            "gate": "ask",
-            "reason": "keine Referenz (Cold-Start §10.4) – Bootstrap gesetzt",
-            "revised": ok,
-            "reference": "bootstrap",
+            "gate": gate_labels.ASK,
+            "reason": (
+                "keine Referenz (Cold-Start §10.4) – Bootstrap gesetzt"
+                if allow
+                else "keine Referenz (Cold-Start §10.4) – kein Bootstrap ohne Mandat (B4)"
+            ),
+            "revised": False,  # gate=ask ⇒ nie revised (B5)
+            "reference": "bootstrap" if allow else "blocked",
         }
     d = bias_monitor.BiasDriftMonitor(baseline=reference, tau=ctx["tau"]).observe(observed, step=1)
-    if ok:
-        _save_drift_reference(observed)  # M(t)->M(t+1) nur bei freigegebenem Akt (§9)
+    gate = gate_labels.normalize(d["gate"])
+    revised = ok and gate_labels.is_allow(gate)  # B5: ok AND gate == "allow"
+    if revised and allow:
+        _save_drift_reference(observed)  # M(t)->M(t+1) nur bei revised (§9, B5)
     return {
         "stage": "Wissen+",
         "DI": d["DI"],
-        "gate": d["gate"],
-        "revised": ok,
-        "reference": "checkpoint" if ok else "checkpoint(kept)",
+        "gate": gate,
+        "revised": revised,
+        "reference": "checkpoint" if revised else "checkpoint(kept)",
     }
 
 
@@ -270,8 +308,13 @@ def run_cycle(
     self_update: bool = False,
     approvers=None,
     drift=None,
+    state_path=None,
 ) -> dict:
-    """Führt die 8 Stufen in gesetzter Reihenfolge aus und liefert die echte Spur."""
+    """Führt die 8 Stufen in gesetzter Reihenfolge aus und liefert die echte Spur.
+
+    K1: `state_path` setzt den geteilten Runner-Zustand vor dem Lauf fort und
+    persistiert ihn danach (atomar, mit Inhalten/Metadaten/offenen Freigaben).
+    """
     mandate_obj = mandate_obj if mandate_obj is not None else _default_mandate()
     # S1 §9.1c: Referenz-Priorität (explizit > Env-Erwartung > persistierter Checkpoint > keine).
     baseline = drift_baseline if drift_baseline is not None else _configured_drift_baseline()
@@ -300,7 +343,7 @@ def run_cycle(
         "drift_baseline": baseline,
         "tau": tau,
         "mandate_obj": mandate_obj,
-        "mandate_allow": dec0["decision"] == "ALLOW",
+        "mandate_allow": gate_labels.is_allow(dec0["decision"]),
         "self_update": self_update,
         "approvers": approvers,
         "drift_write": drift,
@@ -308,11 +351,33 @@ def run_cycle(
         "entities": [],
         "results": {},
     }
+    # K1: geteilter persistenter Runner-Zustand – vor dem Lauf fortsetzen (Restart)
+    resumed, rec = None, {}
+    if state_path is not None:
+        resumed = runner_state.load(state_path)
+        if resumed is not None:
+            rec = runner_state.reconstruct(resumed)
+            ctx["wm"] = ctx["wm"] if wm is not None else rec["wm"]
+            ctx["graph"] = ctx["graph"] if graph is not None else rec["graph"]
     trace = []
     for stage in STAGES:
         result = _STAGE_FN[stage](ctx)
         ctx["results"][stage] = result
         trace.append(result)
+    if state_path is not None:
+        # K1: Zustand nach dem Lauf persistieren (Inhalte + Metadaten + offene Freigaben)
+        runner_state.save(
+            runner_state.snapshot(
+                wm=ctx["wm"],
+                graph=ctx["graph"],
+                hmm=rec.get("hmm"),  # K1: fremdes HMM im Shared State erhalten
+                drift_reference=_load_drift_reference(),
+                schema=(resumed or {}).get("schema", {}),
+                open_approvals=(resumed or {}).get("open_approvals", []),
+                runner="lifecycle-runner",
+            ),
+            state_path,
+        )
     return {"stages": list(STAGES), "results": ctx["results"], "trace": trace, "wm": ctx["wm"]}
 
 

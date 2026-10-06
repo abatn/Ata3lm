@@ -24,10 +24,10 @@ Die 3-Klassen-*Aktionen* stammen daher aus AGENTS.md §10.7 (Auftrag), nicht aus
 
 import json
 import os
-import re
 from pathlib import Path
 from typing import Optional
 
+import gate_labels
 from openai import OpenAI
 
 SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")
@@ -106,14 +106,21 @@ def classify(question: str, fact: str, correct: str) -> dict:
          (AGENTS.md §10.4: „Bei Unsicherheit des Routers (Eskalation ohne klares
          Signal) -> Human-Gate (ask)").
 
-    Gate (AGENTS.md §9/§10.4, Feld `gate`):
-      none = keine Speicherung (§10.1) · ask = menschliche Freigabe noetig
-      (write-new: neue Quelle §10.4; write-update: self_update an tier1-base §9).
+    Gate (AGENTS.md §9/§10.4, Feld `gate`, Labelraum `allow|ask|deny`, K6/B5):
+      allow = keine Speicherung noetig (§10.1 non-write) · ask = menschliche
+      Freigabe noetig (write-new: neue Quelle §10.4; write-update: self_update
+      an tier1-base §9).
     """
     # --- Stufe 1: kleiner Router (Front-End-Screening) ---
     a_small = _ask(SMALL_MODEL, question)
     if _matches(a_small, correct):
-        return {"class": "non-write", "stage": 1, "escalated": False, "gate": "none", "small_answer": a_small}
+        return {
+            "class": "non-write",
+            "stage": 1,
+            "escalated": False,
+            "gate": gate_labels.ALLOW,
+            "small_answer": a_small,
+        }
 
     # --- Stufe 2: großer Router (Eskalation) ---
     a_large = _ask(LARGE_MODEL, question)
@@ -137,26 +144,15 @@ def classify(question: str, fact: str, correct: str) -> dict:
     }
 
 
-def _slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
-
-
 def _supersede(tier1_dir, key: str, new_fact: str, now: float) -> dict:
-    """Alten tier1-Eintrag invalidieren (archivieren), NICHT löschen (§10.7)."""
-    tier1_dir = Path(tier1_dir)
-    tier1_dir.mkdir(parents=True, exist_ok=True)
-    old_file = tier1_dir / f"{key}.md"
-    old_found = old_file.exists()
-    archived = None
-    if old_found:
-        archived = tier1_dir / f"{key}.superseded-{int(now)}.md"
-        archived.write_text(old_file.read_text(encoding="utf-8"), encoding="utf-8")
-    old_file.write_text(new_fact, encoding="utf-8")
-    log = tier1_dir / "supersede.jsonl"
-    rec = {"key": key, "archived": str(archived) if archived else None, "new": new_fact, "at": now}
-    with log.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    return {"key": key, "old_found": old_found, "archived": str(archived) if archived else None, "log": str(log)}
+    """Alten tier1-Eintrag invalidieren (archivieren), NICHT löschen (§10.7).
+
+    K2: die Schreibmechanik liegt im einheitlichen `write_gateway` (EIN
+    Schreibpfad, monotone Archivnamen + Kollisions-Recheck, K5).
+    """
+    import write_gateway
+
+    return write_gateway.supersede_entry(tier1_dir, key, new_fact, now)
 
 
 def apply_write_action(
@@ -177,34 +173,37 @@ def apply_write_action(
     - write-new    -> `structured_dir/` + `tier3_dir/`.
     - write-update -> `structured_dir/` + tier1-Supersede (`supersede_fn` injizierbar).
     - unbekannt    -> `gate=ask`, keine Writes (§10.4).
-    Gate (§9/§10.4): write-new = neue Quelle -> ask · write-update = self_update -> ask.
+    Gate (§9/§10.4, Labelraum `allow|ask|deny`, K6/B5): non-write = allow ·
+    write-new = neue Quelle -> ask · write-update = self_update -> ask.
+
+    K2: DELEGATION an `write_gateway.store` (EIN Schreibpfad, feste Reihenfolge
+    Mandat → FWR → Trust/PII → Poisoning → Freigabe → Drift → Supersede → Write
+    → Shared → Provenienz). Kein direkter Write mehr (K2-STOPP).
     """
     if cls not in ("non-write", "write-new", "write-update"):
         return {"ok": False, "action": cls, "gate": "ask", "written": [], "reason": "unbekannte Klasse"}
-    name = _slug(question) + ".md"
-    written: list = []
-    if cls == "non-write":
-        results_dir = Path(results_dir or "ergebnisse/rekursion")
-        results_dir.mkdir(parents=True, exist_ok=True)
-        hist = results_dir / f"{_slug(question)}.non-write.jsonl"
-        hist.write_text(
-            json.dumps({"question": question, "class": cls, "at": now}, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
-        written.append(str(hist))
-        return {"ok": True, "action": cls, "gate": "none", "written": written, "superseded": None}
-    structured_dir = Path(structured_dir)
-    structured_dir.mkdir(parents=True, exist_ok=True)
-    (structured_dir / name).write_text(fact, encoding="utf-8")
-    written.append(str(structured_dir / name))
-    superseded = None
-    if cls == "write-new":
-        tier3_dir = Path(tier3_dir)
-        tier3_dir.mkdir(parents=True, exist_ok=True)
-        (tier3_dir / name).write_text(fact, encoding="utf-8")
-        written.append(str(tier3_dir / name))
-    else:  # write-update
-        superseded = (supersede_fn or _supersede)(tier1_dir, _slug(question), fact, now)
-    return {"ok": True, "action": cls, "gate": "ask", "written": written, "superseded": superseded}
+    import write_gateway
+
+    res = write_gateway.store(
+        question=question,
+        fact=fact,
+        correct="",
+        classify_fn=lambda q, f, c: {"class": cls},
+        now=now,
+        structured_dir=structured_dir,
+        tier3_dir=tier3_dir,
+        tier1_dir=tier1_dir,
+        history_dir=Path(results_dir or "ergebnisse/rekursion"),
+        supersede_fn=supersede_fn or _supersede,
+        agent="fast-write-router",
+        origin="tool:verified",
+        verified=True,
+    )
+    res["action"] = cls
+    res["superseded"] = res.get("superseded_tier1")
+    if res["ok"] and cls in ("write-new", "write-update"):
+        res["gate"] = gate_labels.ASK  # §9/§10.4: Write-Klassen melden Human-Gate-Bedarf
+    return res
 
 
 # --- MemRouter (arXiv:2605.00356) ---# Embedding-basierter Router: frozen Backbone + ~12M trainierbare Parameter,

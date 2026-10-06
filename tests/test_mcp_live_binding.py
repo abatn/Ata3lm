@@ -1,9 +1,14 @@
 """MCP-Live-Binding (data/memory/mcp_live_binding.py) — echter Live-Aufruf (Guardrail 7)."""
 
+import socket
 import sys
+import threading
+import time
 from pathlib import Path
 
 import mcp_live_binding as mlb
+import mcp_memory_server
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -93,3 +98,67 @@ def test_inner_ok_zweige():
     assert mlb._inner_ok(["nicht json"]) is True
     assert mlb._inner_ok(['{"x": 1}']) is True
     assert mlb._inner_ok([]) is True
+
+
+# --- K7: Streamable HTTP (MCP-Spec 2025-06-18) — echter lokaler Server ---
+
+
+def test_is_http_transportwahl():
+    assert mlb._is_http({"url": "http://127.0.0.1:1/mcp"}) is True
+    assert mlb._is_http({"command": ["x"]}) is False
+
+
+@pytest.fixture
+def http_memory_server(tmp_path, monkeypatch):
+    """Startet den Memory-Server REAL über Streamable HTTP (uvicorn, lokaler Port)."""
+    t2, t3 = tmp_path / "t2", tmp_path / "t3"
+    t2.mkdir()
+    t3.mkdir()
+    (t3 / "note.md").write_text("MARKER-HTTP", encoding="utf-8")
+    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier2": t2, "tier3": t3})
+
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    import uvicorn
+
+    server = mcp_memory_server.build_server()
+    config = uvicorn.Config(server.streamable_http_app(), host="127.0.0.1", port=port, log_level="error")
+    uv = uvicorn.Server(config)
+    thread = threading.Thread(target=uv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if uv.started:
+            break
+        time.sleep(0.05)
+    assert uv.started, "HTTP-MCP-Server nicht gestartet"
+    yield {"url": f"http://127.0.0.1:{port}/mcp"}
+    uv.should_exit = True
+    thread.join(timeout=10)
+
+
+def test_call_tool_live_streamable_http(http_memory_server):
+    out = mlb.call_tool_live(
+        "memory", "memory.search", {"query": "MARKER-HTTP"}, servers={"memory": http_memory_server}, timeout=30.0
+    )
+    assert out["ok"] is True and out["transport_ok"] is True
+    assert any("MARKER-HTTP" in c for c in out["content"])
+
+
+def test_catalog_server_streamable_http(http_memory_server):
+    out = mlb.catalog_server("memory", servers={"memory": http_memory_server}, timeout=30.0)
+    assert out["ok"] is True and out["n_tools"] >= 5 and "TOOL memory." in out["catalog"]
+
+
+def test_call_tool_live_http_fehler():
+    servers = {"bad": {"url": "http://127.0.0.1:9/mcp"}}  # discard-Port -> Transportfehler
+    out = mlb.call_tool_live("bad", "x", servers=servers, timeout=5.0)
+    assert out["ok"] is False and "error" in out
+
+
+def test_catalog_server_http_probe_fehler():
+    servers = {"bad": {"url": "http://127.0.0.1:9/mcp"}}
+    out = mlb.catalog_server("bad", servers=servers, timeout=5.0)
+    assert out["ok"] is False and "error" in out

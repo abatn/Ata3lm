@@ -1,5 +1,6 @@
 ---
 name: store-memory
+process: pipeline.py
 description: Strukturiertes Wissen als dualen Speicher (Graph-Knoten/Kanten + Embeddings) lokal unter data/memory/ ablegen, mit temporaler Gültigkeit und Provenienz. Nutze diesen Skill, wenn Wissen aus Stufe 2 (Wissen) in Stufe 3 (Gedächtnis) überführt werden soll – lokal, kostenlos, ohne Cloud.
 ---
 

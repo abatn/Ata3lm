@@ -20,7 +20,7 @@ def test_non_write_schreibt_nur_historie(tmp_path):
         results_dir=tmp_path / "ergebnisse",
         now=1.0,
     )
-    assert r["ok"] and r["action"] == "non-write" and r["gate"] == "none"
+    assert r["ok"] and r["action"] == "non-write" and r["gate"] == "allow"  # K6/B5: Labelraum
     assert not (tmp_path / "s").exists() and not (tmp_path / "t3").exists()
     hist = list((tmp_path / "ergebnisse").glob("*.non-write.jsonl"))
     assert len(hist) == 1 and json.loads(hist[0].read_text(encoding="utf-8"))["class"] == "non-write"

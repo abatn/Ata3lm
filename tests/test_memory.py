@@ -74,7 +74,7 @@ def test_capped_simplex_einacht_summe_und_w_max():
 def test_drift_monitor_flagt_nur_ueber_tau():
     m = bm.BiasDriftMonitor(baseline={"a": 0.5, "b": 0.5}, tau=0.10)
     ok = m.observe({"a": 0.5, "b": 0.5}, step=1)
-    assert ok["flagged"] is False and ok["gate"] == "ok"
+    assert ok["flagged"] is False and ok["gate"] == "allow"  # K6/B5: Labelraum allow|ask|deny
     assert ok["DI"] == 0.0
     bad = m.observe({"a": 1.0, "b": 0.0}, step=2)
     assert bad["DI"] > 0.10

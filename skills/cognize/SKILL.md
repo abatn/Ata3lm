@@ -1,5 +1,6 @@
 ---
 name: cognize
+process: reflective_agent.py
 description: "Kognition (Stufe 4 des 8-Stufen-Zyklus): Ontologie lesen, Kandidaten-Verknüpfungen vorschlagen (LLM proposed), vorgeschaltete Inferenz-Schicht (SHACL-SPARQL-Regeln) materialisiert implizite Triples, dann symbolische Validierung (SHACL Core + SHACL-SPARQL) gegen die Ontologie (Symbolic validates), und nur bei PASS nach Working Memory schreiben (Commit). Nutze diesen Skill, wenn aus gespeichertem Wissen neue Verknüpfungen abgeleitet werden sollen – ohne Erfindungen, jede Inferenz mit Prämissen-Beleg und Quellen-Link."
 ---
 

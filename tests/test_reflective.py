@@ -241,9 +241,10 @@ def test_simulate_3_reflections_real():
 
 
 def test_lyapunov_check_und_simulate(no_key):
-    assert ra.lyapunov_check([1.0]) == {"E_dV": 0.0, "stable": True, "gate": "ok", "note": "zu wenig Daten"}
+    # K6/B5: Labelraum allow|ask|deny (statt ok|ask)
+    assert ra.lyapunov_check([1.0]) == {"E_dV": 0.0, "stable": True, "gate": "allow", "note": "zu wenig Daten"}
     ly = ra.simulate_lyapunov()
-    assert ly["stable"]["stable"] is True and ly["stable"]["gate"] == "ok"
+    assert ly["stable"]["stable"] is True and ly["stable"]["gate"] == "allow"
     assert ly["unstable"]["stable"] is False and ly["unstable"]["gate"] == "ask"
 
 

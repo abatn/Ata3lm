@@ -239,7 +239,7 @@ def test_drift_gate_ask_bei_abweichung(tmp_path):
     assert out["gate"] == "ask" and any(s0[0] == "drift" for s0 in out["steps"])
 
 
-def test_drift_gate_ok_bei_stabilitaet(tmp_path):
+def test_drift_gate_allow_bei_stabilitaet(tmp_path):
     s, t3 = _dirs(tmp_path)
     import bias_monitor
 
@@ -255,7 +255,7 @@ def test_drift_gate_ok_bei_stabilitaet(tmp_path):
         tier3_dir=t3,
         drift=drift,
     )
-    assert out["gate"] == "ok"
+    assert out["gate"] == "allow"  # K6/B5: Labelraum allow|ask|deny
 
 
 def test_load_from_tier2(tmp_path):
@@ -270,7 +270,7 @@ def test_load_from_tier2(tmp_path):
 def test_drift_gate_funktion():
     """bias_monitor → alle: Drift-Gate als Pipeline-Funktion."""
     ok = pipeline.drift_gate({"a": 0.5, "b": 0.5}, {"a": 0.5, "b": 0.5}, tau=0.5)
-    assert ok["gate"] == "ok"
+    assert ok["gate"] == "allow"  # K6/B5: Labelraum allow|ask|deny
     bad = pipeline.drift_gate({"a": 1.0, "b": 0.0}, {"a": 0.5, "b": 0.5}, tau=0.01)
     assert bad["gate"] == "ask" and bad["DI"] > 0.01
 
@@ -339,3 +339,51 @@ def test_router_uncertain_blockiert_write(tmp_path):
     )
     assert out["ok"] is False and out["gate"] == "ask"
     assert not s.exists()
+
+
+def test_mandat_review_ist_ask_nicht_deny(tmp_path):
+    """K6/B5: REVIEW -> ask (Human-Gate), nicht pauschal deny (Labelraum allow|ask|deny)."""
+    s, t3 = _dirs(tmp_path)
+    r = mandate.MandateRegistry()
+    m = r.issue(
+        principal="Batnini",
+        agent="knowledge-agent",
+        actions={"write:memory"},
+        resources={"data/memory"},
+        amount_limit=100.0,
+        max_uses=1000,
+        valid_from=0.0,
+        valid_until=10**12,
+        approval_threshold=0.0,  # amount=0.0 >= threshold -> REVIEW
+    )
+    out = pipeline.route_and_store(
+        question="Q",
+        fact="F",
+        correct="C",
+        classify_fn=_cls("write-new"),
+        mandate_obj=m,
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+    )
+    assert out["ok"] is False and out["gate"] == "ask"
+    assert not s.exists()
+
+
+def test_router_deny_wird_nicht_durch_self_update_umgangen(tmp_path):
+    """K6/B5: `deny` darf nie durch – self_update umgeht keine fachliche Ablehnung."""
+    s, t3 = _dirs(tmp_path)
+    out = pipeline.route_and_store(
+        question="Q",
+        fact="F",
+        correct="C",
+        classify_fn=lambda q, f, c: {"class": "write-update", "gate": "deny"},
+        mandate_obj=_mandate(),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+        self_update=True,
+        approvers=["Batnini", "Verifier2"],
+    )
+    assert out["ok"] is False and out["gate"] == "deny"
+    assert not s.exists()  # keine Mutation

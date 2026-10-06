@@ -1,5 +1,6 @@
 ---
 name: structure-knowledge
+process: fast_write_router.py
 description: Rohdaten aus Working Memory in strukturiertes Wissen mit Ontologie-Bezug überführen und in knowledge/structured/ ablegen.
 ---
 

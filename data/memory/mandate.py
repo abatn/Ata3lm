@@ -33,6 +33,8 @@ import secrets
 from dataclasses import dataclass, replace
 from typing import Optional
 
+import gate_labels
+
 
 class MandateError(Exception):
     """Verstoß gegen die Mandats-Grenze (z. B. unzulässige Erweiterung)."""
@@ -208,7 +210,8 @@ def assess(mandate: Mandate, *, action: str, resource: str, amount: float, now: 
     else:
         decision, reason = "ALLOW", "im Mandat"
     return {
-        "decision": decision,
+        "decision": decision,  # Quellen-Labelraum (AGENTS.md §9): ALLOW | REVIEW | DENY
+        "gate": gate_labels.normalize(decision),  # K6/B5: einheitlicher Labelraum allow|ask|deny
         "reason": reason,
         "mandate_id": mandate.mandate_id,
         "action": action,

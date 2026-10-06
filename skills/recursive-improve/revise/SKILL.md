@@ -1,5 +1,6 @@
 ---
 name: revise
+process: reflective_agent.py
 description: "Revise-Unterphase des Rekursions-Loops (Compare→Revise→Konstrukt). Der Agent überarbeitet Regeln im Loop VALIDATE→REFLECT→PIVOT (Reflexion: Actor/Evaluator/Self-Reflection mit episodischem Memory; Closed-Loop Multi-Round) und schreibt das revidierte Modell nur mit menschlicher Freigabe nach Working Memory zurück. Nutze diesen Skill, wenn aus einem belegten Compare-Bericht eine (π,I)-Revision werden soll."
 ---
 

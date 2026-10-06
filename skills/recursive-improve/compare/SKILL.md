@@ -1,5 +1,6 @@
 ---
 name: compare
+process: evaluator_version.py
 description: Compare-Unterphase des Rekursions-Loops (Observe→Compare→Revise). Der Agent berechnet Ähnlichkeit und Konsistenz (Pass@k vs. Pass^k, Consistency Gap = Mean@k − Pass^k) ausschließlich auf externen verifizierbaren Signalen (Grader, Code-Ausführung, DB). Nutze diesen Skill, wenn aus Observe-Output ein belegter Delta-Bericht für Revise werden soll.
 ---
 

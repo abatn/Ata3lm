@@ -7,10 +7,13 @@ Quellen (verifiziert, §6):
     combination of tool invocations leaks strategic intent") und **Cross-Endpoint
     Correlation** („behavioral patterns across independent MCP servers can be linked").
     (Der Auftrag nennt „Zenodo, 2026" — die verifizierte Primärquelle ist die Chang-Arbeit.)
-  - **MCP-Spec** (stdio transport): Client ruft `tools/call` über stdin/stdout.
-    https://modelcontextprotocol.io/specification
+  - **MCP-Spec** (Transporte): **stdio** (stdin/stdout) UND **Streamable HTTP**
+    (ein HTTP-Endpunkt, POST/GET, `MCP-Protocol-Version`/`Mcp-Session-Id`).
+    https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
+    (HTTP 200, geprüft 2026-10-06). SDK: `mcp.client.streamable_http`.
 Integration: `mcp_catalog.py` (TTC-Katalog) + `scripts/mcp_probe.py` (load_servers/probe, stdio).
 Guardrail 7: echte Aufrufe (keine Simulation). §11: MCP optional über lokaler Memory.
+K7/B3: Konfigurations-Eintrag mit `url` → Streamable HTTP, sonst stdio (`command`).
 """
 
 from __future__ import annotations
@@ -59,7 +62,30 @@ def _server_params(srv: dict):
     return StdioServerParameters(command=cmd[0], args=cmd[1:], env=env)
 
 
+def _is_http(srv: dict) -> bool:
+    """K7: Streamable-HTTP-Transport, wenn der Server eine `url` konfiguriert hat."""
+    return bool(srv.get("url"))
+
+
+async def _call_http(srv: dict, tool: str, arguments: dict, timeout: float) -> dict:
+    """`tools/call` über Streamable HTTP (MCP-Spec 2025-06-18)."""
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamable_http_client
+
+    async def _run() -> dict:
+        async with streamable_http_client(srv["url"]) as (read, write, _cb):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                res = await session.call_tool(tool, arguments=arguments or {})
+                texts = [getattr(b, "text", None) for b in (res.content or [])]
+                return {"ok": not getattr(res, "isError", False), "content": [t for t in texts if t]}
+
+    return await asyncio.wait_for(_run(), timeout=timeout)
+
+
 async def _call(srv: dict, tool: str, arguments: dict, timeout: float) -> dict:
+    if _is_http(srv):
+        return await _call_http(srv, tool, arguments, timeout)
     from mcp import ClientSession
     from mcp.client.stdio import stdio_client
 
@@ -70,6 +96,29 @@ async def _call(srv: dict, tool: str, arguments: dict, timeout: float) -> dict:
                 res = await session.call_tool(tool, arguments=arguments or {})
                 texts = [getattr(b, "text", None) for b in (res.content or [])]
                 return {"ok": not getattr(res, "isError", False), "content": [t for t in texts if t]}
+
+    return await asyncio.wait_for(_run(), timeout=timeout)
+
+
+async def _probe_http(server_name: str, srv: dict, timeout: float) -> dict:
+    """`tools/list` über Streamable HTTP → dieselbe Tool-Form wie `mcp_probe`."""
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamable_http_client
+
+    async def _run() -> dict:
+        async with streamable_http_client(srv["url"]) as (read, write, _cb):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                res = await session.list_tools()
+                tools = [
+                    {
+                        "name": t.name,
+                        "description": t.description or "",
+                        "parameters": getattr(t, "inputSchema", None) or {},
+                    }
+                    for t in res.tools
+                ]
+                return {"server": server_name, "ok": True, "n_tools": len(tools), "tools": tools}
 
     return await asyncio.wait_for(_run(), timeout=timeout)
 
@@ -105,7 +154,7 @@ def _inner_ok(content: list) -> bool:
 def call_tool_live(
     server_name: str, tool: str, arguments: dict | None = None, *, servers: dict | None = None, timeout: float = 60.0
 ) -> dict:
-    """Ruft ein MCP-Tool **live** über stdio auf (echte Ausführung)."""
+    """Ruft ein MCP-Tool **live** auf (echte Ausführung): stdio oder Streamable HTTP."""
     servers = servers if servers is not None else load_servers()
     srv = servers.get(server_name)
     if srv is None:
@@ -127,12 +176,18 @@ def call_tool_live(
 
 
 def catalog_server(server_name: str, *, servers: dict | None = None, timeout: float = 90.0) -> dict:
-    """Live-Probe eines Servers + TTC-Katalog (`mcp_catalog`) — Integration mcp_probe + mcp_catalog."""
+    """Live-Probe eines Servers + TTC-Katalog (`mcp_catalog`) — stdio oder Streamable HTTP."""
     servers = servers if servers is not None else load_servers()
     srv = servers.get(server_name)
     if srv is None:
         return {"server": server_name, "ok": False, "error": "Server nicht (aktiv/lokal) konfiguriert"}
-    res = asyncio.run(_load_probe().probe(server_name, srv, timeout=timeout))
+    if _is_http(srv):  # K7: Streamable HTTP (MCP-Spec)
+        try:
+            res = asyncio.run(_probe_http(server_name, srv, timeout))
+        except Exception as exc:  # noqa: BLE001 - echte Fehler melden
+            return {"server": server_name, "ok": False, "error": f"{type(exc).__name__}: {str(exc)[:120]}"}
+    else:
+        res = asyncio.run(_load_probe().probe(server_name, srv, timeout=timeout))
     if not res.get("ok"):
         return {"server": server_name, "ok": False, "error": res.get("error")}
     return {

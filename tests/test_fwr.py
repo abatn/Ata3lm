@@ -16,7 +16,7 @@ LARGE = fwr.LARGE_MODEL
 def test_non_write_real():
     r = call(fwr.classify, "What is the capital of France?", "Paris is the capital of France.", "Paris")
     assert r["class"] == "non-write"
-    assert r["stage"] == 1 and r["escalated"] is False and r["gate"] == "none"
+    assert r["stage"] == 1 and r["escalated"] is False and r["gate"] == "allow"  # K6/B5: Labelraum
 
 
 # ------------------------------------------------- Stufe 2: write-new (real)

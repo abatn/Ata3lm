@@ -1,5 +1,6 @@
 ---
 name: konstrukt
+process: reflective_agent.py
 description: Konstrukt-Unterphase des Rekursions-Loops (Revise→Konstrukt→Akt). Der Agent liest Working Memory und baut internes Wissen durch Erfahrung und intrinsische Motivation auf – als behaviorale Schemata (<context,action,emotion>, CCA primitiv/komposit). Nutze diesen Skill, wenn aus freigegebenem (π,I) plus Feedback neue Schemata für den nächsten Zyklus konstruiert werden sollen.
 ---
 

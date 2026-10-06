@@ -49,7 +49,7 @@ def test_vollstaendiger_zyklus(tmp_path):
 
 def test_noop_ohne_llm(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    out = _run(tmp_path, reflection_text="keine matrix")  # delta=None + kein Key -> NOOP
+    out = _run(tmp_path, reflection_text="keine matrix", successes=1)  # delta=None + kein Key -> NOOP
     assert out["results"]["Revise"]["skipped"] is True
 
 
@@ -70,3 +70,49 @@ def test_compare_ohne_beobachtung_kein_ground_truth(tmp_path):
     out = _run(tmp_path, delta=np.full((4, 4), 0.05))  # 0/0 Beobachtungen
     assert out["results"]["Compare"]["observed"] is False
     assert "kein externes Signal" in out["results"]["Compare"]["signal"]
+
+
+def test_b6_rein_negative_evidenz_keine_revision(tmp_path):
+    """B6 (K6): Compare.observed=True genügt NICHT – negative Beobachtungen sind kein Revisionsbeleg."""
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=0, failures=3)
+    assert out["results"]["Compare"]["observed"] is True  # Signal liegt vor ...
+    r = out["results"]["Revise"]
+    assert r["skipped"] is True and "Evidenz" in r["reason"]  # ... ist aber negativ/unzureichend
+
+
+def test_b6_gate_ask_keine_revision():
+    """B6 (K6): ohne ausdrücklich zulässige Entscheidung (gate=ask) keine Revision."""
+
+    class _HMM:
+        def update_from_reflection(self, text, delta=None):  # pragma: no cover - darf nie laufen
+            raise AssertionError("Revision ohne zulässige Entscheidung")
+
+    ctx = {
+        "results": {"Akt": {"ok": True, "gate": "ask"}, "Compare": {"observed": True}},
+        "successes": 5,
+        "failures": 0,
+        "hmm": _HMM(),
+        "reflection_text": "",
+        "delta": None,
+    }
+    r = rr._phase_revise(ctx)
+    assert r["skipped"] is True and "ausdrücklich zulässig" in r["reason"]
+
+
+def test_b6_ok_ohne_evidenz_skipped_reason():
+    """B6 (K6): ok + gate allow, aber kein externes Signal ⇒ keine Revision."""
+
+    class _HMM:
+        def update_from_reflection(self, text, delta=None):  # pragma: no cover - darf nie laufen
+            raise AssertionError("Revision ohne Evidenz")
+
+    ctx = {
+        "results": {"Akt": {"ok": True, "gate": "allow"}, "Compare": {"observed": False}},
+        "successes": 0,
+        "failures": 0,
+        "hmm": _HMM(),
+        "reflection_text": "",
+        "delta": None,
+    }
+    r = rr._phase_revise(ctx)
+    assert r["skipped"] is True and "Evidenz" in r["reason"]

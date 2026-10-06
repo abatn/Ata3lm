@@ -25,11 +25,13 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import trust as trust_mod
+import write_gateway
 
 ROOT = Path(os.environ.get("MCP_MEMORY_ROOT", str(Path(__file__).resolve().parents[2])))
 
@@ -156,8 +158,19 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
             "reason": "tier1 (kuratiert) nur mit trust=blue + Approval (§9.2c/§9.3)",
         }
     clean = trust_mod.PIIFilter().minimize(content)  # §9.2a: PII vor dem Store entfernen
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(clean, encoding="utf-8")
+    # K2: EIN Schreibpfad – die Mutation läuft durch das Write-Gateway (inkl. Provenienz K3).
+    res = write_gateway.store_file(
+        target=path,
+        content=clean,
+        now=time.time(),
+        activity=f"mcp-write:{scope}",
+        agent="mcp-memory-server",
+        origin="tool:verified",
+        verified=True,  # Tri-Color-Gate + Trust-DB = Write-Time-Validation (§9.2c)
+        provenance_log=(SCOPES.get("tier3") or path.parent) / "provenance.jsonl",
+    )
+    if not res["ok"]:
+        return {"ok": False, "status": "rejected", "scope": scope, "key": key, "reason": res.get("reason", "")}
     db[db_key] = trust
     _save_trust_db(db_path, db)
     status = "confirmed" if trust == "blue" else "proposed"

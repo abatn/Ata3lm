@@ -49,3 +49,4 @@
 | 2026-10-04T05:20:43.608066+00:00 | `skills/recursive-improve/compare/SKILL.md` | update applied (v2) | Skill nennt Prozesse (Atomic-MCP-Interface), Auftrag 2026-10-03 |
 | 2026-10-04T05:20:43.609673+00:00 | `skills/recursive-improve/revise/SKILL.md` | snapshot v2 | Update auf v2 |
 | 2026-10-04T05:20:43.609753+00:00 | `skills/recursive-improve/revise/SKILL.md` | update applied (v2) | Skill nennt Prozesse (Atomic-MCP-Interface), Auftrag 2026-10-03 |
+| 2026-10-06 | `skills/*/SKILL.md` (14) | proposal: `process:`-Feld ergänzt (K4) | maschinenlesbare Executor-Bindung (JSON Schema); **neues Interface ⇒ §9 `approved` erforderlich** (Guardrail 4) |

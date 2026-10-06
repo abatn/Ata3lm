@@ -1,10 +1,13 @@
 """Skill-Interpreter (data/memory/skill_interpreter.py) — ReAct-Loop + MCP (Guardrail 7)."""
 
+import json
 from pathlib import Path
 
 import mandate
 import mcp_memory_server
 import skill_interpreter as si
+import trace_audit
+import write_gateway
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -202,3 +205,103 @@ def test_agent_sanitized_tool_name(tmp_path):
     llm = _llm([{"tool": "pipeline_py", "args": {}, "id": "c1"}, {"final": "ok"}])
     out = si.run_skill_agent(ROOT / "skills/act/SKILL.md", _ctx(tmp_path), llm_fn=llm)
     assert [t for t in out["trace"] if t["action"] == "tool"][0]["tool"] == "pipeline.py"
+
+
+# --- K7/B3: fachliches reject NIE über den lokalen Fallback ---
+
+
+def _boom_servers(**msg):
+    def _raise():
+        raise msg["exc"]
+
+    return _raise
+
+
+def test_k7_domain_reject_kein_fallback(tmp_path, monkeypatch):
+    """K7/B3: MCP-`rejected` (red) → via=mcp, KEIN Fallback-Write."""
+    monkeypatch.setattr(mcp_memory_server, "SCOPES", {"tier2": tmp_path / "t2", "tier3": tmp_path / "t3"})
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="red.md", content="x", trust="red")
+    assert r["ok"] is False and r["via"] == "mcp" and r["status"] == "rejected"
+    assert not (tmp_path / "tier3" / "red.md").exists()
+
+
+def test_k7_domain_rejection_exception_kein_fallback(tmp_path, monkeypatch):
+    """K7/B3: fachliche Ablehnung als DomainRejection → via=mcp, KEIN Fallback."""
+    monkeypatch.setattr(
+        mcp_memory_server, "build_server", _boom_servers(exc=write_gateway.DomainRejection("fachlich abgelehnt"))
+    )
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="d.md", content="x", trust="green")
+    assert r["ok"] is False and r["via"] == "mcp" and r["status"] == "rejected"
+    assert not (tmp_path / "tier3" / "d.md").exists()
+
+
+def test_k7_domain_rejection_cause_kein_fallback(tmp_path, monkeypatch):
+    """K7/B3: DomainRejection als __cause__ (FastMCP-Wrapping) → KEIN Fallback."""
+
+    def _raise():
+        raise RuntimeError("wrapped") from write_gateway.DomainRejection("fachlich abgelehnt")
+
+    monkeypatch.setattr(mcp_memory_server, "build_server", _raise)
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="d2.md", content="x", trust="green")
+    assert r["ok"] is False and r["via"] == "mcp" and r["status"] == "rejected"
+    assert not (tmp_path / "tier3" / "d2.md").exists()
+
+
+def test_k7_fallback_blue_geschuetzt(tmp_path, monkeypatch):
+    """K7/B3 §9.2c: Fallback darf bestätigtes `blue` nicht durch `green` überschreiben."""
+    tier3 = tmp_path / "tier3"
+    tier3.mkdir()
+    (tier3 / "b.md").write_text("ALT-BLUE", encoding="utf-8")
+    db = tmp_path / "mcp-trust.json"
+    db.write_text(json.dumps({"b.md": "blue"}), encoding="utf-8")
+    monkeypatch.setattr(mcp_memory_server, "_trust_db_path", lambda: db)
+    monkeypatch.setattr(mcp_memory_server, "build_server", _boom_servers(exc=RuntimeError("MCP down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="b.md", content="NEU-GREEN", trust="green")
+    assert r["ok"] is False and r.get("status") == "rejected"
+    assert (tier3 / "b.md").read_text(encoding="utf-8") == "ALT-BLUE"
+
+
+def test_k7_fallback_existing_unknown_trust_fail_closed(tmp_path, monkeypatch):
+    """K7/B3 §9.2c: existierende Datei + unbekannter Trust → fail-closed (kein Write)."""
+    tier3 = tmp_path / "tier3"
+    tier3.mkdir()
+    (tier3 / "u.md").write_text("ALT", encoding="utf-8")
+    monkeypatch.setattr(mcp_memory_server, "_trust_db_path", lambda: tmp_path / "leer.json")
+    monkeypatch.setattr(mcp_memory_server, "build_server", _boom_servers(exc=RuntimeError("MCP down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="u.md", content="NEU", trust="green")
+    assert r["ok"] is False and r.get("status") == "rejected"
+    assert (tier3 / "u.md").read_text(encoding="utf-8") == "ALT"
+
+
+def test_k7_fallback_ohne_trust_db_existing_fail_closed(tmp_path, monkeypatch):
+    """K7/B3 §9.2c: keine Trust-Metadaten (tier2 fehlt) + existierende Datei → fail-closed."""
+    tier3 = tmp_path / "tier3"
+    tier3.mkdir()
+    (tier3 / "n.md").write_text("ALT", encoding="utf-8")
+    monkeypatch.setattr(mcp_memory_server, "_trust_db_path", lambda: None)
+    monkeypatch.setattr(mcp_memory_server, "build_server", _boom_servers(exc=RuntimeError("MCP down")))
+    r = si._run_memory_write(_ctx(tmp_path), scope="tier3", key="n.md", content="NEU", trust="green")
+    assert r["ok"] is False and r.get("status") == "rejected"
+    assert (tier3 / "n.md").read_text(encoding="utf-8") == "ALT"
+
+
+# --- K7: Trace + Audit (Spans ≠ Audit) ---
+
+
+def test_result_field_zweige():
+    assert si._result_field({"ok": True}, "ok") is True
+    assert si._result_field("kein-dict", "ok") is None
+
+
+def test_run_skill_agent_mit_recorder(tmp_path):
+    """K7: Execution-Graph-Spans + dauerhaftes Auditprotokoll entstehen real."""
+    rec = trace_audit.Recorder(spans_path=tmp_path / "spans.jsonl", audit_path=tmp_path / "audit.jsonl")
+    llm = _llm([{"tool": "pipeline.py", "args": {}, "id": "c1"}, {"final": "ok"}])
+    si.run_skill_agent(ROOT / "skills/act/SKILL.md", _ctx(tmp_path), llm_fn=llm, recorder=rec)
+    rec.flush()
+
+    events = [json.loads(line)["event"] for line in (tmp_path / "audit.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert "skill.tool" in events and "skill.finish" in events  # (c) Audit-Eintrag
+    names = [json.loads(line)["name"] for line in (tmp_path / "spans.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert {"skill.run", "skill.tool"} <= set(names)  # Execution-Graph
+    rec.shutdown()

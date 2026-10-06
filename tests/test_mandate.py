@@ -118,9 +118,9 @@ def test_is_active():
 def test_assess_alle_entscheidungen():
     r, m = _reg()
     ok = mandate.assess(m, action="read:repo", resource="data/memory", amount=1.0, now=1500.0)
-    assert ok["decision"] == "ALLOW"
+    assert ok["decision"] == "ALLOW" and ok["gate"] == "allow"  # K6/B5: Labelraum
     review = mandate.assess(m, action="read:repo", resource="data/memory", amount=5.0, now=1500.0)
-    assert review["decision"] == "REVIEW"
+    assert review["decision"] == "REVIEW" and review["gate"] == "ask"  # K6/B5
     assert mandate.assess(m, action="read:repo", resource="data/memory", amount=11.0, now=1500.0)["decision"] == "DENY"
     assert mandate.assess(m, action="admin", resource="data/memory", amount=1.0, now=1500.0)["decision"] == "DENY"
     assert mandate.assess(m, action="read:repo", resource="secrets", amount=1.0, now=1500.0)["decision"] == "DENY"
@@ -151,3 +151,11 @@ def test_evidence_hash_kette():
     e2 = mandate.evidence({"decision": "DENY"}, prev_hash=e1["hash"])
     assert e1["prev"] is None and e2["prev"] == e1["hash"]
     assert e1["hash"] != e2["hash"] and len(e1["hash"]) == 64
+
+
+def test_assess_gate_labelraum_k6():
+    """K6/B5: assess bildet ALLOW/REVIEW/DENY auf den Labelraum allow|ask|deny ab."""
+    r, m = _reg()
+    assert mandate.assess(m, action="read:repo", resource="data/memory", amount=1.0, now=1500.0)["gate"] == "allow"
+    assert mandate.assess(m, action="read:repo", resource="data/memory", amount=5.0, now=1500.0)["gate"] == "ask"
+    assert mandate.assess(m, action="read:repo", resource="data/memory", amount=11.0, now=1500.0)["gate"] == "deny"

@@ -105,3 +105,42 @@ skills/
 
 Umsetzung: `data/memory/pipeline.py` verbindet diese Prozesse zu einer Kette
 (Mandat → FWR → Trust → Approval → Write → Drift). Status **Auftrag** (Zuordnung).
+
+## Maschinenlesbares `process:`-Feld (K4)
+
+Jeder aktive `SKILL.md` trägt im Frontmatter ein `process:`-Feld. Es bindet den
+Skill an **genau einen echten Executor** aus
+`data/memory/skill_interpreter.py::DEFAULT_REGISTRY` — oder ehrlich an
+`process: doc-only` (kein Executor vorhanden; wird als solches getestet).
+
+- **Schema (Belegt):** JSON Schema Draft 2020-12 (`$schema`), validiert durch
+  `skill_interpreter.validate_process` (Quelle: <https://json-schema.org/specification>).
+- **Caveat (§6):** JSON Schema prüft nur die **Struktur**. Die echte Ausführung
+  (Eingabe→Berechtigung→Ergebnis) belegt `skill_interpreter.bind_skill`;
+  Tests: `tests/test_skill_binding.py`.
+- **Voyager (Belegt):** Skill-Bibliothek als **executable code** (arXiv:2305.16291).
+
+### Zuordnung (Auftrag; Status 14/14 lauffähig)
+
+| Skill | `process:` |
+|---|---|
+| collect-experience | `ingestion_hook.py` |
+| structure-knowledge | `fast_write_router.py` |
+| store-memory | `pipeline.py` |
+| cognize | `reflective_agent.py` |
+| reflect | `bias_monitor.py` |
+| non-cognitive | `trust.py` |
+| act | `pipeline.py` |
+| expand-knowledge | `shared_memory.py` |
+| recursive-improve | `pipeline.py` |
+| recursive-improve/observe | `ingestion_hook.py` |
+| recursive-improve/compare | `evaluator_version.py` |
+| recursive-improve/revise | `reflective_agent.py` |
+| recursive-improve/konstrukt | `reflective_agent.py` |
+| recursive-improve/akt | `pipeline.py` |
+
+> **Interface-Hinweis (§9/Guardrail 4):** Das `process:`-Frontmatter-Feld ist
+> eine **neue Schnittstelle** (Skill-Manifest-Schema). Seine Einführung und jede
+> spätere Erweiterung der erlaubten Werte benötigen **menschliche Freigabe
+> (`approved`)** — dokumentiert, nicht heimlich. Status: **Auftrag**.
+

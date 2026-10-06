@@ -1,5 +1,6 @@
 ---
 name: collect-experience
+process: ingestion_hook.py
 description: Sammelt Rohdaten aus offiziellen Quellen und legt sie unveraendert mit Quellen-Link in knowledge/raw/ ab (Stufe 1 ERFAHRUNG, ohne Deutung).
 ---
 

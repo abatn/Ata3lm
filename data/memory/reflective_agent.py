@@ -19,6 +19,8 @@ import json
 import os
 from pathlib import Path
 
+import gate_labels
+
 # Projekt-Pfade (Auftrag)
 ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (S6, CI-tauglich)
 GRAPH_FILE = Path(os.environ.get("HELA_GRAPH", str(ROOT / "data/memory/tier1-base/episodic_graph.json")))
@@ -601,7 +603,7 @@ def lyapunov_check(energies: list, tau: float = 0.0) -> dict:
     """E[ΔV] ≤ 0 (WhyLab C3): mittlere Energieänderung nicht-positiv ⇒ stabil/kontraktiv.
     Bei Verletzung (E[ΔV] > tau) → Human-Gate (ask)."""
     if len(energies) < 2:
-        return {"E_dV": 0.0, "stable": True, "gate": "ok", "note": "zu wenig Daten"}
+        return {"E_dV": 0.0, "stable": True, "gate": gate_labels.ALLOW, "note": "zu wenig Daten"}
     dV = [float(energies[i + 1]) - float(energies[i]) for i in range(len(energies) - 1)]
     e_dv = sum(dV) / len(dV)
     stable = e_dv <= tau
@@ -609,7 +611,8 @@ def lyapunov_check(energies: list, tau: float = 0.0) -> dict:
         "E_dV": round(e_dv, 4),
         "dV": [round(x, 4) for x in dV],
         "stable": stable,
-        "gate": "ok" if stable else "ask",
+        # K6/B5: einheitlicher Labelraum `allow|ask|deny` (gate_labels).
+        "gate": gate_labels.ALLOW if stable else gate_labels.ASK,
     }
 
 

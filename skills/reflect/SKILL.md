@@ -1,5 +1,6 @@
 ---
 name: reflect
+process: bias_monitor.py
 description: "Reflektiere über eine Agenten-Trajektorie (Metakognition, Stufe 5): prinzipienbasiert (Fehler vermeiden) + prozedural (Erfolg wiederholen) reflektieren, Quellen hinterfragen, Self-Feedback (sr) schreiben. Nutze diesen Skill, wenn Trajektorie + Feedback + Memory zu optimierten Instruktionen synthetisiert werden sollen – nach MARS, SEAA und Reflexion (Shinn et al. 2023)."
 ---
 

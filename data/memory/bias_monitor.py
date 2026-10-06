@@ -13,6 +13,9 @@ Quellen (verifiziert 2026-10-01, HTTP 200):
 
 Lab-Prinzip: JSD + Drift-Index + Lyapunov-Damping = **belegt** (WhyLab/Agent-Drift);
 die konkrete Entropie-Gewichtung, `w_max` und τ sind **Auftrag**.
+
+Gate (K6/B5): `gate` nutzt den einheitlichen Labelraum `allow|ask|deny`
+(`gate_labels`) – Flag ⇒ `ask` (Human-Gate, §9.1c), sonst `allow`.
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from typing import Optional
+
+import gate_labels
 
 
 def _norm(d: dict) -> dict:
@@ -124,7 +129,8 @@ class BiasDriftMonitor:
             "step_DI": di_step["DI"],
             "damping": round(damping, 4),
             "flagged": flagged,
-            "gate": "ask" if flagged else "ok",
+            # K6/B5: einheitlicher Labelraum `allow|ask|deny` (gate_labels).
+            "gate": gate_labels.ASK if flagged else gate_labels.ALLOW,
         }
         self.history.append(rec)
         self._prev = d

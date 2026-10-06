@@ -1,5 +1,6 @@
 ---
 name: recursive-improve
+process: pipeline.py
 description: Geschlossener Wahrnehmungs-Handlungs-Lern-Loop (Observe→Compare→Revise→Konstrukt→Akt) mit rekursivem Lesen, Modifizieren und Zurückschreiben desselben Zustands. Nutze diesen Skill, wenn ein Agenten-Modell sich selbst beobachten, extern verifizieren und revidieren soll – nach Gödel Agent (ACL 2025) via Python Monkey Patching, nur mit menschlicher Freigabe.
 ---
 

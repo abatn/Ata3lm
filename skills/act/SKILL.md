@@ -1,5 +1,6 @@
 ---
 name: act
+process: pipeline.py
 description: Wendet belegtes Wissen auf neue Aufgaben an (Stufe 7 Handeln) via Experten-Komposition, Konsens-Filterung und Logging nach Working Memory und knowledge/action/.
 ---
 

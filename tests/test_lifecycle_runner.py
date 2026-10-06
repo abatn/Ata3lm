@@ -234,7 +234,7 @@ def test_s1_coldstart_ohne_referenz_ask(tmp_path, monkeypatch):
 
 
 def test_s1_checkpoint_gleich_ok(tmp_path, monkeypatch):
-    """S1 §9.2b: Lauf == Checkpoint ⇒ DI=0, gate=ok (echte Referenz, nicht self)."""
+    """S1 §9.2b: Lauf == Checkpoint ⇒ DI=0, gate=allow (K6/B5-Labelraum)."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
     ref = tmp_path / "r.json"
@@ -249,7 +249,7 @@ def test_s1_checkpoint_gleich_ok(tmp_path, monkeypatch):
         tier3_dir=tmp_path / "t",
     )
     w = out["results"]["Wissen+"]
-    assert w["DI"] == 0.0 and w["gate"] == "ok"
+    assert w["DI"] == 0.0 and w["gate"] == "allow"
 
 
 def test_s1_verschobene_verteilung_ask(tmp_path, monkeypatch):
@@ -271,14 +271,14 @@ def test_s1_verschobene_verteilung_ask(tmp_path, monkeypatch):
     assert w["DI"] > 0.0 and w["gate"] == "ask"
 
 
-def test_s1_checkpoint_nur_bei_ok_fortschreiben(tmp_path, monkeypatch):
-    """S1 §9: bei freigegebenem Akt M(t)→M(t+1); bei deny/ask KEIN Fortschreiben."""
+def test_s1_checkpoint_nur_bei_revised_fortschreiben(tmp_path, monkeypatch):
+    """B5 (K6): M(t)→M(t+1) nur bei revised = ok AND gate == "allow"; deny/ask halten den Stand."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
     ref = tmp_path / "r.json"
-    ref.write_text('{"non-write": 1.0}', encoding="utf-8")
+    ref.write_text('{"write": 0.5, "non-write": 0.5}', encoding="utf-8")
     monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
-    # (a) write-new gegen {"non-write":1.0} ⇒ Akt ok ⇒ Checkpoint wird fortgeschrieben
+    # (a) ok + gate allow (tau gross genug) ⇒ revised ⇒ Checkpoint wird fortgeschrieben
     out = lr.run_cycle(
         "Q",
         "F",
@@ -286,8 +286,11 @@ def test_s1_checkpoint_nur_bei_ok_fortschreiben(tmp_path, monkeypatch):
         classify_fn=_classify("write-new"),
         structured_dir=tmp_path / "s1",
         tier3_dir=tmp_path / "t1",
+        tau=0.5,
     )
-    assert out["results"]["Gedächtnis"]["ok"] is True
+    w = out["results"]["Wissen+"]
+    assert out["results"]["Gedächtnis"]["ok"] is True and w["gate"] == "allow"
+    assert w["revised"] is True
     assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 1.0}
     # (b) deny-Mandat ⇒ Akt nicht ok ⇒ Referenz bleibt unverändert
     deny = mandate.Mandate(
@@ -312,7 +315,23 @@ def test_s1_checkpoint_nur_bei_ok_fortschreiben(tmp_path, monkeypatch):
         mandate_obj=deny,
     )
     assert out2["results"]["Gedächtnis"]["ok"] is False
+    assert out2["results"]["Wissen+"]["revised"] is False  # deny ⇒ revised=False
     assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 1.0}  # unverändert
+    # (c) ok, aber Drift-Gate ask ⇒ revised=False und KEIN Fortschreiben (B5)
+    ref.write_text('{"write": 0.5, "non-write": 0.5}', encoding="utf-8")
+    out3 = lr.run_cycle(
+        "Q3",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s3",
+        tier3_dir=tmp_path / "t3",
+        tau=0.05,
+    )
+    w3 = out3["results"]["Wissen+"]
+    assert out3["results"]["Gedächtnis"]["ok"] is True
+    assert w3["gate"] == "ask" and w3["revised"] is False  # B5: revised nie bei ask
+    assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 0.5, "non-write": 0.5}  # unverändert
 
 
 def test_s1_helfer_referenz(tmp_path, monkeypatch):
@@ -357,3 +376,72 @@ def test_s1_env_baseline_im_lauf(tmp_path, monkeypatch):
         tier3_dir=tmp_path / "t",
     )
     assert out["results"]["Wissen+"]["gate"] == "ask"  # gegen Env-Erwartung verschoben
+
+
+# ---------------------------------------------------------------- B4/B5 (K6)
+
+
+def test_b4_keine_graph_oder_wm_mutation_ohne_mandat(tmp_path, monkeypatch):
+    """B4 (K6): Mandat vor JEDER Mutation – auch Graph (§9). Ohne Mandat kein Bootstrap."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    ref = tmp_path / "ref.json"
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    deny = mandate.Mandate(
+        mandate_id="d",
+        principal="P",
+        agent="a",
+        actions=frozenset({"read:repo"}),
+        resources=frozenset({"data/memory"}),
+        amount_limit=1.0,
+        max_uses=100,
+        valid_from=0.0,
+        valid_until=1e12,
+        approval_threshold=0.5,
+    )
+    graph = ingestion_hook.MemoryGraph()
+    wm = lru_cache.WorkingMemory(capacity=15)
+    wm.store("n1", "v1")
+    out = lr.run_cycle(
+        "Q?",
+        "Fakt X",
+        "x",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        wm=wm,
+        graph=graph,
+        relations=[("a", "related", "b")],
+        edges=[("n1", "n1", "NEXT")],
+        mandate_obj=deny,
+    )
+    w = out["results"]["Wissen"]
+    assert w["skipped"] is True and w["added_edges"] == 0
+    assert graph.nodes == {} and graph.edges == {}  # B4: keine Graph-Mutation
+    k = out["results"]["Kognition"]
+    assert k["skipped"] is True and k["strengthened"] == []
+    assert wm.items["n1"].get("edge_weight", 1.0) == 1.0  # unverändert (keine Konsolidierung)
+    assert out["results"]["Wissen+"]["reference"] == "blocked"
+    assert not ref.exists()  # B4: kein Bootstrap ohne Mandat
+
+
+def test_b5_deny_gate_revised_false(tmp_path, monkeypatch):
+    """B5 (K6): deny-Gate ⇒ revised=False – auch bei ok=True (NIE `gate != ask`)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    class _DenyMonitor:
+        def observe(self, distribution, step=None):
+            return {"DI": 0.5, "gate": "deny", "flagged": True}
+
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("non-write"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        drift=_DenyMonitor(),
+    )
+    w = out["results"]["Wissen+"]
+    assert out["results"]["Gedächtnis"]["ok"] is True  # non-write läuft ohne Write durch
+    assert w["gate"] == "deny" and w["revised"] is False  # B5: deny ⇒ nie revised
