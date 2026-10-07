@@ -17,19 +17,22 @@ Exit-Code: 0 = innerhalb des Bounds + Archiv-Integrität ok, 1 = sonst.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 TARGETS = ["AGENTS.md", "data/memory/tier1-base"]
 DRIFT_BOUND = 0.10
-ARCHIVE_MARKERS = ("/versions/", ".superseded-")
+# Unveränderliches Archiv = Snapshot-Verzeichnis `versions/vN/` oder `*.superseded-*`.
+# NICHT `versions/README.md` (das ist der Versionen-Index und wird pro vN ergänzt).
+ARCHIVE_RE = re.compile(r"/versions/v\d+/")
 
 
 def is_archive(path: str) -> bool:
-    """Archiv-/Versionsdatei (§9.1b/§10.7)? `versions/**` oder `*.superseded-*`."""
+    """Unveränderliches Archiv: `versions/vN/**` oder `*.superseded-*` (nicht README)."""
     normalized = "/" + (path or "").replace("\\", "/").lstrip("/")
-    return any(marker in normalized for marker in ARCHIVE_MARKERS)
+    return ".superseded-" in normalized or bool(ARCHIVE_RE.search(normalized))
 
 
 def git(*args: str) -> subprocess.CompletedProcess:

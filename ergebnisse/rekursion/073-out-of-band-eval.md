@@ -3,7 +3,7 @@
 > Datum: 2026-10-07 · Phasen: Konstrukt → Akt → Observe → Compare (echte Tests).
 > Ziel `g`: Compare soll **kein** Selbstreport-Signal akzeptieren (§6); es braucht
 > ein **echtes externes Signal** (Code-Run/Datei/DB) — Out-of-Band-Evaluation.
-> Status: **`ask`** (§9: neue Quelle + Interface-Änderung; kein `self_update`).
+> Status: **`pending`** (§9 `ask`: neue Quelle + Interface-Änderung; kein `self_update`).
 
 ## 1. Quellen (per `curl` real verifiziert, HTTP 200, 2026-10-07)
 
@@ -59,4 +59,4 @@ ruff check world_state_oracle.py test_world_state_oracle.py \
 
 ## 6. Status
 
-`ask` — kein `self_update`, kein Git (G6), keine Erfindung (G7).
+**`pending`** (§9 `ask`) — kein `self_update`, kein Git (G6), keine Erfindung (G7).
