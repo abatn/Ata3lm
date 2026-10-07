@@ -10,6 +10,7 @@ Erfolgs-Kriterium: `em_adapter > em_base` (Fakten internalisiert).
 Status: Auftrag/unverifiziert-lokal (braucht GPU). KEINE Fake-Zahlen.
 Quelle: AGENTS.md §10.3 · arXiv:2608.22215 §3.4 · kaggle/train_slow_consolidation.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -81,7 +82,7 @@ def main() -> None:
         inputs = {k: v.to(model.device) for k, v in enc.items()}
         with torch.no_grad():
             out = model.generate(**inputs, max_new_tokens=16, do_sample=False)
-        return tok.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True).strip()
+        return tok.decode(out[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True).strip()
 
     def exact_match(model) -> int:
         hit = 0

@@ -113,10 +113,7 @@ def _phase_compare(ctx: dict) -> dict:
         else:
             score = 0.0
             gate = gate_labels.ASK
-            signal = (
-                "kein externes Signal (Oracle) – Selbstreport nur Annotation, "
-                "kein Ground-Truth-Claim (§1/§6)"
-            )
+            signal = "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)"
         return {
             "phase": "Compare",
             "belief": round(float(evaluator_version.best_belief(oracle["successes"], oracle["failures"])), 4),

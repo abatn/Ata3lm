@@ -401,7 +401,9 @@ def store_file(
     binding = None
     if require_approval:
         state, binding = _gate_approval(
-            approval_obj, approvers, approval_subject or str(target),
+            approval_obj,
+            approvers,
+            approval_subject or str(target),
             _approval_sha(clean, [t for t, _ in targets]),
         )
         steps.append(("approval", state))
