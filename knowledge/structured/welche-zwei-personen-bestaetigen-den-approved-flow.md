@@ -1,0 +1,1 @@
+Der approved-Flow benoetigt mindestens zwei distinkte natuerliche Personen (AGENTS.md 9.3).

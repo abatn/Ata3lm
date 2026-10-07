@@ -38,13 +38,15 @@ def _run(tmp_path, **kw):
 
 
 def test_vollstaendiger_zyklus(tmp_path):
-    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=3, failures=1)
+    # A4/§9: Score 3/4 = 0.75 liegt im ask-Band (70–94 %) -> Revision nur mit Freigabe.
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=3, failures=1, revise_approved=True)
     assert out["phases"] == list(rr.PHASES)
     assert len(out["trace"]) == 5
     assert out["results"]["Konstrukt"]["K"] == 4
     assert out["results"]["Akt"]["action"] == "write-new"
     assert out["results"]["Compare"]["belief"] > 0
-    assert out["results"]["Revise"]["skipped"] is False  # echte Δ-Matrix -> HMM aktualisiert
+    assert out["results"]["Compare"]["gate"] == "ask"  # 0.75 im ask-Band
+    assert out["results"]["Revise"]["skipped"] is False  # Freigabe + echte Δ-Matrix -> HMM aktualisiert
 
 
 def test_noop_ohne_llm(tmp_path, monkeypatch):
@@ -118,10 +120,50 @@ def test_r10_niedriger_score_keine_revision():
     assert r["skipped"] is True and "Score" in r["reason"]
 
 
-def test_r10_schwelle_70_prozent_revidiert(tmp_path):
-    """R10: Score == 0.70 (7/10) ist noch zulässig (§9, ≥ 70 %)."""
+def test_r10_schwelle_70_prozent_ask_gated(tmp_path):
+    """A4/§9: Score == 0.70 (7/10) liegt im ask-Band (70–94 %) → ohne Freigabe keine Revision."""
     out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=7, failures=3)
+    assert out["results"]["Compare"]["gate"] == "ask"
+    r = out["results"]["Revise"]
+    assert r["skipped"] is True and "ask" in r["reason"]
+    # Mit menschlicher Freigabe ist die Revision im ask-Band erlaubt.
+    out2 = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=7, failures=3, revise_approved=True)
+    assert out2["results"]["Revise"]["skipped"] is False
+
+
+def test_a4_compare_allow_automatisch(tmp_path):
+    """A4/§9: Score ≥ 95 % ⇒ allow → automatische Revision ohne Freigabe."""
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=19, failures=1)
+    assert out["results"]["Compare"]["gate"] == "allow"
     assert out["results"]["Revise"]["skipped"] is False
+
+
+def test_a4_compare_deny(tmp_path):
+    """A4/§9: Score < 70 % ⇒ Compare-Gate deny → keine Revision."""
+    out = _run(tmp_path, delta=np.full((4, 4), 0.05), successes=1, failures=3, revise_approved=True)
+    assert out["results"]["Compare"]["gate"] == "deny"
+    r = out["results"]["Revise"]
+    assert r["skipped"] is True and "Score" in r["reason"]
+
+
+def test_a4_compare_deny_branch_direkt():
+    """A4/§9: ein explizites Compare-Gate `deny` blockiert die Revision auch bei hohem Score."""
+
+    class _HMM:
+        def update_from_reflection(self, text, delta=None):  # pragma: no cover - darf nie laufen
+            raise AssertionError("Revision trotz deny")
+
+    ctx = {
+        "results": {"Akt": {"ok": True, "gate": "allow"}, "Compare": {"observed": True, "gate": "deny"}},
+        "successes": 9,
+        "failures": 1,
+        "hmm": _HMM(),
+        "reflection_text": "",
+        "delta": None,
+        "revise_approved": True,
+    }
+    r = rr._phase_revise(ctx)
+    assert r["skipped"] is True and "deny" in r["reason"]
 
 
 def test_r07_r18_recursion_state_save(tmp_path):

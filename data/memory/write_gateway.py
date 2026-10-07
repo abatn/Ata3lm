@@ -53,14 +53,22 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
 
 
-def _approval_sha(content: str, target) -> str:
-    """R01 (Auftrag): Freigabe an den **aktuellen Inhalt + Ziel** binden (Replay-Schutz, §9.3).
+def _approval_sha(content: str, targets) -> str:
+    """R01/A1 (Auftrag): Freigabe an **Inhalt + gesamte Zielmenge** binden (§9.3).
 
-    Der Diff-Hash wird aus Inhalt UND Zielpfad gebildet, damit eine alte, für einen
-    anderen Inhalt/Ziel erteilte Zwei-Personen-Freigabe nicht wiederverwendet werden
-    kann (Freigabe-Replay). Bindung = sha256-Inhalt-Hash aus `provenance`.
+    Der Diff-Hash wird aus dem Inhalt UND **allen** Zielpfaden (kanonisch sortiert)
+    gebildet, damit
+      - eine alte, für einen anderen Inhalt/Ziel erteilte Zwei-Personen-Freigabe nicht
+        wiederverwendet werden kann (Freigabe-Replay, R01) **und**
+      - `also_write`-Ziele mitgebunden sind: eine für die Primärdatei erteilte Freigabe
+        deckt ein zusätzliches (nicht genehmigtes) Ziel NICHT ab (A1).
+    Ein einzelnes Ziel bleibt rückwärtskompatibel: ``sha256(content \\x00 target)``.
+    Bindung = sha256-Inhalt-Hash aus `provenance`.
     """
-    return provenance.content_hash(f"{content}\x00{target}")
+    if isinstance(targets, (str, os.PathLike)):
+        targets = [targets]
+    parts = sorted(str(Path(t)) for t in targets)
+    return provenance.content_hash(content + "\x00" + "\x00".join(parts))
 
 
 def default_mandate(agent: str = "knowledge-agent") -> "mandate.Mandate":
@@ -179,10 +187,12 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
     Stand archiviert und als `superseded` gemeldet wird). K5: Lock am Primärziel
     gegen parallele Schreibkonflikte – `conflict != None` ⇒ KEIN Write.
 
-    R08 (Auftrag): Mehrziel-Write **atomar** – erst ALLE Ziele prüfen (z. B. kein
-    Verzeichnis als Dateiziel), dann schreiben. Ist ein Ziel ungültig, wird NICHTS
-    geschrieben (`error`), kein halb-geschriebener Zustand. `append=True` hängt an
-    (JSONL-Historie, R20) statt zu überschreiben.
+    R08/A3 (Auftrag): Mehrziel-Write **atomar/transaktional** – erst ALLE Ziele prüfen
+    (z. B. kein Verzeichnis als Dateiziel), dann schreiben. Ist ein Ziel ungültig ODER
+    schlägt ein Schreibvorgang (I/O-Fehler am 2. Ziel) fehl, wird der **Vorzustand per
+    Rollback** wiederhergestellt: kein halb-geschriebener Zustand, keine inkonsistente
+    Provenienz (`error`, `written=[]`). `append=True` hängt an (JSONL-Historie, R20)
+    statt zu überschreiben.
     """
     primary = Path(targets[0][0])
     for target, _content in targets:  # R08: Vorprüfung VOR jeder Mutation
@@ -193,7 +203,12 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
     fd = _acquire_lock(lock)
     if fd is None:
         return {"written": [], "superseded": None, "conflict": "lock gehalten (paralleler Schreibkonflikt)"}
+    backups: dict = {}  # A3: Vorzustand je Ziel (None = Datei existierte nicht)
+    archived_primary = None
     try:
+        for target, _content in targets:  # A3: Snapshot VOR der ersten Mutation
+            t = Path(target)
+            backups[str(t)] = t.read_text(encoding="utf-8") if t.exists() else None
         written: list = []
         superseded = None
         for i, (target, content) in enumerate(targets):
@@ -202,6 +217,7 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
             if i == 0 and supersede_existing:
                 if target.exists():
                     archived = _archive_file(target, now)
+                    archived_primary = archived
                     superseded = {
                         "key": target.stem,
                         "old_found": True,
@@ -218,6 +234,30 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
                 target.write_text(content, encoding="utf-8")
             written.append(str(target))
         return {"written": written, "superseded": superseded, "conflict": None}
+    except OSError as exc:
+        # A3 (Auftrag): Transaktion/Recovery – JEDES bereits geschriebene Ziel auf den
+        # Vorzustand zurücksetzen (best effort), damit kein Teilzustand bleibt.
+        for target, _content in targets:
+            t = Path(target)
+            old = backups.get(str(t))
+            try:
+                if old is None:
+                    t.unlink(missing_ok=True)
+                else:
+                    t.write_text(old, encoding="utf-8")
+            except OSError:  # pragma: no cover - Rollback ist best effort
+                pass
+        if archived_primary is not None:
+            try:
+                archived_primary.unlink(missing_ok=True)
+            except OSError:  # pragma: no cover - Rollback ist best effort
+                pass
+        return {
+            "written": [],
+            "superseded": None,
+            "conflict": None,
+            "error": f"Write fehlgeschlagen – Rollback, kein Teilzustand ({exc})",
+        }
     finally:
         os.close(fd)
         lock.unlink(missing_ok=True)
@@ -228,6 +268,8 @@ def supersede_entry(tier1_dir, key: str, new_fact: str, now: float) -> dict:
 
     Ersetzt `fast_write_router._supersede`; K5: monotone Namen mit Inhalts-Hash +
     Kollisions-Recheck + Lock (parallele Schreibkonflikte ⇒ `ok: False`, kein Write).
+    A3 (Auftrag): transaktional – scheitert das Schreiben/Protokollieren, wird der alte
+    Stand per Rollback wiederhergestellt (kein halb-supersedierter Eintrag).
     """
     tier1_dir = Path(tier1_dir)
     tier1_dir.mkdir(parents=True, exist_ok=True)
@@ -245,12 +287,33 @@ def supersede_entry(tier1_dir, key: str, new_fact: str, now: float) -> dict:
         }
     try:
         old_found = old_file.exists()
+        old_text = old_file.read_text(encoding="utf-8") if old_found else None
         archived = _archive_file(old_file, now) if old_found else None
-        old_file.write_text(new_fact, encoding="utf-8")
-        log = tier1_dir / "supersede.jsonl"
-        rec = {"key": key, "archived": str(archived) if archived else None, "new": new_fact, "at": now}
-        with log.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        try:
+            old_file.write_text(new_fact, encoding="utf-8")
+            log = tier1_dir / "supersede.jsonl"
+            rec = {"key": key, "archived": str(archived) if archived else None, "new": new_fact, "at": now}
+            with log.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        except OSError as exc:
+            # A3: Rollback – alten Eintrag (bzw. dessen Abwesenheit) + Archiv zurücksetzen.
+            try:
+                if old_found:
+                    old_file.write_text(old_text, encoding="utf-8")
+                else:
+                    old_file.unlink(missing_ok=True)
+                if archived is not None:
+                    archived.unlink(missing_ok=True)
+            except OSError:  # pragma: no cover - Rollback ist best effort
+                pass
+            return {
+                "key": key,
+                "old_found": old_found,
+                "archived": None,
+                "log": None,
+                "ok": False,
+                "reason": f"tier1-Write fehlgeschlagen – Rollback, kein Teilzustand ({exc})",
+            }
         return {
             "key": key,
             "old_found": old_found,
@@ -298,8 +361,9 @@ def store_file(
 
     **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** `append=True` (R20)
     hängt an ein Ziel an (statt zu überschreiben) — für JSONL-Historien, damit
-    wiederholte Events erhalten bleiben. Die Freigabe wird nun an den **aktuellen
-    Inhalt + Ziel** gebunden (`_approval_sha`, R01) statt nur an den Inhalt.
+    wiederholte Events erhalten bleiben. Die Freigabe wird an den **aktuellen Inhalt +
+    die gesamte Zielmenge** gebunden (`_approval_sha`, R01/A1) statt nur an Inhalt +
+    Primärziel; `also_write`-Ziele sind damit mitgebunden.
     """
     steps: list = []
     if domain_rejected:
@@ -331,10 +395,14 @@ def store_file(
         }
 
     target = Path(target)
+    # A1 (Auftrag): Zielmenge VOR der Freigabe festlegen und die Freigabe an ALLE Ziele
+    # binden (Primärziel + `also_write`), damit kein nicht-genehmigtes Ziel mitgeschrieben wird.
+    targets = [(target, clean)] + [(Path(p), clean) for p in (also_write or [])]
     binding = None
     if require_approval:
         state, binding = _gate_approval(
-            approval_obj, approvers, approval_subject or str(target), _approval_sha(clean, target)
+            approval_obj, approvers, approval_subject or str(target),
+            _approval_sha(clean, [t for t, _ in targets]),
         )
         steps.append(("approval", state))
         if state != "approved":
@@ -451,8 +519,8 @@ def store(
     optionaler tier1-Supersede (§10.7).
 
     **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** Die Zwei-Personen-
-    Freigabe wird an **Inhalt + Ziel** gebunden (`_approval_sha`, R01). Die
-    non-write-Historie wird **angehängt** (JSONL, R20) statt überschrieben. Ein
+    Freigabe wird an **Inhalt + gesamte Zielmenge** gebunden (`_approval_sha`, R01/A1).
+    Die non-write-Historie wird **angehängt** (JSONL, R20) statt überschrieben. Ein
     tier1-Supersede-Konflikt führt zu einem **Teilfehler** (R09: `ok=False`,
     `partial=True`) — nicht mehr zu `ok=True`.
     """
@@ -536,9 +604,20 @@ def store(
             "steps": steps,
         }
 
+    # A1 (Auftrag): Zielmenge VOR der Freigabe festlegen und die Freigabe an ALLE Ziele
+    # binden (structured + ggf. tier3), damit kein nicht-genehmigtes Ziel mitgeschrieben wird.
+    tier3_file = Path(tier3_dir) / name
+    targets = [(structured_file, clean)]
+    if cls == "write-new":
+        targets.append((tier3_file, clean))  # §10.7: structured + tier3
+    elif tier3_file.exists():
+        targets.append((tier3_file, clean))  # N4: nur existierende Arbeitskopie aktualisieren
+
     binding = None
     if self_update:
-        state, binding = _gate_approval(approval_obj, approvers, question, _approval_sha(clean, structured_file))
+        state, binding = _gate_approval(
+            approval_obj, approvers, question, _approval_sha(clean, [t for t, _ in targets])
+        )
         steps.append(("approval", state))
         if state != "approved":
             replay = bool((binding or {}).get("replay"))
@@ -566,13 +645,6 @@ def store(
             "written": [],
             "steps": steps,
         }
-
-    tier3_file = Path(tier3_dir) / name
-    targets = [(structured_file, clean)]
-    if cls == "write-new":
-        targets.append((tier3_file, clean))  # §10.7: structured + tier3
-    elif tier3_file.exists():
-        targets.append((tier3_file, clean))  # N4: nur existierende Arbeitskopie aktualisieren
 
     old_content = structured_file.read_text(encoding="utf-8") if structured_file.exists() else None
     try:

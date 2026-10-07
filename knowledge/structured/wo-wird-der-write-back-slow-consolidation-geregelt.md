@@ -1,0 +1,1 @@
+Der Write-Back ist in AGENTS.md 10.3 geregelt: write-new/write-update werden per SFT in Theta->Theta' konsolidiert; nach Erfolg wird der externe Puffer geleert.

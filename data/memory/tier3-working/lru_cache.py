@@ -83,6 +83,17 @@ HELA_BETA = float(os.environ.get("HELA_BETA", "0.5"))
 HELA_TOP_K = 5  # Base-Pfad (Cosine-Similarity)
 HELA_TOP_M = 3  # Spread-Pfad (Spreading Activation)
 
+# --- FadeMem Adaptive Exponential Decay (arXiv:2601.18642, ICASSP 2026) ---
+# Belegt (Paper-Abstract): "retention is governed by adaptive exponential decay
+# functions modulated by semantic relevance, access frequency, and temporal
+# patterns."  Der biologische Verfall wird adaptiv durch Relevanz, Zugriffshäufigkeit
+# und Altersmuster moduliert (weg von binärem Behalten/Vergessen).
+# Auftrag: die *geschlossene Form* + Defaults β/γ sind Projekt-Vorgabe (das Paper
+# nennt im Abstract keine Formel); Verfallsrate λ = β·exp(−γ·(rel+freq_norm)).
+FADEMEM_BETA = float(os.environ.get("FADEMEM_BETA", "0.05"))  # Basis-Verfallsrate (Auftrag)
+FADEMEM_GAMMA = float(os.environ.get("FADEMEM_GAMMA", "1.5"))  # Modulationsstärke (Auftrag)
+FADEMEM_FREQ_SATURATION = 10.0  # Zugriffe zur Sättigung (gleiche Skala wie HTM-EAR usage/10)
+
 
 def relevance(path: Path) -> float:
     """Relevanz = Abrufhäufigkeit × Kritikalität (Quelle: TraceRetain, arXiv:2606.29178).
@@ -98,11 +109,49 @@ def relevance(path: Path) -> float:
     return 0.3  # niedrig (Sonstiges)
 
 
+def decay_score(entry: dict, now: float, *, beta: float = FADEMEM_BETA, gamma: float = FADEMEM_GAMMA) -> float:
+    """Adaptiver Exponential-Decay eines Eintrags (FadeMem, arXiv:2601.18642).
+
+    Belegt (FadeMem-Abstract): Retention folgt *adaptiven Exponential-Decay-Funktionen*,
+    moduliert durch **semantische Relevanz**, **Zugriffsfrequenz** und **zeitliche Muster**.
+
+    Formel (Auftrag – das Paper nennt im Abstract keine geschlossene Form):
+        age        = max(0, now − last_used)
+        relevance  = clamp(importance, 0, 1)
+        freq_norm  = min(hits / FADEMEM_FREQ_SATURATION, 1)
+        λ(rel,f)   = beta · exp(−gamma · (rel + freq_norm))   # adaptiv: rel/freq dämpfen λ
+        score      = relevance · exp(−λ·age)                  # höher = überlebt länger
+
+    Höherer Score ⇒ längeres Überleben. Relevante, häufige, frische Einträge
+    verfallen langsamer (λ kleiner); relevanzlose/nie genutzte/ alte Einträge
+    verfallen schneller. Höher = langsamerer Verfall.
+
+    Args:
+        entry: dict mit `importance` (Relevanz 0..1), `hits` (Zugriffszahl),
+               `last_used` (Tick der letzten Nutzung).
+        now: aktueller Zeit-Tick.
+        beta: Basis-Verfallsrate (>0) – Projekt-Auftrag.
+        gamma: Modulationsstärke – Projekt-Auftrag.
+    """
+    last_used = entry.get("last_used", now)
+    age = max(0.0, float(now) - float(last_used))
+    relevance = min(max(float(entry.get("importance", 0.5)), 0.0), 1.0)
+    freq_norm = min(float(entry.get("hits", 0)) / FADEMEM_FREQ_SATURATION, 1.0)
+    lam = beta * math.exp(-gamma * (relevance + freq_norm))
+    return relevance * math.exp(-lam * age)
+
+
 class WorkingMemory:
     """Bounded Cache für aktuell geladene Wissensseiten (Tier 3).
 
     policy="value" (Default): wertbewusste Eviction (HTM-EAR, arXiv:2603.10032).
     policy="lru": reine LRU-Eviction (Vergleichsbaseline).
+    policy="fademem": adaptive Exponential-Decay-Eviction (FadeMem, arXiv:2601.18642) –
+        verdrängt den **niedrigsten** Decay-Score statt des ältesten Items.
+
+    §9-Status (ask): `fademem` ist **opt-in** (neue Quelle + neues Policy-Schema).
+    Der **Default bleibt `value`** – eine Umstellung des Defaults wäre eine
+    Verhaltens-/Interface-Änderung und damit §9-pflichtig (nicht hier freigegeben).
     """
 
     def __init__(self, capacity: int = CAPACITY, policy: str = "value"):
@@ -149,6 +198,8 @@ class WorkingMemory:
         if len(self.items) > self.capacity:
             if self.policy == "lru":
                 evicted_key = self._evict_lru()
+            elif self.policy == "fademem":
+                evicted_key = self._evict_fademem()
             else:
                 # Primär: Adaptive Forgetting (dreifache Bedingung, streng)
                 evicted_key = self._evict_adaptive_forgetting()
@@ -181,6 +232,10 @@ class WorkingMemory:
         """
         it = self.items[key]
         return 0.75 * it.get("importance", 0.5) + 0.25 * min(it.get("hits", 0) / 10.0, 1.0)
+
+    def decay_score(self, key: str, beta: float = FADEMEM_BETA, gamma: float = FADEMEM_GAMMA) -> float:
+        """FadeMem-Decay-Score eines Items (now = self.tick). Quelle: arXiv:2601.18642."""
+        return decay_score(self.items[key], self.tick, beta=beta, gamma=gamma)
 
     def fill_from_structured(self, min_relevance: float = 0.5):
         """Initialbefüllung: nach dem Ingestion-Zyklus relevante Items laden.
@@ -326,6 +381,22 @@ class WorkingMemory:
         β·min(usage/10,1) wird ausgelagert. (HTM-EAR, arXiv:2603.10032)
         """
         candidates = [(k, self.evict_score(k)) for k, v in self.items.items() if not v["pinned"]]
+        if not candidates:
+            return None  # alles gepinnt
+        key = min(candidates, key=lambda kv: kv[1])[0]
+        item = self.items.pop(key)
+        self.evicted.append(key)
+        self._to_tier2(key, item)
+        return key
+
+    def _evict_fademem(self):
+        """Eviction nach niedrigstem adaptiven Decay-Score (FadeMem, arXiv:2601.18642).
+
+        Statt „ältestes zuerst" (LRU) wird der Eintrag mit dem **niedrigsten**
+        `decay_score` verdrängt. Relevante/häufige/frische Einträge überleben länger.
+        Gepinnte Items sind unverdrängbar.
+        """
+        candidates = [(k, self.decay_score(k)) for k, v in self.items.items() if not v["pinned"]]
         if not candidates:
             return None  # alles gepinnt
         key = min(candidates, key=lambda kv: kv[1])[0]

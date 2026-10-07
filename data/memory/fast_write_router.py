@@ -24,6 +24,7 @@ Die 3-Klassen-*Aktionen* stammen daher aus AGENTS.md §10.7 (Auftrag), nicht aus
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -95,7 +96,57 @@ def _decide(refusal: bool, large_ok: bool, mem_ok: bool):
     return "uncertain", "ask"
 
 
-def classify(question: str, fact: str, correct: str) -> dict:
+def _slug(text: str) -> str:
+    """Key-Slug wie `write_gateway`/`lifecycle_runner` (tier3-Dateistemm)."""
+    return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
+
+
+def discard_if_consolidated(fact: str, question: Optional[str] = None, state_path=None) -> Optional[dict]:
+    """Erstkonsolidierte Fakten als `non-write` behandeln (AGENTS.md §10.3).
+
+    Liest den Konsolidierungs-State aus `slow_consolidation`
+    (`data/memory/tier3-working/consolidation-state.json`, `mark_consolidated`).
+    Gilt der Fakt/Key als **konsolidiert**, wird er NICHT erneut extern
+    gespeichert: Rückgabe ``{"class":"non-write","gate":"none",
+    "reason":"bereits konsolidiert (§10.3)"}`` — sonst ``None``.
+
+    Quelle (Belegt, im Gesetz): arXiv:2608.22215 §3.4 — „the router adaptively
+    suppress redundant writes as the model's epistemic boundaries evolve"
+    (AGENTS.md §10.1/§10.3). Die Key-Zuordnung (`_slug(question)`) ist
+    Projekt-**Auftrag** (an `collect_pending`/§10.7 gebunden), kein Paper-Claim.
+
+    **Default `state_path=None` ⇒ unverändertes Verhalten** (rückwärtskompatibel;
+    kein bestehender Aufrufer wird beeinflusst).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
+    Funktion + Parameter `state_path` (Default `None`).
+    """
+    if state_path is None:
+        return None
+    import slow_consolidation
+
+    done = set(slow_consolidation._load_state(state_path).get("consolidated") or [])
+    if not done:
+        return None
+    candidates = set()
+    if question:
+        candidates.add(_slug(question))
+    if fact:
+        f = str(fact).strip()
+        candidates.add(f)
+        candidates.add(_slug(f))
+    hit = sorted(k for k in candidates if k in done)
+    if not hit:
+        return None
+    return {
+        "class": "non-write",
+        "gate": "none",  # Legacy-Alias von fast_write_router -> gate_labels.ALLOW
+        "reason": "bereits konsolidiert (§10.3)",
+        "consolidated_key": hit[0],
+    }
+
+
+def classify(question: str, fact: str, correct: str, *, state_path=None) -> dict:
     """3-Klassen-Kaskade (arXiv:2608.22215 §3.1/§3.3).
 
     1. M_small zero-shot: korrekt -> non-write (high confidence, keine Eskalation).
@@ -110,7 +161,18 @@ def classify(question: str, fact: str, correct: str) -> dict:
       allow = keine Speicherung noetig (§10.1 non-write) · ask = menschliche
       Freigabe noetig (write-new: neue Quelle §10.4; write-update: self_update
       an tier1-base §9).
+
+    Optionaler Hook (§10.3): ist `state_path` gesetzt und der Fakt bereits
+    konsolidiert, wird die Kaskade **kurzgeschlossen** (`non-write`, `stage=0`)
+    — keine LLM-Calls, kein erneuter externer Write.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer optionaler
+    Parameter `state_path` (Default `None` ⇒ exakt altes Verhalten).
     """
+    discard = discard_if_consolidated(fact, question=question, state_path=state_path)
+    if discard:
+        return {**discard, "stage": 0, "escalated": False}
+
     # --- Stufe 1: kleiner Router (Front-End-Screening) ---
     a_small = _ask(SMALL_MODEL, question)
     if _matches(a_small, correct):
@@ -169,6 +231,7 @@ def apply_write_action(
     approval_obj=None,
     approvers=None,
     self_update=False,
+    state_path=None,
 ) -> dict:
     """Write-Aktion der 3 Klassen (AGENTS.md §10.7, wörtlich).
 
@@ -179,18 +242,26 @@ def apply_write_action(
     Gate (§9/§10.4, Labelraum `allow|ask|deny`, K6/B5): non-write = allow ·
     write-new = neue Quelle -> ask · write-update = self_update -> ask.
 
+    Optionaler Hook (§10.3): ist `state_path` gesetzt und der Fakt bereits
+    konsolidiert (`discard_if_consolidated`), wird die angeforderte Write-Klasse
+    auf `non-write` herabgestuft — kein erneuter externer Write.
+
     R03 (Auftrag): Das Gate wird **VOR** jeder Mutation bestimmt und an
     `write_gateway.store` übergeben. Write-Klassen (`ask`) schreiben nur mit
     Zwei-Personen-Freigabe (`self_update=True` + `approvers`/`approval_obj`); ohne
     Freigabe hält `store` **vor** dem Write an (`gate=ask`, kein Write).
 
     **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
-    Parameter `approval_obj`, `approvers`, `self_update` (Freigabe vor Mutation).
+    Parameter `approval_obj`, `approvers`, `self_update` (Freigabe vor Mutation)
+    und `state_path` (Default `None` ⇒ exakt altes Verhalten).
 
     K2: DELEGATION an `write_gateway.store` (EIN Schreibpfad, feste Reihenfolge
     Mandat → FWR → Trust/PII → Poisoning → Freigabe → Drift → Supersede → Write
     → Shared → Provenienz). Kein direkter Write mehr (K2-STOPP).
     """
+    discard = discard_if_consolidated(fact, question=question, state_path=state_path)
+    if discard:
+        cls = "non-write"  # §10.3: konsolidiert -> nie erneut extern speichern
     if cls not in ("non-write", "write-new", "write-update"):
         return {"ok": False, "action": cls, "gate": "ask", "written": [], "reason": "unbekannte Klasse"}
     import write_gateway
@@ -217,7 +288,12 @@ def apply_write_action(
     )
     res["action"] = cls
     res["superseded"] = res.get("superseded_tier1")
-    if res["ok"] and cls in ("write-new", "write-update"):
+    if discard:
+        res["discarded"] = True
+        res["gate"] = discard["gate"]  # "none" (Legacy-Alias -> allow)
+        res["reason"] = discard["reason"]
+        res["consolidated_key"] = discard["consolidated_key"]
+    elif res["ok"] and cls in ("write-new", "write-update"):
         res["gate"] = gate_labels.ASK  # §9/§10.4: Write-Klassen melden Human-Gate-Bedarf
     return res
 

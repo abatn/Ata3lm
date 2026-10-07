@@ -113,20 +113,35 @@ def _drift_label(value) -> str:
     return v
 
 
+def _canonicalize_distribution(distribution: dict) -> dict:
+    """R16/A5 (Auftrag): Verteilung auf EINEN Labelraum abbilden und Kategorien aggregieren.
+
+    ``{write-new: 0.3, write-update: 0.7}`` → ``{write: 1.0}``. Sowohl die **Baseline**
+    (Env/Checkpoint/Param) als auch die **Beobachtung** laufen hierdurch, damit beide
+    denselben Kategorienraum haben (sonst ``{write-update:1}`` vs ``write`` ⇒ falsches ``ask``).
+    """
+    agg: dict = {}
+    for k, v in (distribution or {}).items():
+        key = _drift_label(k)
+        agg[key] = agg.get(key, 0.0) + float(v)
+    return agg
+
+
 class _CanonicalDriftMonitor:
-    """Reicht das Write-Label kanonisiert an den Monitor (R16: ein Labelraum).
+    """Reicht Write-Label kanonisiert an den Monitor (R16/A5: ein Labelraum).
 
     Der Write-Gateway ruft `observe({cls: 1.0})` mit `write-new`/`write-update`; Stufe 8
     nutzt `write`/`non-write`. Ohne Kanonisierung sähe der Monitor zwei Klassenräume und
-    würde fälschlich `ask` melden.
+    würde fälschlich `ask` melden. **Baseline UND Beobachtung** werden kanonisiert (A5).
     """
 
     def __init__(self, monitor):
         self._monitor = monitor
+        if hasattr(monitor, "baseline"):  # A5: Baseline mit-kanonisieren (Altformat-Migration)
+            monitor.baseline = _canonicalize_distribution(monitor.baseline)
 
     def observe(self, distribution, step=None):
-        label = next(iter(distribution), "")
-        return self._monitor.observe({_drift_label(label): 1.0}, step=step)
+        return self._monitor.observe(_canonicalize_distribution(distribution), step=step)
 
 
 def _default_mandate() -> "mandate.Mandate":
@@ -269,6 +284,8 @@ def _stage_wissen_plus(ctx: dict) -> dict:
             "reference": "monitor",
         }
     reference = ctx["drift_baseline"] if ctx["drift_baseline"] is not None else _load_drift_reference()
+    # R16/A5: auch die Stufe-8-Referenz auf denselben Labelraum kanonisieren.
+    reference = _canonicalize_distribution(reference) if reference is not None else None
     if reference is None:
         if allow:  # B4: Bootstrap ist Initialisierung – aber keine Mutation ohne Mandat
             _save_drift_reference(observed)  # Cold-Start-Bootstrap (Initialisierung, Lesart A)
@@ -335,30 +352,42 @@ def run_cycle(
     approvers=None,
     drift=None,
     state_path=None,
+    consolidation_state_path=None,
 ) -> dict:
     """Führt die 8 Stufen in gesetzter Reihenfolge aus und liefert die echte Spur.
 
     K1: `state_path` setzt den geteilten Runner-Zustand vor dem Lauf fort und
     persistiert ihn danach (atomar, mit Inhalten/Metadaten/offenen Freigaben).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer optionaler
+    Parameter `consolidation_state_path` (Auftrag §10.3) – ist er gesetzt, sammelt der
+    Lauf am Ende **lesend** konsolidierbare Fakten (`slow_consolidation.collect_pending`)
+    und hängt sie als `pending_consolidation` an das Ergebnis. Kein Write/Flush im Lauf
+    (§9 Human-Gate); Default `None` ⇒ unverändertes Verhalten.
     """
     mandate_obj = mandate_obj if mandate_obj is not None else _default_mandate()
     # S1 §9.1c: Referenz-Priorität (explizit > Env-Erwartung > persistierter Checkpoint > keine).
     baseline = drift_baseline if drift_baseline is not None else _configured_drift_baseline()
+    # R16/A5: Baseline (und jeder Checkpoint) auf EINEN Labelraum kanonisieren.
+    if baseline is not None:
+        baseline = _canonicalize_distribution(baseline)
     # N6 §9.1: Mandat VOR jeder Mutation prüfen (Stufe 1 schreibt `raw:` in WM).
     dec0 = mandate.assess(mandate_obj, action="write:memory", resource="data/memory", amount=0.0, now=now)
     # N7/S1 §9.1c: ein explizit übergebener Drift schützt den Write in Stufe 3 und wird
     # in Stufe 8 genutzt; sonst löst Stufe 8 die Referenz auf (Checkpoint / Cold-Start).
     # R04: auch die Default-Erwartung (`LIFECYCLE_DRIFT_BASELINE`) gatet VOR der Mutation.
+    # A2 (Auftrag): die **persistierte Drift-Referenz** (Checkpoint) wird ebenfalls VOR
+    # jeder Mutation aufgelöst und gatet den Write – nicht erst nach dem Write (Stufe 8).
     # R16: vor (Write-Gateway) und nach (Stufe 8) gilt EIN kanonischer Labelraum.
     drift_monitor = drift
     if drift is not None:
         drift_write = _CanonicalDriftMonitor(drift)
-    elif baseline is not None:
-        # R04: Default-Erwartung gatet VOR der Mutation; Stufe 8 nutzt weiter die
-        # Referenz/den Checkpoint (§9.2b) – nur der Write-Pfad bekommt den Monitor.
-        drift_write = _CanonicalDriftMonitor(bias_monitor.BiasDriftMonitor(baseline=baseline, tau=tau))
     else:
-        drift_write = None
+        write_reference = baseline if baseline is not None else _load_drift_reference()
+        if write_reference is not None:
+            drift_write = _CanonicalDriftMonitor(bias_monitor.BiasDriftMonitor(baseline=write_reference, tau=tau))
+        else:
+            drift_write = None
     ctx = {
         "question": question,
         "fact": fact,
@@ -433,13 +462,20 @@ def run_cycle(
                 state_path,
                 expected_rev=(resumed or {}).get("rev", 0),
             )
-    return {
+    out = {
         "stages": list(STAGES),
         "results": ctx["results"],
         "trace": trace,
         "wm": ctx["wm"],
         "state_save": state_save,
     }
+    if consolidation_state_path is not None:  # §10.3 Optional-Hook (lesend, kein Write)
+        import slow_consolidation
+
+        out["pending_consolidation"] = slow_consolidation.collect_pending(
+            tier3_dir, Path(tier3_dir) / "provenance.jsonl", state_path=consolidation_state_path
+        )
+    return out
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI

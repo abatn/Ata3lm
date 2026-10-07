@@ -43,6 +43,7 @@ Quellen:
 - ARIADNE 3-Tier (Tier 2 Semantic, bi-temporale Felder): https://arxiv.org/abs/2105.09864
 - Graphiti (Fakten mit Validitätsfenstern): https://arxiv.org/abs/2501.13956
 - SHIMI (semantische Hierarchie): https://arxiv.org/abs/2504.06135
+- ZsRE (`community-datasets/qa_zre`; §10.3-Konsolidierungskorpus, `approved` Batnini 2026-10-07): https://huggingface.co/datasets/community-datasets/qa_zre · Levy et al. 2017 https://aclanthology.org/K17-1034
 
 ## D. Memory-Lifecycle (Belegt: HeLa-Mem + Memory Survey)
 

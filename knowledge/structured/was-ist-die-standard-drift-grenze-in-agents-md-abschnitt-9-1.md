@@ -1,0 +1,1 @@
+Die Standard-Drift-Grenze in AGENTS.md 9.1c betraegt maximal 10 Prozent pro Iteration; darueber ist ein menschliches Gate (ask) noetig.

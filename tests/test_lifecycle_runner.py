@@ -317,7 +317,7 @@ def test_s1_checkpoint_nur_bei_revised_fortschreiben(tmp_path, monkeypatch):
     assert out2["results"]["Gedächtnis"]["ok"] is False
     assert out2["results"]["Wissen+"]["revised"] is False  # deny ⇒ revised=False
     assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 1.0}  # unverändert
-    # (c) ok, aber Drift-Gate ask ⇒ revised=False und KEIN Fortschreiben (B5)
+    # (c) ok, aber Drift-Gate ask VOR dem Write ⇒ KEIN Write (A2) und kein Fortschreiben (B5)
     ref.write_text('{"write": 0.5, "non-write": 0.5}', encoding="utf-8")
     out3 = lr.run_cycle(
         "Q3",
@@ -329,9 +329,57 @@ def test_s1_checkpoint_nur_bei_revised_fortschreiben(tmp_path, monkeypatch):
         tau=0.05,
     )
     w3 = out3["results"]["Wissen+"]
-    assert out3["results"]["Gedächtnis"]["ok"] is True
+    assert out3["results"]["Gedächtnis"]["ok"] is False  # A2: Checkpoint gatet VOR der Mutation
+    assert not (tmp_path / "s3").exists()  # kein Write vor der Freigabe (§9.1c)
     assert w3["gate"] == "ask" and w3["revised"] is False  # B5: revised nie bei ask
     assert json.loads(ref.read_text(encoding="utf-8")) == {"write": 0.5, "non-write": 0.5}  # unverändert
+
+
+def test_a2_checkpoint_gatet_vor_write(tmp_path, monkeypatch):
+    """A2 §9.1c: die persistierte Drift-Referenz (Checkpoint) gatet die Mutation VOR dem Write."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LIFECYCLE_DRIFT_BASELINE", raising=False)
+    ref = tmp_path / "r.json"
+    ref.write_text('{"non-write": 1.0}', encoding="utf-8")
+    monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(ref))
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        tau=0.10,
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is False  # {non-write} vs {write} → ask vor dem Write
+    assert not (tmp_path / "s").exists()  # kein Write vor der Freigabe
+
+
+def test_a5_baseline_und_beobachtung_kanonisiert(tmp_path, monkeypatch):
+    """A5/R16: Baseline `{write-update:1}` und Beobachtung `write-new` liegen im EINEN Labelraum."""
+    import bias_monitor
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    drift = bias_monitor.BiasDriftMonitor(baseline={"write-update": 1.0}, tau=0.10)
+    out = lr.run_cycle(
+        "Q",
+        "F",
+        "F",
+        classify_fn=_classify("write-new"),
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t",
+        drift=drift,
+        tau=0.10,
+    )
+    assert out["results"]["Gedächtnis"]["ok"] is True  # {write} == kanonisierte Baseline → allow
+    assert out["results"]["Wissen+"]["gate"] == "allow"
+
+
+def test_a5_canonicalize_distribution_aggregiert():
+    """A5/R16: Kategorien werden kanonisiert und aggregiert (Altformat-Migration)."""
+    assert lr._canonicalize_distribution({"write-new": 0.3, "write-update": 0.7}) == {"write": 1.0}
+    assert lr._canonicalize_distribution({"none": 1.0}) == {"non-write": 1.0}
+    assert lr._canonicalize_distribution({"unbekannt": 0.5}) == {"unbekannt": 0.5}
 
 
 def test_s1_helfer_referenz(tmp_path, monkeypatch):

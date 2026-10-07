@@ -79,3 +79,30 @@ Test: `tests/test_fwr_write.py` · Doku: `ergebnisse/fwr-write.md`.
 Dieser Connector bedient: `fast_write_router.py` — Klassifikation/Write.
 
 MCP-Interface / Ontologie-Validierung (SHACL, W3C): https://www.w3.org/TR/shacl/ · `ergebnisse/connector-prozess.md`.
+
+## §10.3-Konsolidierungskorpus aus ZsRE (`approved` §9, Batnini 2026-10-07)
+
+Quelle (real geprüft, **HTTP 200**, 2026-10-07):
+
+| Zweck | Referenz | Link |
+|---|---|---|
+| Paper-Methode (Fakten aus ZsRE; write-back = (q,a) + sentence-level SFT) | arXiv:2608.22215v2 §3.4 + Appendix A.1 | <https://arxiv.org/html/2608.22215v2> |
+| Dataset (train 8 400 000; Felder `relation, question, subject, context, answers`) | `community-datasets/qa_zre` | <https://huggingface.co/api/datasets/community-datasets/qa_zre> |
+| Ursprung | Levy et al. 2017, *Zero-shot relation extraction via reading comprehension* (CoNLL) | <https://aclanthology.org/K17-1034/> |
+
+**Erzeugung:** `data/memory/zsre_corpus.py::build_zsre_corpus(out_path, n=10000, split="train")`
+liest `community-datasets/qa_zre` (Default Streaming) und schreibt TRL-Chat-JSONL:
+
+```json
+{"messages":[{"role":"user","content":"<question>"},
+             {"role":"assistant","content":"<answers[0]>"}],
+ "source":"zsre","relation":"...","subject":"...","hash":"<sha256 der kanonischen messages>"}
+```
+
+**Status (ehrlich):** `community-datasets/qa_zre` ist eine NEUE QUELLE; §9 Human-Gate **`approved`** (Batnini, 2026-10-07); sie ist
+**nicht vorab freigegeben**. Volle Menge ist aus der Quelle verfügbar; hier wird nur
+ein **gesampeltes `n`** verwendet. Test: `tests/test_zsre_corpus.py`.
+
+**Kaggle-Nutzung:** `kaggle/train_slow_consolidation.py` um `SFT_SOURCE=zsre`
+erweitert (Alternativen: `local` = M1-JSONL, `capybara` = **Demo**). Siehe
+`kaggle/README.md`.

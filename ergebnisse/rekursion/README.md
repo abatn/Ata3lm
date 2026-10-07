@@ -94,6 +94,11 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 067 | `067-k4-skill-binding.md` | System-Iteration (K4: Skills maschinell an Executoren gebunden) | **approved**: Batnini, 2026-10-06 | siehe File |
 | 068 | `068-mcp-trace-audit.md` | System-Iteration (K7: DomainRejection fail-closed + OTel-Spans + Audit) | **approved**: Batnini, 2026-10-06 | siehe File |
 | 069 | `069-p1p2-kopplung-3.md` | System-Iteration (P1/P2-Kopplung, 3. Prüfung: R04/R05/R06/R07/R10/R16/R17/R18/R19) | **approved**: Batnini, 2026-10-06 | siehe File |
+| 070 | `070-m1b-kaggle-training.md` | System-Iteration (M1b: Kaggle-Trainingscode Θ→Θ′) | pending (unverifiziert-lokal, Kaggle) | siehe File |
+| 071 | `071-m1-slow-consolidation.md` | System-Iteration (M1: Slow-Consolidation-Vorarbeit §10.3) | **approved**: Batnini, 2026-10-07 | siehe File |
+| 072 | `072-zsre-konsolidierungskorpus.md` | System-Iteration (ZsRE-Konsolidierungskorpus §10.3) | **approved**: Batnini, 2026-10-07 | siehe File |
+| 073 | `073-out-of-band-eval.md` | System-Iteration (M3: Out-of-Band-Evaluation / World-State-Oracle §6) | pending (§9 `ask`: neue Quelle + Interface) | siehe File |
+| 074 | `074-m4-lifecycle.md` | System-Iteration (M4: Geschlossener Lifecycle, Router senses consolidation §10.1/§10.3) | pending (§9 `ask`: Interface) | siehe File |
 
 ## Guardrail
 

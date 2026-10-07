@@ -14,17 +14,34 @@ Phasenfolge = **Auftrag** (gesetzte Ordnung, kein Paper-Claim).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import evaluator_version
 import gate_labels
 import ingestion_hook
 import pipeline
 import reflective_agent
 import runner_state
+import world_state_oracle
 
 PHASES = ("Konstrukt", "Akt", "Observe", "Compare", "Revise")
 
-# R10/§9: Revision nur bei Score ≥ 70 % (automatisches Gate §9: < 70 % = blockiert).
-REVISE_MIN_SCORE = 0.70
+# A4/§9 (Auftrag): Compare-Score (Erfolge/Beobachtungen) → Gate-Band.
+# ≥ 95 % ⇒ allow (automatisch) · 70–94 % ⇒ ask (Mensch) · < 70 % ⇒ deny (blockiert).
+REVISE_MIN_SCORE = 0.70  # ask-/deny-Grenze (Evidenz-Untergrenze)
+ALLOW_MIN_SCORE = 0.95  # allow-Grenze (automatische Revision)
+
+
+def _compare_gate(score: float) -> str:
+    """A4/§9: Score-Band → einheitlicher Gate-Labelraum ``allow|ask|deny``.
+
+    ≥ 0.95 ⇒ allow · ≥ 0.70 ⇒ ask (Human-Gate) · sonst ⇒ deny.
+    """
+    if score >= ALLOW_MIN_SCORE:
+        return gate_labels.ALLOW
+    if score >= REVISE_MIN_SCORE:
+        return gate_labels.ASK
+    return gate_labels.DENY
 
 
 def _phase_konstrukt(ctx: dict) -> dict:
@@ -66,15 +83,68 @@ def _phase_observe(ctx: dict) -> dict:
 
 
 def _phase_compare(ctx: dict) -> dict:
-    """Compare: externes Signal — Belief aus Erfolgen/Fehlern (`evaluator_version`)."""
-    observed = (ctx["successes"] + ctx["failures"]) > 0
+    """Compare: **externes** Signal (World-State-Oracle) hat Vorrang (§6).
+
+    A4/§9: der Compare-Score wird in das Gate-Band überführt (≥ 95 % allow ·
+    70–94 % ask · < 70 % deny). Ohne Beobachtung kein Ground-Truth-Signal ⇒ ``ask``.
+
+    M3/§6: Ist ein echtes ``world_state_probe`` gesetzt, entscheidet allein das
+    **Out-of-Band-Ergebnis** (`world_state_oracle.evaluate`) über ``observed``;
+    der Selbstreport des Agenten (`successes`/`failures`) ist dann nur noch
+    Annotation. Liefert das Probe kein Signal, gilt ``observed=False`` und es wird
+    **kein** Ground-Truth-Claim erhoben (§1/§6). Ohne Probe bleibt der bisherige
+    Pfad unverändert (Rückwärtskompatibilität bestehender Aufrufer/Tests).
+    """
+    self_report = {
+        "successes": ctx["successes"],
+        "failures": ctx["failures"],
+        "belief": round(float(evaluator_version.best_belief(ctx["successes"], ctx["failures"])), 4),
+        "annotation": "Selbstreport – kein ausreichendes Signal (§6)",
+    }
+    probe = ctx.get("world_state_probe")
+    if probe is not None:
+        oracle = world_state_oracle.evaluate(ctx.get("world_state_claim") or ctx.get("fact", ""), probe)
+        observed = bool(oracle["ok"])
+        if observed:
+            on = oracle["successes"] + oracle["failures"]
+            score = (oracle["successes"] / on) if on else 1.0
+            gate = _compare_gate(score)
+            signal = oracle["signal"]
+        else:
+            score = 0.0
+            gate = gate_labels.ASK
+            signal = (
+                "kein externes Signal (Oracle) – Selbstreport nur Annotation, "
+                "kein Ground-Truth-Claim (§1/§6)"
+            )
+        return {
+            "phase": "Compare",
+            "belief": round(float(evaluator_version.best_belief(oracle["successes"], oracle["failures"])), 4),
+            "score": round(score, 4),
+            "gate": gate,
+            "signal": signal,
+            "observed": observed,
+            "oracle": oracle,
+            "self_report": self_report,
+        }
+    n = ctx["successes"] + ctx["failures"]
+    observed = n > 0
     belief = evaluator_version.best_belief(ctx["successes"], ctx["failures"])
+    score = (ctx["successes"] / n) if n else 0.0
+    gate = _compare_gate(score) if observed else gate_labels.ASK
     signal = (
         "externes Ground-Truth-Signal"
         if observed
         else "kein externes Signal (unbeobachtet) – kein Ground-Truth-Claim (§1/§6)"
     )
-    return {"phase": "Compare", "belief": round(float(belief), 4), "signal": signal, "observed": observed}
+    return {
+        "phase": "Compare",
+        "belief": round(float(belief), 4),
+        "score": round(score, 4),
+        "gate": gate,
+        "signal": signal,
+        "observed": observed,
+    }
 
 
 def _phase_revise(ctx: dict) -> dict:
@@ -98,7 +168,7 @@ def _phase_revise(ctx: dict) -> dict:
     # §9.1d: passende Evidenz = externes Signal mit ≥ 1 positivem Beleg.
     n = ctx["successes"] + ctx["failures"]
     score = (ctx["successes"] / n) if n else 0.0
-    # R10/§9: Score < 70 % ⇒ keine Revision (1 Erfolg / 99 Fehler lernt nicht).
+    # R10/A4: Score < 70 % ⇒ keine Revision (1 Erfolg / 99 Fehler lernt nicht).
     evidence_ok = bool(vergleich.get("observed")) and ctx["successes"] >= 1 and score >= REVISE_MIN_SCORE
     if not evidence_ok:
         return {
@@ -107,6 +177,24 @@ def _phase_revise(ctx: dict) -> dict:
             "reason": (
                 f"keine passende Evidenz (§9.1d/R10): Score {score:.2f} < {REVISE_MIN_SCORE:.2f} "
                 "oder Signal negativ/unzureichend – keine Revision"
+            ),
+        }
+    # A4/§9: Compare-Band in allow/ask/deny. Im ask-Band (70–94 %) NUR mit
+    # menschlicher Freigabe (`revise_approved`) revisieren; `deny` (< 70 %) nie.
+    compare_gate = gate_labels.normalize(vergleich.get("gate", _compare_gate(score)))
+    if compare_gate == gate_labels.DENY:
+        return {
+            "phase": "Revise",
+            "skipped": True,
+            "reason": f"Compare-Gate deny: Score {score:.2f} < {REVISE_MIN_SCORE:.2f} – keine Revision (§9)",
+        }
+    if compare_gate == gate_labels.ASK and not ctx.get("revise_approved"):
+        return {
+            "phase": "Revise",
+            "skipped": True,
+            "reason": (
+                f"Compare-Gate ask: Score {score:.2f} im Band 70–94 % – Revision nur mit "
+                "menschlicher Freigabe (`approved`, §9)"
             ),
         }
     out = ctx["hmm"].update_from_reflection(ctx["reflection_text"], delta=ctx["delta"])
@@ -136,12 +224,34 @@ def run_recursion(
     delta=None,
     successes: int = 0,
     failures: int = 0,
+    revise_approved: bool = False,
     state_path=None,
+    consolidation_state_path=None,
+    world_state_probe=None,
+    world_state_claim=None,
 ) -> dict:
     """Führt die 5 Phasen in gesetzter Reihenfolge aus und liefert die echte Spur.
 
     K1: `state_path` setzt den geteilten Runner-Zustand (inkl. HMM) fort und
     persistiert ihn danach – gemeinsamer Zustand mit dem 8-Stufen-Runner.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** `revise_approved`
+    (A4) schaltet die HMM-Revision im **ask-Band** (Compare-Score 70–94 %) frei; ohne
+    Freigabe bleibt sie dort aus (§9, 70–94 % ⇒ Human-Gate). `Compare` meldet nun
+    `score` + `gate` (allow/ask/deny).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer optionaler
+    Parameter `consolidation_state_path` (Auftrag §10.3) – ist er gesetzt, sammelt der
+    Lauf am Ende **lesend** konsolidierbare Fakten (`slow_consolidation.collect_pending`)
+    und hängt sie als `pending_consolidation` an das Ergebnis. Kein Write/Flush im
+    Lauf (§9 Human-Gate); Default `None` ⇒ unverändertes Verhalten.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, M3):** neue optionale
+    Parameter `world_state_probe` (echtes externes Callable, World-State-Oracle)
+    und `world_state_claim` (zu prüfende Behauptung; Default: `fact`). Ist
+    `world_state_probe` gesetzt, entscheidet das **externe** Ergebnis über
+    `Compare.observed`; der Selbstreport (`successes`/`failures`) ist nur noch
+    Annotation (§6). Default `None` ⇒ unverändertes Verhalten (Rückwärtskompatibilität).
     """
     ctx = {
         "question": question,
@@ -156,6 +266,9 @@ def run_recursion(
         "delta": delta,
         "successes": successes,
         "failures": failures,
+        "revise_approved": revise_approved,
+        "world_state_probe": world_state_probe,
+        "world_state_claim": world_state_claim,
         "hmm": None,
         "results": {},
     }
@@ -196,13 +309,20 @@ def run_recursion(
                 state_path,
                 expected_rev=(resumed or {}).get("rev", 0),
             )
-    return {
+    out = {
         "phases": list(PHASES),
         "results": ctx["results"],
         "trace": trace,
         "hmm": ctx["hmm"],
         "state_save": state_save,
     }
+    if consolidation_state_path is not None:  # §10.3 Optional-Hook (lesend, kein Write)
+        import slow_consolidation
+
+        out["pending_consolidation"] = slow_consolidation.collect_pending(
+            tier3_dir, Path(tier3_dir) / "provenance.jsonl", state_path=consolidation_state_path
+        )
+    return out
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI

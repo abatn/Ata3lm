@@ -515,3 +515,131 @@ def test_store_non_write_historie_haengt_an(tmp_path):
     lines = hist[0].read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 2  # beide Events erhalten
     assert [json.loads(line)["at"] for line in lines] == [100.0, 101.0]
+
+
+# ------------------------------------------------- A1: Freigabe an gesamte Zielmenge
+def test_a1_freigabe_nur_primziel_deckt_also_write_nicht(tmp_path):
+    """A1 (P1): eine nur für das Primärziel erteilte Freigabe deckt ein `also_write`-Ziel NICHT ab."""
+    import approval
+
+    prim, extra = tmp_path / "prim.md", tmp_path / "extra.md"
+    sha_primary_only = wg._approval_sha("NEU", prim)  # ohne also_write gebunden
+    obj = approval.TwoPersonApproval(subject="s")
+    obj.approve("Batnini", diff_sha=sha_primary_only)
+    obj.approve("Verifier2", diff_sha=sha_primary_only)
+    obj.finalize()
+    r = wg.store_file(
+        target=prim,
+        content="NEU",
+        now=1.0,
+        require_approval=True,
+        approval_obj=obj,
+        activity="self-update",
+        also_write=[extra],
+    )
+    assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
+    assert not prim.exists() and not extra.exists()  # kein nicht-genehmigtes Ziel geschrieben
+
+
+def test_a1_freigabe_ueber_alle_ziele_wird_akzeptiert(tmp_path):
+    """A1 (P1): die Freigabe über die gesamte Zielmenge (Primär + `also_write`) wird akzeptiert."""
+    import approval
+
+    prim, extra = tmp_path / "prim.md", tmp_path / "extra.md"
+    sha = wg._approval_sha("NEU", [prim, extra])
+    obj = approval.TwoPersonApproval(subject="s")
+    obj.approve("Batnini", diff_sha=sha)
+    obj.approve("Verifier2", diff_sha=sha)
+    obj.finalize()
+    r = wg.store_file(
+        target=prim,
+        content="NEU",
+        now=1.0,
+        require_approval=True,
+        approval_obj=obj,
+        activity="self-update",
+        also_write=[extra],
+    )
+    assert r["ok"] is True and len(r["written"]) == 2
+    assert r["provenance"]["approval"]["diff_sha"] == sha
+
+
+# ------------------------------------------------- A3: atomarer Write + Rollback
+def test_a3_io_fehler_zweites_ziel_prim_bleibt_altstand(tmp_path):
+    """A3 (P1): I/O-Fehler am 2. Ziel -> Primärdatei wird auf den Vorzustand zurückgerollt."""
+    prim = tmp_path / "prim.md"
+    prim.write_text("ALT", encoding="utf-8")
+    blocker = tmp_path / "blocker"
+    blocker.write_text("datei", encoding="utf-8")  # Elternpfad ist Datei -> mkdir scheitert
+    prov = tmp_path / "prov.jsonl"
+    r = wg.store_file(
+        target=prim,
+        content="NEU",
+        now=1.0,
+        origin="user",
+        verified=True,
+        also_write=[blocker / "sub.md"],
+        provenance_log=prov,
+    )
+    assert r["ok"] is False and r["gate"] == "ask" and "Rollback" in r["reason"]
+    assert prim.read_text(encoding="utf-8") == "ALT"  # Vorzustand wiederhergestellt
+    assert not prov.exists()  # keine Provenienz ohne Write (konsistent)
+
+
+def test_a3_io_fehler_zweites_ziel_neue_primdatei_wird_entfernt(tmp_path):
+    """A3 (P1): war die Primärdatei neu, entfernt der Rollback sie wieder (kein Teilzustand)."""
+    prim = tmp_path / "neu.md"
+    blocker = tmp_path / "blocker"
+    blocker.write_text("datei", encoding="utf-8")
+    r = wg.store_file(
+        target=prim,
+        content="NEU",
+        now=1.0,
+        origin="user",
+        verified=True,
+        also_write=[blocker / "sub.md"],
+    )
+    assert r["ok"] is False and "Rollback" in r["reason"]
+    assert not prim.exists()
+
+
+def test_a3_supersede_archiv_wird_zurueckgerollt(tmp_path):
+    """A3 (P1): scheitert das Schreiben, wird auch das zuvor angelegte Archiv zurückgerollt."""
+    prim = tmp_path / "prim.md"
+    prim.write_text("ALT", encoding="utf-8")
+    blocker = tmp_path / "blocker"
+    blocker.write_text("datei", encoding="utf-8")
+    r = wg.store_file(
+        target=prim,
+        content="NEU",
+        now=2.0,
+        origin="user",
+        verified=True,
+        supersede=True,
+        also_write=[blocker / "sub.md"],
+    )
+    assert r["ok"] is False
+    assert prim.read_text(encoding="utf-8") == "ALT"
+    assert list(tmp_path.glob("prim.superseded-*")) == []  # Archiv zurückgerollt
+
+
+def test_a3_supersede_entry_rollback_mit_altstand(tmp_path):
+    """A3 (P1): supersede_entry rollt bei Schreibfehler den alten tier1-Eintrag zurück."""
+    t1 = tmp_path / "t1"
+    t1.mkdir()
+    (t1 / "k.md").write_text("ALT", encoding="utf-8")
+    (t1 / "supersede.jsonl").mkdir()  # Log-Ziel ist ein Verzeichnis -> open() scheitert
+    r = wg.supersede_entry(t1, "k", "NEU", 7.0)
+    assert r["ok"] is False and "Rollback" in r["reason"]
+    assert (t1 / "k.md").read_text(encoding="utf-8") == "ALT"
+    assert list(t1.glob("k.superseded-*")) == []
+
+
+def test_a3_supersede_entry_rollback_ohne_altstand(tmp_path):
+    """A3 (P1): ohne Altstand entfernt der Rollback den halb geschriebenen tier1-Eintrag."""
+    t1 = tmp_path / "t1"
+    t1.mkdir()
+    (t1 / "supersede.jsonl").mkdir()
+    r = wg.supersede_entry(t1, "neu", "NEU", 7.0)
+    assert r["ok"] is False and "Rollback" in r["reason"]
+    assert not (t1 / "neu.md").exists()
