@@ -3,8 +3,9 @@
 > Datum: 2026-10-07 · Status: **Belegt** (Mechanismus: adaptiver Exponential-Decay,
 > moduliert durch Relevanz/Zugriffsfrequenz/Zeit) + **Auftrag** (geschlossene Form,
 > Defaults β/γ, Policy-Name `fademem`).
-> §9-Status: **ask (neue Quelle)** — FadeMem ist nicht in der Ontologie; Umstellung
-> des **Defaults** ist zusätzlich §9-pflichtig und **nicht** hier freigegeben.
+> §9-Status: **approved** (Batnini + Taoufik, 2026-10-08; neue Quelle in
+> `ontology.md` §C aufgenommen, siehe `versions/v12`) — die Umstellung des
+> **Defaults** auf `fademem` ist weiterhin §9-pflichtig und **nicht** hier freigegeben.
 
 ## 1. Quellen (VOR Nutzung per curl geprüft)
 

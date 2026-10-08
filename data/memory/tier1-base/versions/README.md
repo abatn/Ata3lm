@@ -18,3 +18,4 @@
 | v9 | 2026-10-03 | Guardrail 7 (echte Verifikation, Fakes verboten). |
 | v10 | 2026-10-05 | P3b (F3): MD034-Fix in `AGENTS.md` (bare URLs → `<…>`) — inhaltlich nullwortfrei. |
 | v11 | 2026-10-07 | ZsRE-Quelle (`community-datasets/qa_zre`) in `ontology.md` ergänzt (§10.3-Konsolidierungskorpus, §9 `approved`). |
+| v12 | 2026-10-08 | §9 approved (Batnini+Taoufik): Quellen FadeMem (ICASSP) + Out-of-Band (Zenodo) in ontology.md; A5 Ontologie-Bezug geschlossen. |

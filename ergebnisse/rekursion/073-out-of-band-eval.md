@@ -3,7 +3,7 @@
 > Datum: 2026-10-07 · Phasen: Konstrukt → Akt → Observe → Compare (echte Tests).
 > Ziel `g`: Compare soll **kein** Selbstreport-Signal akzeptieren (§6); es braucht
 > ein **echtes externes Signal** (Code-Run/Datei/DB) — Out-of-Band-Evaluation.
-> Status: **`pending`** (§9 `ask`: neue Quelle + Interface-Änderung; kein `self_update`).
+> Status: **`approved`** (Batnini + Taoufik, 2026-10-08; §9: neue Quelle + Interface-Änderung freigegeben).
 
 ## 1. Quellen (per `curl` real verifiziert, HTTP 200, 2026-10-07)
 
@@ -54,9 +54,11 @@ ruff check world_state_oracle.py test_world_state_oracle.py \
 
 1. **§9 Human-Gate:** neue Quelle (arXiv:2607.25152 + Zenodo) → `ask`;
    Interface-Änderung (`world_state_probe`/`world_state_claim`) → `ask`.
+   **Erledigt:** `approved` (Batnini + Taoufik, 2026-10-08) — siehe §6.
 2. Ontologie-Eintrag der neuen Quelle erst nach menschlicher Freigabe.
+   **Erledigt** (2026-10-08): Eintrag in `ontology.md` §C ergänzt (`versions/v12`).
 3. Kein `self_update` an Originaldateien; `AGENTS.md`/`tier1-base` unverändert.
 
 ## 6. Status
 
-**`pending`** (§9 `ask`) — kein `self_update`, kein Git (G6), keine Erfindung (G7).
+**`approved`** (Batnini + Taoufik, 2026-10-08) — kein Git (G6), keine Erfindung (G7).

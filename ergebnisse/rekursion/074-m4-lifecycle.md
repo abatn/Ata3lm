@@ -6,7 +6,7 @@
 > bereits-konsolidierte Fakten als **`non-write`** behandeln (nicht erneut extern
 > speichern). Quelle steht **im Gesetz**: arXiv:2608.22215 §3.4 — „the router
 > adaptively suppress redundant writes as the model's epistemic boundaries evolve".
-> Status: **`ask`** (§9: Interface-Änderung; kein `self_update`).
+> Status: **`approved`** (Batnini + Taoufik, 2026-10-08; §9: Interface-Änderung freigegeben).
 
 ## 1. Quellen (per `curl` real verifiziert)
 
@@ -61,9 +61,10 @@ ruff check fast_write_router.py test_lifecycle_discard.py                -> All 
 ## 5. Offene Punkte
 
 1. **§9 Human-Gate:** Interface-Änderung (`state_path`, neuer Hook) → `ask`.
+   **Erledigt:** `approved` (Batnini + Taoufik, 2026-10-08).
 2. Kein `self_update` an Originaldateien; `AGENTS.md`/`tier1-base` unverändert.
 3. Voller `make test` (Coverage-Gate) steht aus (siehe §3).
 
 ## 6. Status
 
-`ask` — kein `self_update`, kein Git (G6), keine Erfindung (G7).
+`approved` (Batnini + Taoufik, 2026-10-08) — kein Git (G6), keine Erfindung (G7).

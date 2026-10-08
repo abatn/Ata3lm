@@ -44,6 +44,8 @@ Quellen:
 - Graphiti (Fakten mit Validitätsfenstern): https://arxiv.org/abs/2501.13956
 - SHIMI (semantische Hierarchie): https://arxiv.org/abs/2504.06135
 - ZsRE (`community-datasets/qa_zre`; §10.3-Konsolidierungskorpus, `approved` Batnini 2026-10-07): https://huggingface.co/datasets/community-datasets/qa_zre · Levy et al. 2017 https://aclanthology.org/K17-1034
+- FadeMem (adaptiver Exponential-Decay, Tier-3-Eviction; §9 approved Batnini+Taoufik 2026-10-08): IEEE DOI 10.1109/icassp55912.2026.11462095 · https://arxiv.org/abs/2601.18642
+- Out-of-Band-Evaluation / World-State-Oracle (Compare-Ground-Truth §6; §9 approved Batnini+Taoufik 2026-10-08): Zenodo DOI 10.5281/zenodo.21594735 · https://arxiv.org/abs/2607.25152
 
 ## D. Memory-Lifecycle (Belegt: HeLa-Mem + Memory Survey)
 
