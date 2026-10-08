@@ -113,12 +113,46 @@ def test_read_jsonl_fehlende_datei_ist_leer(tmp_path):
 def test_load_state_nicht_dict_ist_leer(tmp_path):
     state = tmp_path / "state.json"
     state.write_text("[1, 2, 3]", encoding="utf-8")  # valides JSON, aber keine Map
-    assert sc._load_state(state) == {"consolidated": []}
+    assert sc._load_state(state) == {"consolidated": [], "entries": {}}
+
+
+def test_load_state_legacy_und_defekte_entries(tmp_path):
+    """N2-Rückwärtskompatibilität: altes Key-Listen-Format + tolerante `entries`."""
+    legacy = tmp_path / "legacy.json"
+    legacy.write_text('{"consolidated": null}', encoding="utf-8")
+    assert sc._load_state(legacy) == {"consolidated": [], "entries": {}}
+    mixed = tmp_path / "mixed.json"
+    mixed.write_text(
+        json.dumps({"consolidated": ["k1"], "entries": {"k1": {"fact_sha256": "abc"}, "k2": "kein-dict"}}),
+        encoding="utf-8",
+    )
+    got = sc._load_state(mixed)
+    assert got["consolidated"] == ["k1"]
+    assert got["entries"] == {"k1": {"fact_sha256": "abc", "model": None, "probe_passed": None}}
 
 
 def test_flush_leerer_key_wird_uebersprungen(tmp_path):
-    res = sc.flush(["", "fehlt"], tmp_path / "tier3")
-    assert res["blocked"] == [] and res["missing"] == ["fehlt"] and res["removed"] == []
+    state = tmp_path / "state.json"
+    sc.mark_consolidated([], state)  # gültige Beleg-Datei (leer)
+    res = sc.flush(["", "fehlt"], tmp_path / "tier3", state_path=state)
+    assert res["ok"] and res["blocked"] == ["fehlt"] and res["missing"] == [] and res["removed"] == []
+
+
+def test_mark_consolidated_meta_n2(tmp_path):
+    """N2: `facts`/`model`/`probe_passed` werden je Key verbucht (Hash-Bindung)."""
+    state = tmp_path / "state.json"
+    r = sc.mark_consolidated(
+        ["k1", "k2"],
+        state,
+        facts={"k1": "Inhalt 1"},  # k2 fehlt im Mapping ⇒ Hash bleibt unbekannt
+        model="qwen3-8B",
+    )
+    assert r["added"] == ["k1", "k2"]
+    loaded = sc._load_state(state)
+    assert loaded["entries"]["k1"]["fact_sha256"] == provenance.content_hash("Inhalt 1")
+    assert loaded["entries"]["k1"]["model"] == "qwen3-8B"
+    assert loaded["entries"]["k1"]["probe_passed"] is True
+    assert loaded["entries"]["k2"]["fact_sha256"] is None
 
 
 # ----------------------------------------------------------------- build_sft_dataset
@@ -180,11 +214,13 @@ def test_flush_entfernt_nur_konsolidierte(tmp_path):
     assert list(tier3.glob("*.superseded-*.md"))
 
 
-def test_flush_ohne_state_und_missing(tmp_path):
+def test_flush_ohne_state_verweigert_n3(tmp_path):
+    """N3 (Audit b09a0a9): ohne Erfolgsbeleg wird NICHTS gelöscht."""
     tier3, _log = _fixture(tmp_path)
     res = sc.flush(["hauptstadt-frankreich", "gibt-es-nicht"], tier3)
-    assert res["removed"] == ["hauptstadt-frankreich"]
-    assert res["missing"] == ["gibt-es-nicht"] and res["blocked"] == []
+    assert res["ok"] is False and res["removed"] == [] and res["missing"] == []
+    assert res["blocked"] == ["hauptstadt-frankreich", "gibt-es-nicht"]
+    assert (tier3 / "hauptstadt-frankreich.md").exists()  # kein ungeprüftes Löschen
 
 
 # ----------------------------------------------------------------- Kaggle-Stub

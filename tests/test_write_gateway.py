@@ -706,6 +706,57 @@ def test_k8_fail_closed_untrusted_und_unverified(tmp_path):
     assert r2["ok"] is False and not (tmp_path / "s").exists()
 
 
+def test_n6_legacy_body_only_structured_file_bleibt_body(tmp_path):
+    """N6: ein structured-Dokument OHNE K8-Kopf (Write vor K8) wird als Body gehasht."""
+    s = tmp_path / "s"
+    s.mkdir()
+    (s / "was-ist-x.md").write_text("X ist ALT", encoding="utf-8")  # Body-only, kein §6-Kopf
+    r = wg.store(
+        question="Was ist X",
+        fact="X ist NEU",
+        correct="NEU",
+        classify_fn=_cls("write-update"),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=tmp_path / "t3",
+        mandate_obj=_mandate(),
+    )
+    assert r["ok"] is True
+    expected = f"entity:{provenance.content_hash('X ist ALT')[:16]}"
+    assert r["provenance"]["entity"]["prov:wasRevisionOf"] == expected
+
+
+def test_n4_freigabe_mit_gebundenen_refs_wird_akzeptiert(tmp_path):
+    """N4: eine an Body + §6-Kopf gebundene Freigabe wird akzeptiert (positiver Zweig)."""
+    import approval
+
+    s, t3 = tmp_path / "s", tmp_path / "t3"
+    structured = s / "was-ist-x.md"
+    sha = wg._approval_sha(
+        "X ist Y", [structured, t3 / "was-ist-x.md"], source_ref="AGENTS.md", ontology_ref="Denken (5)"
+    )
+    obj = approval.TwoPersonApproval(subject="Was ist X")
+    obj.approve("Batnini", diff_sha=sha)
+    obj.approve("Taoufik", diff_sha=sha)
+    obj.finalize()
+    r = wg.store(
+        question="Was ist X",
+        fact="X ist Y",
+        correct="Y",
+        classify_fn=_cls("write-new"),
+        now=1.0,
+        structured_dir=s,
+        tier3_dir=t3,
+        mandate_obj=_mandate(),
+        self_update=True,
+        approval_obj=obj,
+        source_ref="AGENTS.md",
+        ontology_ref="Denken (5)",
+    )
+    assert r["ok"] is True and r["provenance"]["approval"]["diff_sha"] == sha
+    assert "Denken (5)" in structured.read_text(encoding="utf-8")
+
+
 # --------------------------- N1: Provenienz + Datenwrite = EINE Transaktion (K3)
 def test_n1_store_provenance_log_ist_verzeichnis_kein_write(tmp_path):
     """N1 (Auftrag): `provenance_log` = Verzeichnis -> Write VERWEIGERT (R08), keine Mutation."""

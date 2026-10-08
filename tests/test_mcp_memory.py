@@ -11,6 +11,25 @@ import mcp_memory_server as m
 import pytest
 
 
+def _k8_body(text: str) -> str:
+    """N5/K8: Body hinter dem `structured`-§6-Kopf (bzw. der ganze Text ohne Kopf)."""
+    if text.lower().startswith("- ontologie-bezug:"):
+        return text.split("\n\n", 1)[-1]
+    return text
+
+
+def _assert_k8_structured(text: str, body: str):
+    """N5/K8: `structured` trägt die 3 Pflichtfelder; der Body bleibt der Fakt.
+
+    Die Roh-Gleichheit wird durch Kopf-Toleranz ersetzt – die inhaltliche Semantik
+    (Tri-Color, Scope-Trennung, R11–R14, N1/N2 fail-closed) bleibt unverändert.
+    """
+    low = text.lower()
+    for feld in ("ontologie-bezug", "quelle", "evidence"):
+        assert feld in low, f"{feld} fehlt im §6-Kopf"
+    assert _k8_body(text).rstrip().endswith(body)
+
+
 def _setup(tmp_path, monkeypatch):
     scopes = {s: tmp_path / s for s in ["tier1", "tier2", "tier3", "structured", "connectors", "skills"]}
     for d in scopes.values():
@@ -48,7 +67,7 @@ def test_write_tricolor(tmp_path, monkeypatch):
     assert red["ok"] is False and red["status"] == "rejected"
     assert not (scopes["structured"] / "boese.md").exists()  # Red wird NICHT geschrieben
     assert m.write("structured", "x.md", "y", trust="gelb")["ok"] is False
-    assert (scopes["structured"] / "neu.md").read_text(encoding="utf-8") == "KI-Vorschlag"
+    _assert_k8_structured((scopes["structured"] / "neu.md").read_text(encoding="utf-8"), "KI-Vorschlag")
 
 
 def test_search_alle_scopes_und_gezielt(tmp_path, monkeypatch):
@@ -115,7 +134,7 @@ def test_green_ueberschreibt_blue_nicht(tmp_path, monkeypatch):
     assert m.write("structured", "cur.md", "Bestätigt", trust="blue")["ok"] is True
     r = m.write("structured", "cur.md", "Vorschlag", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"
-    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
+    _assert_k8_structured((scopes["structured"] / "cur.md").read_text(encoding="utf-8"), "Bestätigt")
 
 
 def test_tier1_nur_blue(tmp_path, monkeypatch):
@@ -147,7 +166,7 @@ def test_n1_alias_key_teilt_trust_key(tmp_path, monkeypatch):
     assert m.write("structured", "cur.md", "Bestätigt", trust="blue")["ok"] is True
     r = m.write("structured", "./cur.md", "Vorschlag", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"  # Blue-Schutz greift über Alias
-    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
+    _assert_k8_structured((scopes["structured"] / "cur.md").read_text(encoding="utf-8"), "Bestätigt")
     assert list(m._load_trust_db(m._trust_db_path())) == ["structured/cur.md"]  # Scope+kanonischer Key
 
 
@@ -156,7 +175,8 @@ def test_n1_green_auf_green_erlaubt(tmp_path, monkeypatch):
     scopes = _setup(tmp_path, monkeypatch)
     assert m.write("structured", "x.md", "v1", trust="green")["ok"] is True
     r = m.write("structured", "x.md", "v2", trust="green")
-    assert r["ok"] is True and (scopes["structured"] / "x.md").read_text(encoding="utf-8") == "v2"
+    assert r["ok"] is True
+    _assert_k8_structured((scopes["structured"] / "x.md").read_text(encoding="utf-8"), "v2")
 
 
 def test_n2_fail_closed_existierende_datei_unbekannter_trust(tmp_path, monkeypatch):
@@ -167,11 +187,11 @@ def test_n2_fail_closed_existierende_datei_unbekannter_trust(tmp_path, monkeypat
     db.write_text("{kaputt", encoding="utf-8")  # beschädigte Trust-DB
     r = m.write("structured", "keep.md", "Clobber", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"
-    assert (scopes["structured"] / "keep.md").read_text(encoding="utf-8") == "Bestätigt"
+    _assert_k8_structured((scopes["structured"] / "keep.md").read_text(encoding="utf-8"), "Bestätigt")
     db.unlink()  # fehlende Trust-DB ebenso fail-closed
     r2 = m.write("structured", "keep.md", "Clobber2", trust="green")
     assert r2["ok"] is False and r2["status"] == "rejected"
-    assert (scopes["structured"] / "keep.md").read_text(encoding="utf-8") == "Bestätigt"
+    _assert_k8_structured((scopes["structured"] / "keep.md").read_text(encoding="utf-8"), "Bestätigt")
 
 
 def test_write_lock_konflikt_wird_rejected(tmp_path, monkeypatch):
@@ -192,8 +212,8 @@ def test_r13_scope_trennung_gleicher_key(tmp_path, monkeypatch):
     assert m.write("structured", "cur.md", "Bestätigt", trust="blue")["ok"] is True
     r = m.write("tier3", "cur.md", "Vorschlag", trust="green")
     assert r["ok"] is True and r["status"] == "proposed"
-    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Bestätigt"
-    assert (scopes["tier3"] / "cur.md").read_text(encoding="utf-8") == "Vorschlag"
+    _assert_k8_structured((scopes["structured"] / "cur.md").read_text(encoding="utf-8"), "Bestätigt")
+    assert (scopes["tier3"] / "cur.md").read_text(encoding="utf-8") == "Vorschlag"  # nicht-structured: body-only
     db = m._load_trust_db(m._trust_db_path())
     assert db["structured/cur.md"] == "blue" and db["tier3/cur.md"] == "green"
 
@@ -206,7 +226,7 @@ def test_r11_db_verlust_kein_cross_scope_repair(tmp_path, monkeypatch):
     assert m.write("tier3", "cur.md", "GREEN", trust="green")["ok"] is True
     r = m.write("structured", "cur.md", "CLOBBER", trust="green")
     assert r["ok"] is False and r["status"] == "rejected"
-    assert (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "BLUE"
+    _assert_k8_structured((scopes["structured"] / "cur.md").read_text(encoding="utf-8"), "BLUE")
 
 
 def test_r14_altformat_scope_qualified_akzeptiert(tmp_path, monkeypatch):
@@ -217,7 +237,8 @@ def test_r14_altformat_scope_qualified_akzeptiert(tmp_path, monkeypatch):
     green = m.write("structured", "cur.md", "Vorschlag", trust="green")
     assert green["ok"] is False and green["status"] == "rejected"  # Blue-Schutz aus Altformat
     blue = m.write("structured", "cur.md", "Neu bestätigt", trust="blue")
-    assert blue["ok"] is True and (scopes["structured"] / "cur.md").read_text(encoding="utf-8") == "Neu bestätigt"
+    assert blue["ok"] is True
+    _assert_k8_structured((scopes["structured"] / "cur.md").read_text(encoding="utf-8"), "Neu bestätigt")
 
 
 def test_r12_symlink_ausserhalb_scope_rejected(tmp_path, monkeypatch):
@@ -238,7 +259,8 @@ def test_r12_symlink_im_scope_erlaubt(tmp_path, monkeypatch):
     os.symlink(inside, scopes["structured"] / "kurz.md")
     (scopes["tier2"] / "mcp-trust.json").write_text(json.dumps({"structured/kurz.md": "green"}), encoding="utf-8")
     r = m.write("structured", "kurz.md", "Neu", trust="green")
-    assert r["ok"] is True and inside.read_text(encoding="utf-8") == "Neu"
+    assert r["ok"] is True
+    _assert_k8_structured(inside.read_text(encoding="utf-8"), "Neu")
 
 
 def test_r15_metadaten_falscher_typ_rejected(tmp_path, monkeypatch):

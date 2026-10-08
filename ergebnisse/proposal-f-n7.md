@@ -90,5 +90,7 @@ Repro (Phase 2): `test_oracle_success_drives_revision_without_self_report`.
 
 ## 8. Freigabe
 
-- Status: `pending`
-- Human-Gate-Referenz: Rekursion entsteht mit Phase-2-Umsetzung.
+- Status: `implementiert (approved)`
+- §9-Freigabe: **`approved`** — Batnini + Taoufik, 2026-10-08 (§9.3, ≥ 2 Personen).
+- Umsetzung belegt in: `ergebnisse/rekursion/080-n7-oracle-evidenz-revise.md`.
+- Human-Gate-Referenz: Rekursion 080 (Phase-2-Umsetzung). Kein Commit (G6).

@@ -1,7 +1,8 @@
 # PROPOSAL E — N5: MCP-Write nutzt §6-Pflichtfelder (kein Umgehungspfad)
 
-> **Phase 0 — NUR Entwurf (Auftrag „Knowledge-Agent härten N1–N8"). NICHT implementieren
-> vor §9 `approved` (≥ 2 Personen, §9.3). Befund-Quelle (verbindlich): Audit b09a0a9.**
+> **Implementiert (Phase 2) — §9-Freigabe `approved` (Batnini + Taoufik, 2026-10-08).**
+> Umsetzung + Belege: `ergebnisse/rekursion/079-n4-n6-n5-approval-provrevision-mcp.md`.
+> Befund-Quelle (verbindlich): Audit b09a0a9. (Ursprünglich Phase-0-Entwurf.)
 
 ## 0. Metadaten
 
@@ -91,5 +92,5 @@ neuer öffentlicher Parameter (§9), sondern Nutzung der bestehenden K8-Mechanik
 
 ## 8. Freigabe
 
-- Status: `pending`
-- Human-Gate-Referenz: Rekursion entsteht mit Phase-2-Umsetzung.
+- Status: **`implementiert (approved)`** — §9-Freigabe: Batnini + Taoufik, 2026-10-08.
+- Human-Gate-Referenz: `ergebnisse/rekursion/079-n4-n6-n5-approval-provrevision-mcp.md`.

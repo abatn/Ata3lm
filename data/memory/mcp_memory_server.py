@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import provenance
 import trust as trust_mod
 import write_gateway
 
@@ -148,7 +149,9 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
 
     Gate (§9.2c/§9.3/§10.7): `green` darf ein **bestätigtes** `blue` **nicht**
     überschreiben; `tier1` (kuratiert) nur mit `blue`. **§9.2a:** PII wird VOR
-    dem Store entfernt (`trust.PIIFilter.minimize`).
+    dem Store entfernt (`trust.PIIFilter.minimize`). **N5 (§6/K8):** ein
+    `structured`-Write trägt den §6-Kopf (`Ontologie-Bezug`/`Quelle`/`Evidence`);
+    alle übrigen Scopes bleiben body-only (unverändert).
     """
     if trust not in TRUST_COLORS:
         return {"ok": False, "reason": f"ungültige Trust-Farbe {trust!r} (erlaubt: {TRUST_COLORS})"}
@@ -209,10 +212,23 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
             "reason": "tier1 (kuratiert) nur mit trust=blue + Approval (§9.2c/§9.3)",
         }
     clean = trust_mod.PIIFilter().minimize(content)  # §9.2a: PII vor dem Store entfernen
+    # N5 (Auftrag, §6/K8): JEDER `structured`-Einstieg trägt die Pflichtfelder
+    # (`Ontologie-Bezug`/`Quelle`/`Evidence`). Nicht-`structured`-Writes
+    # (JSONL/History/tier1/tier3) bleiben UNVERÄNDERT Body-only.
+    written = clean
+    if scope == "structured":
+        record = provenance.build_record(
+            fact=clean,
+            activity=f"mcp-write:{scope}",
+            agent="mcp-memory-server",
+            source="tool:verified",
+            now=time.time(),
+        )
+        written = write_gateway._structured_doc(clean, record)
     # K2: EIN Schreibpfad – die Mutation läuft durch das Write-Gateway (inkl. Provenienz K3).
     res = write_gateway.store_file(
         target=path,
-        content=clean,
+        content=written,
         now=time.time(),
         activity=f"mcp-write:{scope}",
         agent="mcp-memory-server",
@@ -231,7 +247,7 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
         "trust": trust,
         "scope": scope,
         "key": key,
-        "bytes": len(clean.encode("utf-8")),
+        "bytes": len(written.encode("utf-8")),
     }
 
 

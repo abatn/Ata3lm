@@ -162,11 +162,21 @@ def _phase_revise(ctx: dict) -> dict:
             "reason": f"Akt nicht ausdrücklich zulässig (ok={akt.get('ok')}, gate={gate}) – keine Revision (§9)",
         }
     vergleich = ctx["results"]["Compare"]
-    # §9.1d: passende Evidenz = externes Signal mit ≥ 1 positivem Beleg.
-    n = ctx["successes"] + ctx["failures"]
-    score = (ctx["successes"] / n) if n else 0.0
-    # R10/A4: Score < 70 % ⇒ keine Revision (1 Erfolg / 99 Fehler lernt nicht).
-    evidence_ok = bool(vergleich.get("observed")) and ctx["successes"] >= 1 and score >= REVISE_MIN_SCORE
+    # N7/§6: Liegt ein Oracle-Signal vor (Compare mit `world_state_probe`), entscheidet
+    # die **Oracle-Evidenz** – Compare und Revise nutzen damit DIESELBE Quelle; der
+    # Selbstreport (`successes`/`failures`) ist nur Annotation. Ohne Probe bleibt der
+    # bisherige Selbstreport-Pfad unverändert (Rückwärtskompatibilität).
+    oracle = vergleich.get("oracle")
+    if oracle is not None:
+        score = float(vergleich.get("score", 0.0))
+        positive = int(oracle.get("successes", 0)) >= 1
+    else:
+        n = ctx["successes"] + ctx["failures"]
+        score = (ctx["successes"] / n) if n else 0.0
+        positive = ctx["successes"] >= 1
+    # §9.1d/R10/A4: passende Evidenz = externes Signal mit ≥ 1 positivem Beleg und
+    # Score ≥ 70 % (1 Erfolg / 99 Fehler lernt nicht).
+    evidence_ok = bool(vergleich.get("observed")) and positive and score >= REVISE_MIN_SCORE
     if not evidence_ok:
         return {
             "phase": "Revise",

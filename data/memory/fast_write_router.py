@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Optional
 
 import gate_labels
+import provenance
 from openai import OpenAI
 
 SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")
@@ -110,6 +111,11 @@ def discard_if_consolidated(fact: str, question: Optional[str] = None, state_pat
     gespeichert: Rückgabe ``{"class":"non-write","gate":"none",
     "reason":"bereits konsolidiert (§10.3)"}`` — sonst ``None``.
 
+    **N2 (Audit b09a0a9):** Konsolidiert gilt nur bei **Inhalt-Gleichheit**
+    (`fact_sha256` aus `mark_consolidated` == Hash des übergebenen Fakts). Eine
+    **geänderte** Antwort zum alten Key wird NICHT verworfen (Rückgabe ``None``);
+    ist der Hash unbekannt (Legacy-State = reine Key-Liste), bleibt der Key-Match.
+
     Quelle (Belegt, im Gesetz): arXiv:2608.22215 §3.4 — „the router adaptively
     suppress redundant writes as the model's epistemic boundaries evolve"
     (AGENTS.md §10.1/§10.3). Die Key-Zuordnung (`_slug(question)`) ist
@@ -118,32 +124,40 @@ def discard_if_consolidated(fact: str, question: Optional[str] = None, state_pat
     **Default `state_path=None` ⇒ unverändertes Verhalten** (rückwärtskompatibel;
     kein bestehender Aufrufer wird beeinflusst).
 
-    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
-    Funktion + Parameter `state_path` (Default `None`).
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, N2):** neue optionale
+    Funktion + Parameter `state_path` (Default `None`) sowie die Hash-Bindung an
+    den Inhalt (`entries[].fact_sha256`).
     """
     if state_path is None:
         return None
     import slow_consolidation
 
-    done = set(slow_consolidation._load_state(state_path).get("consolidated") or [])
+    state = slow_consolidation._load_state(state_path)
+    done = set(state.get("consolidated") or [])
     if not done:
         return None
-    candidates = set()
+    entries = state.get("entries") or {}
+    fact_sha = provenance.content_hash(str(fact)) if fact else None
+    candidates: list = []
     if question:
-        candidates.add(_slug(question))
+        candidates.append(_slug(question))
     if fact:
         f = str(fact).strip()
-        candidates.add(f)
-        candidates.add(_slug(f))
-    hit = sorted(k for k in candidates if k in done)
-    if not hit:
-        return None
-    return {
-        "class": "non-write",
-        "gate": "none",  # Legacy-Alias von fast_write_router -> gate_labels.ALLOW
-        "reason": "bereits konsolidiert (§10.3)",
-        "consolidated_key": hit[0],
-    }
+        candidates.append(f)
+        candidates.append(_slug(f))
+    for k in candidates:
+        if k not in done:
+            continue
+        # N2: nur verwerfen, wenn der übergebene Fakt-Hash zum konsolidierten passt.
+        if not slow_consolidation._is_consolidated(entries.get(k), fact_sha):
+            continue
+        return {
+            "class": "non-write",
+            "gate": "none",  # Legacy-Alias von fast_write_router -> gate_labels.ALLOW
+            "reason": "bereits konsolidiert (§10.3)",
+            "consolidated_key": k,
+        }
+    return None
 
 
 def classify(question: str, fact: str, correct: str, *, state_path=None) -> dict:

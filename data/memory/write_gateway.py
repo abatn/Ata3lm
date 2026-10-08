@@ -53,8 +53,8 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "eintrag"
 
 
-def _approval_sha(content: str, targets) -> str:
-    """R01/A1 (Auftrag): Freigabe an **Inhalt + gesamte Zielmenge** binden (§9.3).
+def _approval_sha(content: str, targets, source_ref: str = "", ontology_ref: str = "") -> str:
+    """R01/A1 + N4 (Auftrag): Freigabe an **Inhalt + Zielmenge + §6-Kopf** binden (§9.3).
 
     Der Diff-Hash wird aus dem Inhalt UND **allen** Zielpfaden (kanonisch sortiert)
     gebildet, damit
@@ -62,13 +62,18 @@ def _approval_sha(content: str, targets) -> str:
         wiederverwendet werden kann (Freigabe-Replay, R01) **und**
       - `also_write`-Ziele mitgebunden sind: eine für die Primärdatei erteilte Freigabe
         deckt ein zusätzliches (nicht genehmigtes) Ziel NICHT ab (A1).
-    Ein einzelnes Ziel bleibt rückwärtskompatibel: ``sha256(content \\x00 target)``.
+    **N4:** Sind `source_ref`/`ontology_ref` gesetzt (K8-§6-Kopffelder), gehen sie in die
+    Bindung ein; eine für Body „X" erteilte Freigabe deckt damit **nicht** einen
+    abweichenden Kopf (`Quelle`/`Ontologie-Bezug`) ab. **Leere Refs ⇒ exakt der alte
+    Hash** (Rückwärtskompatibilität): ``sha256(content \\x00 targets)``.
     Bindung = sha256-Inhalt-Hash aus `provenance`.
     """
     if isinstance(targets, (str, os.PathLike)):
         targets = [targets]
     parts = sorted(str(Path(t)) for t in targets)
-    return provenance.content_hash(content + "\x00" + "\x00".join(parts))
+    refs = (source_ref or "") + "\x00" + (ontology_ref or "")
+    material = content if refs == "\x00" else content + "\x00" + refs
+    return provenance.content_hash(material + "\x00" + "\x00".join(parts))
 
 
 def default_mandate(agent: str = "knowledge-agent") -> "mandate.Mandate":
@@ -164,6 +169,23 @@ def _structured_doc(body: str, record: dict, ontology_ref: str = "", source_ref:
     bezug = (ontology_ref or "").strip() or "offen (§4 – Klärung ausstehend)"
     header = f"- Ontologie-Bezug: {bezug}\n- Quelle: {quelle}\n- Evidence: sha256:{sha} · {created} · approval:{appr}\n"
     return header + "\n" + body
+
+
+_K8_HEAD_FIRST_FIELD = "- ontologie-bezug:"
+
+
+def _strip_k8_header(text: str) -> str:
+    """N6 (Auftrag): den K8-§6-Kopf entfernen und den reinen **Body** liefern.
+
+    `_structured_doc` schreibt 3 Kopffelder + Leerzeile + Body. Für die
+    PROV-Revisionsverknüpfung muss der Vorgänger-Hash über den **Body** gebildet
+    werden (K3 bindet `entity.sha256` = Hash des Fakts, nicht des Kopfes). Ein
+    Dokument **ohne** K8-Kopf (Write vor K8, Body-only) wird unverändert
+    zurückgegeben – der Hash bleibt dann der Body.
+    """
+    if not text.lower().startswith(_K8_HEAD_FIRST_FIELD):
+        return text
+    return text.partition("\n\n")[2]
 
 
 # --------------------------------------------------- Mutation (EIN write_text-Pfad)
@@ -585,6 +607,11 @@ def store(
     Parameter `ontology_ref`/`source_ref`. Das `structured`-Ziel erhält einen
     §6-Kopf (`Ontologie-Bezug`/`Quelle`/`Evidence`); `tier3` bleibt Body-only
     (K3-`sha256`-Bindung + `collect_pending` §10.3 bleiben intakt).
+
+    **N4 (Auftrag):** die Zwei-Personen-Freigabe bindet zusätzlich `source_ref` +
+    `ontology_ref` (`_approval_sha`); abweichende Kopffelder ⇒ Freigabe-Replay (deny).
+    **N6 (Auftrag):** `revision_of` wird über den **Body ohne K8-Kopf** gebildet,
+    damit `prov:wasRevisionOf` auf die reale vorige Entity-ID zeigt.
     """
     steps: list = []
     dec, gate = _gate_mandate(mandate_obj, agent, now)
@@ -678,7 +705,11 @@ def store(
     binding = None
     if self_update:
         state, binding = _gate_approval(
-            approval_obj, approvers, question, _approval_sha(clean, [t for t, _ in targets])
+            approval_obj,
+            approvers,
+            question,
+            # N4 (Auftrag): die §6-Kopffelder sind Teil der Freigabe-Bindung (§9.3).
+            _approval_sha(clean, [t for t, _ in targets], source_ref=source_ref, ontology_ref=ontology_ref),
         )
         steps.append(("approval", state))
         if state != "approved":
@@ -708,7 +739,9 @@ def store(
             "steps": steps,
         }
 
-    old_content = structured_file.read_text(encoding="utf-8") if structured_file.exists() else None
+    # N6 (Auftrag): Revisions-Hash über den **Body ohne K8-Kopf** bilden, damit
+    # `prov:wasRevisionOf` == vorige Entity-ID (sha256 des Fakts) ist.
+    old_content = _strip_k8_header(structured_file.read_text(encoding="utf-8")) if structured_file.exists() else None
     try:
         record = provenance.build_record(
             fact=clean,

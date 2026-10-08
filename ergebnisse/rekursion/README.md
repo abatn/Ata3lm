@@ -102,6 +102,9 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 075 | `075-k8-structured-pflichtfelder.md` | System-Iteration (K8: §6-Pflichtfelder im `structured`-Write, Gateway↔Invariante) | **approved**: Batnini, 2026-10-08 | siehe File |
 | 076 | `076-n1-provenienz-transaktion.md` | System-Iteration (N1: Provenienz + Datenwrite = EINE Transaktion, Phase 1 autonom) | umgesetzt; Review im Gesamt-STOPP ausstehend | siehe File |
 | 077 | `077-n8-theta-basismessung.md` | System-Iteration (N8: Basismessung vor `PeftModel.from_pretrained`, Phase 1 autonom) | umgesetzt; §9 `ask` offen (neue Quellen + GPU-Gesamtlauf) | siehe File |
+| 078 | `078-n2-n3-konsolidierung-flush.md` | System-Iteration (N2/N3: Konsolidierung an Inhalt gebunden + Flush nur mit Erfolgsbeleg/Archivschutz, Phase 2) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 079 | `079-n4-n6-n5-approval-provrevision-mcp.md` | System-Iteration (N4/N6/N5: Freigabe bindet §6-Kopf · PROV-Revisionskette · MCP-§6-Pflichtfelder, Phase 2) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 080 | `080-n7-oracle-evidenz-revise.md` | System-Iteration (N7: bei `world_state_probe` entscheidet die Oracle-Evidenz die Revision, Phase 2) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 
 ## Guardrail
 

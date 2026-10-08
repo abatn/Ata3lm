@@ -1,7 +1,8 @@
 # PROPOSAL B — N2: Konsolidierung an Inhalt/Modell binden (statt nur Key)
 
-> **Phase 0 — NUR Entwurf (Auftrag „Knowledge-Agent härten N1–N8"). NICHT implementieren
-> vor §9 `approved` (≥ 2 Personen, §9.3). Befund-Quelle (verbindlich): Audit b09a0a9.**
+> **Implementiert (Phase 2) — §9-Freigabe `approved` (Batnini + Taoufik, 2026-10-08).**
+> Umsetzung + Belege: `ergebnisse/rekursion/078-n2-n3-konsolidierung-flush.md`.
+> Befund-Quelle (verbindlich): Audit b09a0a9. (Ursprünglich Phase-0-Entwurf.)
 
 ## 0. Metadaten
 
@@ -93,5 +94,5 @@ Repro (Phase 2): `test_consolidated_old_key_does_not_hide_updated_fact` · `test
 
 ## 8. Freigabe
 
-- Status: `pending`
-- Human-Gate-Referenz: `ergebnisse/rekursion/NNN-*.md` (Rekursion entsteht mit Phase-2-Umsetzung).
+- Status: **`implementiert (approved)`** — §9-Freigabe: Batnini + Taoufik, 2026-10-08.
+- Human-Gate-Referenz: `ergebnisse/rekursion/078-n2-n3-konsolidierung-flush.md`.

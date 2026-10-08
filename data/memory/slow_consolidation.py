@@ -30,6 +30,12 @@ sind real aus dem externen Puffer gelesen.
 Funktionen/Signaturen (`collect_pending`, `build_sft_dataset`, `mark_consolidated`,
 `flush`, `write_back`) sowie die neuen optionalen Runner-Parameter
 `consolidation_state_path` sind NEU und noch NICHT menschlich freigegeben (§9).
+
+**N2/N3 (Auftrag Phase 2, Audit b09a0a9; §9-Freigabe `approved` Batnini + Taoufik,
+2026-10-08):** Konsolidierung wird an den **Inhalt** gebunden (`fact_sha256` je Key;
+ein geänderter Fakt bleibt nicht versteckt), und `flush` löscht **nur mit Erfolgs-
+beleg** (`state_path` verpflichtend) und **nie** Archiv-Stände (`.superseded-`).
+Rückwärtskompatibel: altes State-Format `{"consolidated": [keys]}` ⇒ Hash unbekannt.
 """
 
 from __future__ import annotations
@@ -69,15 +75,49 @@ def _read_jsonl(path) -> list:
 
 
 def _load_state(state_path) -> dict:
-    """Konsolidierungs-Zustand lesen; fehlend/defekt ⇒ leere Liste."""
+    """Konsolidierungs-Zustand lesen; fehlend/defekt ⇒ leer.
+
+    Rückgabe: ``{"consolidated": [keys], "entries": {key: {...}}}``.
+    **Rückwärtskompatibel (N2):** das alte Format ``{"consolidated": [keys]}`` wird
+    weiter gelesen – dann fehlen die ``entries`` und der konsolidierte Inhalt-Hash
+    gilt als **unbekannt** (Key-Match bleibt gültig, s. `_is_consolidated`).
+    """
+    empty = {"consolidated": [], "entries": {}}
     try:
         data = json.loads(Path(state_path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {"consolidated": []}
+        return empty
     if not isinstance(data, dict):
-        return {"consolidated": []}
+        return empty
     keys = data.get("consolidated")
-    return {"consolidated": [str(k) for k in keys] if isinstance(keys, list) else []}
+    consolidated = [str(k) for k in keys] if isinstance(keys, list) else []
+    entries: dict = {}
+    raw_entries = data.get("entries")
+    if isinstance(raw_entries, dict):
+        for k, v in raw_entries.items():
+            if isinstance(v, dict):
+                entries[str(k)] = {
+                    "fact_sha256": v.get("fact_sha256"),
+                    "model": v.get("model"),
+                    "probe_passed": v.get("probe_passed"),
+                }
+    return {"consolidated": consolidated, "entries": entries}
+
+
+def _is_consolidated(entry: Optional[dict], current_sha: Optional[str]) -> bool:
+    """N2: Gilt ein Fakt als konsolidiert? Nur bei **Hash-Gleichheit**.
+
+    - Kein `entry` (Legacy-State = reine Key-Liste) ⇒ Hash **unbekannt** ⇒ Key-Match.
+    - `fact_sha256` fehlt/None ⇒ Hash **unbekannt** ⇒ Key-Match.
+    - `fact_sha256` gesetzt ⇒ konsolidiert **nur**, wenn == `current_sha`;
+      ein geänderter Fakt (neuer Hash, gleicher Key) ist wieder konsolidierbar.
+    """
+    if not entry:
+        return True
+    stored = entry.get("fact_sha256")
+    if not stored:
+        return True
+    return stored == current_sha
 
 
 def _write_state(state_path, state: dict) -> str:
@@ -135,7 +175,9 @@ def collect_pending(tier3_dir, provenance_log, *, state_path=None, questions=Non
     (Key→Frage; ohne Angabe wird die Frage aus dem Key rekonstruiert).
     """
     tier3 = Path(tier3_dir)
-    done = set(_load_state(state_path)["consolidated"]) if state_path is not None else set()
+    state = _load_state(state_path) if state_path is not None else {"consolidated": [], "entries": {}}
+    done = set(state.get("consolidated") or [])
+    entries = state.get("entries") or {}
     by_hash = _index_tier3_by_hash(tier3)
     pending: list = []
     seen: set = set()
@@ -153,14 +195,19 @@ def collect_pending(tier3_dir, provenance_log, *, state_path=None, questions=Non
             continue
         p = paths[0]
         key = p.stem
-        if key in done:
+        try:
+            fact = p.read_text(encoding="utf-8")
+        except OSError:  # pragma: no cover - unlesbare Datei überspringen
+            continue
+        # N2: nur ausschließen, wenn der AKTUELLE Fakt-Hash == konsolidierter Hash.
+        if key in done and _is_consolidated(entries.get(key), provenance.content_hash(fact)):
             continue
         seen.add(sha)
         pending.append(
             {
                 "key": key,
                 "path": str(p),
-                "fact": p.read_text(encoding="utf-8"),
+                "fact": fact,
                 "class": kind,
                 "source": rec.get("source"),
                 "sha256": sha,
@@ -206,17 +253,27 @@ def build_sft_dataset(pending, out_path) -> dict:
     return {"ok": True, "path": str(out), "count": len(lines), "hashes": hashes}
 
 
-def mark_consolidated(keys, state_path, *, success: bool = True) -> dict:
+def mark_consolidated(
+    keys, state_path, *, success: bool = True, facts=None, model=None, probe_passed: bool = True
+) -> dict:
     """Keys als konsolidiert verbuchen – **nur nach Erfolg** (AGENTS.md §10.3).
 
     `success=False` (Training fehlgeschlagen) ⇒ **kein** Verbuchen; der Fakt bleibt
     damit im externen Puffer. Idempotent (keine Doppel-Keys).
 
-    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer Parameter `success`
-    kodiert die „nur nach Erfolg"-Regel aus §10.3.
+    **N2:** je Key wird zusätzlich `fact_sha256` (Inhalt des konsolidierten Fakts),
+    optional `model` und `probe_passed` verbucht. `facts` = Mapping Key → Fakt-Inhalt;
+    fehlt es, bleibt der Hash **unbekannt** (rückwärtskompatibler Key-Match). Ein
+    erneutes Verbuchen desselben Keys **aktualisiert** den Hash (nach write-update +
+    Retraining ist der neue Fakt wieder konsolidiert).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
+    Parameter `success` (nur nach Erfolg, §10.3) sowie `facts`/`model`/`probe_passed`
+    (N2-Inhaltsbindung; Defaults ⇒ altes Key-Listen-Verhalten).
     """
     state = _load_state(state_path)
     known = list(state.get("consolidated") or [])
+    entries = dict(state.get("entries") or {})
     if not success:
         return {
             "ok": False,
@@ -226,38 +283,57 @@ def mark_consolidated(keys, state_path, *, success: bool = True) -> dict:
             "reason": "Training nicht erfolgreich (§10.3)",
         }
     added: list = []
-    for k in keys or []:
-        k = str(k)
-        if k and k not in known:
+    for k in (str(k) for k in (keys or []) if str(k)):
+        if k not in known:
             known.append(k)
             added.append(k)
+        entry = dict(entries.get(k) or {})
+        if facts and k in facts:
+            entry["fact_sha256"] = provenance.content_hash(str(facts[k]))
+        entry["model"] = model if model is not None else entry.get("model")
+        entry["probe_passed"] = bool(probe_passed)
+        entries[k] = entry
     state["consolidated"] = known
+    state["entries"] = entries
     _write_state(state_path, state)
-    return {"ok": True, "path": str(state_path), "consolidated": known, "added": added}
+    return {"ok": True, "path": str(state_path), "consolidated": known, "added": added, "entries": entries}
 
 
 def flush(keys, tier3_dir, *, state_path=None) -> dict:
     """Konsolidierte Fakten aus dem **externen Puffer** entfernen (AGENTS.md §10.3).
 
-    Erfolgreich konsolidiert ⇒ tier3-Datei löschen; fehlgeschlagen ⇒ bleibt (wird hier
-    nie übergeben). Ist `state_path` gesetzt, werden **nur** dort als konsolidiert
-    verbuchte Keys entfernt – nicht verbuchte landen in `blocked` und bleiben stehen
-    (STOPP: kein Flush ohne Erfolgs-Beleg). Archiv-Stände (`*.superseded-*`) = Historie
-    und bleiben erhalten.
+    Erfolgreich konsolidiert ⇒ tier3-Datei löschen; fehlgeschlagen ⇒ bleibt.
 
-    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer optionaler Parameter
-    `state_path` (Erfolgs-Guard).
+    **N3 (Audit b09a0a9):**
+      - **Ohne `state_path` wird nichts gelöscht** – jeder Key ist `blocked`
+        (kein ungeprüftes Entfernen; §10.3 „nur nach Erfolg").
+      - Der Erfolg wird **aus dem Beleg** (`state_path`/`mark_consolidated`) gelesen,
+        nicht aus bloßer Aufruferangabe: nur dort verbuchte Keys werden entfernt.
+      - Archiv-Stände (`.superseded-` im Namen) = Historie und werden **nie**
+        gelöscht (§10.7 „invalidieren, NICHT löschen").
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** `state_path` ist für
+    einen Flush jetzt **erforderlich**; ohne ihn wird verweigert (Default ⇒ sicher).
     """
     tier3 = Path(tier3_dir)
-    done = set(_load_state(state_path)["consolidated"]) if state_path is not None else None
+    raw = [str(k) for k in (keys or []) if str(k)]
+    if state_path is None:
+        return {
+            "ok": False,
+            "removed": [],
+            "missing": [],
+            "blocked": raw,
+            "reason": "Flush ohne Erfolgsbeleg verweigert (N3/§10.3)",
+        }
+    done = set(_load_state(state_path)["consolidated"])
     removed: list = []
     missing: list = []
     blocked: list = []
-    for k in keys or []:
-        k = str(k)
-        if not k:
+    for k in raw:
+        if ".superseded-" in k:  # N3: Archiv = Historie, NIE löschen (§10.7)
+            blocked.append(k)
             continue
-        if done is not None and k not in done:
+        if k not in done:
             blocked.append(k)  # §10.3: nur nach Erfolg entfernen
             continue
         f = tier3 / f"{Path(k).stem}.md"
