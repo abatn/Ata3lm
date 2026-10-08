@@ -8,6 +8,19 @@ Quelle: Dual-Layer Agentic Memory, arXiv:2608.22215 §3.3 (wörtlich).
   - Eskalationsgate: g* = V_large - V_small; eskalieren wenn g_pred > 0.
   - Taxonomie (§3.1): non-write / write-new / write-update (verhaltensbasiert).
 
+Eskalationsgate `g*` (§3.3.1/§3.3.2, **Belegt**, wörtlich):
+  - Routing-Reward: r(W) = EM(W) - EM(D) - λ_s, r(D) = 0.
+  - V_small = r(a_small), V_large = r(a_large) - λ_e, a = argmax(r(W), r(D)).
+  - g* = V_large - V_small; eskalieren **genau dann**, wenn g_pred > 0.
+  - Paper-λ (Tabelle 1, **Belegt**): (λ_s=0.08, λ_e=0.005) und (λ_s=0.2, λ_e=0.008);
+    Defaults hier 0.08/0.005, per ENV `FWR_LAMBDA_S`/`FWR_LAMBDA_E` überschreibbar.
+
+**Auftrag (ehrlich):** EM(W)/EM(D) werden hier über **Modellverhalten**
+approximiert (`_matches`: Antwort korrekt ja/nein) statt über die im Paper
+(§3.3.3) gelernten MLP-Heads; ein expliziter `g_pred`-Vergleich existiert damit
+erstmals in `classify(reward_gate=True)`. Die Formeln/λ stammen wörtlich aus der
+Quelle (Belegt), die Verhaltens-Approximation ist Projekt-Auftrag.
+
 Lab-Prinzip: keine Erfindung – Logik + Klassen wörtlich aus der Quelle.
 Hinweis (ehrlich): qwen3-1.7B/8B sind auf dem Endpoint nicht verfügbar;
 es werden die nächstliegenden verfügbaren Modelle genutzt (per ENV konfigurierbar).
@@ -35,7 +48,19 @@ from openai import OpenAI
 SMALL_MODEL = os.environ.get("FWR_SMALL_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")
 LARGE_MODEL = os.environ.get("FWR_LARGE_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
 
+# Paper-λ Tabelle 1 (Belegt): Config (λ_s=0.08, λ_e=0.005) – ENV-überschreibbar.
+LAMBDA_S_DEFAULT = 0.08
+LAMBDA_E_DEFAULT = 0.005
+
 _client = None
+
+
+def _env_float(name: str, default: float) -> float:
+    """ENV-Wert als float; fehlend/ungültig ⇒ `default` (keine Exception)."""
+    try:
+        return float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
 
 
 def _get_client():
@@ -95,6 +120,60 @@ def _decide(refusal: bool, large_ok: bool, mem_ok: bool):
     if (not refusal) and (not large_ok) and mem_ok:
         return "write-update", "ask"
     return "uncertain", "ask"
+
+
+def reward(write_correct: bool, discard_correct: bool, lambda_s: float) -> dict:
+    """Routing-Reward r(W)=EM(W)-EM(D)-λ_s, r(D)=0 (Paper §3.3.1, **Belegt**).
+
+    EM(W) = 1.0, wenn der Fakt geschrieben (mit Memory) korrekt beantwortet wird,
+    EM(D) = 1.0, wenn zero-shot (discard) korrekt beantwortet wird. Die
+    EM-Approximation über `_matches`-Verhalten ist Projekt-**Auftrag** (das Paper
+    nutzt gelernte MLP-Heads, §3.3.3).
+    """
+    em_w = 1.0 if write_correct else 0.0
+    em_d = 1.0 if discard_correct else 0.0
+    return {"rW": em_w - em_d - lambda_s, "rD": 0.0}
+
+
+def _argmax_reward(r: dict) -> str:
+    """a = argmax(r(W), r(D)) aus §3.3.2; Gleichstand ⇒ 'D' (nicht schreiben)."""
+    return "W" if r["rW"] > r["rD"] else "D"
+
+
+def escalation_gain(
+    *,
+    small_w: bool,
+    small_d: bool,
+    large_w: bool,
+    large_d: bool,
+    lambda_s: float,
+    lambda_e: float,
+) -> dict:
+    """Gate-Gain g* = V_large - V_small (Paper §3.3.2, **Belegt**).
+
+    V_small = r(a_small); V_large = r(a_large) - λ_e; a = argmax(r(W), r(D)).
+    Eskaliert wird **genau dann**, wenn `g > 0`. Rückgabe enthält den Gate-Gain,
+    die Entscheidung `escalate` sowie V/a beider Router.
+    """
+    r_small = reward(small_w, small_d, lambda_s)
+    r_large = reward(large_w, large_d, lambda_s)
+    a_small = _argmax_reward(r_small)
+    a_large = _argmax_reward(r_large)
+    v_small = r_small["rW"] if a_small == "W" else r_small["rD"]
+    v_large = (r_large["rW"] if a_large == "W" else r_large["rD"]) - lambda_e
+    g = v_large - v_small
+    return {"g": g, "escalate": g > 0, "V_small": v_small, "V_large": v_large, "a_small": a_small, "a_large": a_large}
+
+
+def _router_class(zero: str, mem: str, correct: str):
+    """Klasse aus dem Verhalten EINES Routers (zero-shot vs. mit Memory).
+
+    zero-shot korrekt ⇒ `non-write` (kein Write nötig, §10.1); sonst die
+    §3.1/§10.7-Taxonomie via `_decide` (large_ok=False, da zero-shot nicht korrekt).
+    """
+    if _matches(zero, correct):
+        return "non-write", gate_labels.ALLOW
+    return _decide(is_refusal(zero), False, _matches(mem, correct))
 
 
 def _slug(text: str) -> str:
@@ -160,7 +239,16 @@ def discard_if_consolidated(fact: str, question: Optional[str] = None, state_pat
     return None
 
 
-def classify(question: str, fact: str, correct: str, *, state_path=None) -> dict:
+def classify(
+    question: str,
+    fact: str,
+    correct: str,
+    *,
+    state_path=None,
+    reward_gate: bool = False,
+    lambda_s: Optional[float] = None,
+    lambda_e: Optional[float] = None,
+) -> dict:
     """3-Klassen-Kaskade (arXiv:2608.22215 §3.1/§3.3).
 
     1. M_small zero-shot: korrekt -> non-write (high confidence, keine Eskalation).
@@ -180,8 +268,21 @@ def classify(question: str, fact: str, correct: str, *, state_path=None) -> dict
     konsolidiert, wird die Kaskade **kurzgeschlossen** (`non-write`, `stage=0`)
     — keine LLM-Calls, kein erneuter externer Write.
 
-    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer optionaler
-    Parameter `state_path` (Default `None` ⇒ exakt altes Verhalten).
+    **Eskalationsgate `g*` (Paper §3.3.2, Belegt):** mit `reward_gate=True` wird
+    die Eskalation nicht mehr allein am String-Match entschieden, sondern am
+    Gain `g = V_large - V_small` (§3.3.2). Beurteilungen kommen aus den zwei
+    LLM-Antworten je Router: EM(W)=`_matches(<router>_mem, correct)`,
+    EM(D)=`_matches(<router>_zero, correct)` (Verhaltens-Approximation =
+    Projekt-**Auftrag**, das Paper nutzt gelernte MLP-Heads §3.3.3).
+    `λ_s`/`λ_e` Default 0.08/0.005 (Paper Tabelle 1), per Parameter oder ENV
+    `FWR_LAMBDA_S`/`FWR_LAMBDA_E` überschreibbar. Ergebnis enthält zusätzlich
+    `gate_info` (g, escalate, V_small, V_large, a_small, a_large).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, `approved` Batnini +
+    Taoufik 2026-10-08):** neue optionale Parameter `state_path`,
+    `reward_gate=False`, `lambda_s=None`, `lambda_e=None`. Default `reward_gate=
+    False` ⇒ **exakt altes Verhalten** (Legacy-String-Match bleibt Fallback);
+    bestehende Aufrufer/Tests unverändert.
     """
     discard = discard_if_consolidated(fact, question=question, state_path=state_path)
     if discard:
@@ -189,6 +290,10 @@ def classify(question: str, fact: str, correct: str, *, state_path=None) -> dict
 
     # --- Stufe 1: kleiner Router (Front-End-Screening) ---
     a_small = _ask(SMALL_MODEL, question)
+
+    if reward_gate:
+        return _classify_reward_gate(question, fact, correct, a_small, lambda_s, lambda_e)
+
     if _matches(a_small, correct):
         return {
             "class": "non-write",
@@ -217,6 +322,61 @@ def classify(question: str, fact: str, correct: str, *, state_path=None) -> dict
         "large_zero_shot": a_large,
         "large_with_memory": a_mem,
         "checks": {"refusal": refusal, "large_correct": large_ok, "memory_correct": mem_ok},
+    }
+
+
+def _classify_reward_gate(
+    question: str,
+    fact: str,
+    correct: str,
+    a_small: str,
+    lambda_s: Optional[float],
+    lambda_e: Optional[float],
+) -> dict:
+    """Eskalationspfad über das `g*`-Gate (Paper §3.3.2); siehe `classify`."""
+    a_small_mem = _ask(SMALL_MODEL, question, memory=fact)
+    a_large = _ask(LARGE_MODEL, question)
+    a_mem = _ask(LARGE_MODEL, question, memory=fact)
+
+    if lambda_s is None:
+        lambda_s = _env_float("FWR_LAMBDA_S", LAMBDA_S_DEFAULT)
+    if lambda_e is None:
+        lambda_e = _env_float("FWR_LAMBDA_E", LAMBDA_E_DEFAULT)
+
+    gain = escalation_gain(
+        small_w=_matches(a_small_mem, correct),
+        small_d=_matches(a_small, correct),
+        large_w=_matches(a_mem, correct),
+        large_d=_matches(a_large, correct),
+        lambda_s=lambda_s,
+        lambda_e=lambda_e,
+    )
+
+    escalated = gain["escalate"]
+    if escalated:
+        # Eskalation: finale Klasse/Entscheidung stammt vom großen Router.
+        cls, gate = _decide(is_refusal(a_large), _matches(a_large, correct), _matches(a_mem, correct))
+        stage = 2
+    else:
+        # Kein Gain: der kleine Router (Stufe 1) entscheidet final.
+        cls, gate = _router_class(a_small, a_small_mem, correct)
+        stage = 1
+
+    return {
+        "class": cls,
+        "stage": stage,
+        "escalated": escalated,
+        "gate": gate,
+        "small_answer": a_small,
+        "small_with_memory": a_small_mem,
+        "large_zero_shot": a_large,
+        "large_with_memory": a_mem,
+        "gate_info": gain,
+        "checks": {
+            "refusal": is_refusal(a_large),
+            "large_correct": _matches(a_large, correct),
+            "memory_correct": _matches(a_mem, correct),
+        },
     }
 
 

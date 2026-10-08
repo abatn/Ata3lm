@@ -110,6 +110,8 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 083 | `083-drift-kalibrierung-harness.md` | System-Iteration (Kalibrier-Harness Text→GDI→Gl. 14–16, externes Grader-Signal §6) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 084 | `084-drift-kalibrierung-ergebnis.md` | System-Iteration (reales Kalibrierergebnis Θ vs. Θ′: τ=0.104, AUC 0.684) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 085 | `085-sahoo-3domanen-kalibrierung.md` | System-Iteration (SAHOO 3 Domänen: τ=0.218, AUC 0.699) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 086 | `086-fwr-gstar-gate.md` | System-Iteration (Eskalationsgate `g* = V_large − V_small` §3.3.2, λ Tabelle 1) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 087 | `087-live-run-driver.md` | System-Iteration (Live-Run-Driver 8 Stufen + 5 Phasen, §6 externes Signal) | pending (echter Lauf + §9-Freigabe offen) | siehe File |
 
 ## Guardrail
 
