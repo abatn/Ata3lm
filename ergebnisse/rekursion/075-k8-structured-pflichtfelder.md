@@ -6,7 +6,7 @@
 > `evidence` tragen (`tests/test_invariants.py:20,67`; `AGENTS.md` §6:63;
 > `data/memory/tier1-base/ontology.md:37-40` §C). Der Schreibpfad schrieb bisher
 > **nur den Fakt-Body**; die Herkunft landete ausschließlich im PROV-O-Log.
-> Status: **`ask`** (§9: Interface-Änderung; kein `self_update`).
+> Status: **`approved`** (§9: Interface-Änderung; Freigabe Batnini, 2026-10-08).
 
 ## 1. Soll/Norm (Fundstellen)
 
@@ -81,6 +81,7 @@ Test-Fake, §7-konform). Coverage-Ziel 100 % damit wieder erreichbar.
 
 ## 6. §9-Gate
 
-`ask` — Interface-Änderung (`store`/`apply_write_action`/`route_and_store` neue
-Parameter; `structured`-Format). **Kein** `self_update` an Originaldateien;
-`AGENTS.md`/`tier1-base` unverändert ⇒ **kein** `versions/vN`.
+**`approved`** (Batnini, 2026-10-08) — Interface-Änderung (`store`/`apply_write_action`/
+`route_and_store` neue Parameter; `structured`-Format). **Kein** `self_update` an
+Originaldateien; `AGENTS.md`/`tier1-base` unverändert ⇒ **kein** `versions/vN`.
+(A5/Ontologie-Bezug bleibt davon unberührt offen → §4.)
