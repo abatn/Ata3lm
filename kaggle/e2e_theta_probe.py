@@ -8,6 +8,8 @@ gegen den LoRA-Adapter (`Batnini/knowledge-agent-sft-lora`). Echter GPU-Lauf (Ka
 Erfolgs-Kriterium: `em_adapter > em_base` (Fakten internalisiert).
 
 Status: Auftrag/unverifiziert-lokal (braucht GPU). KEINE Fake-Zahlen.
+Antwort-Dump: `--answers-out` schreibt je Probe (question, gold, base_answer,
+adapter_answer) -> Grundlage der Drift-Kalibrierung (SAHOO Gl. 14-16, §6).
 Quelle: AGENTS.md §10.3 · arXiv:2608.22215 §3.4 · kaggle/train_slow_consolidation.py
 """
 
@@ -48,6 +50,7 @@ def main() -> None:
     ap.add_argument("--base-model", default=os.environ.get("BASE_MODEL", "Qwen/Qwen2.5-0.5B-Instruct"))
     ap.add_argument("--adapter", default=os.environ.get("ADAPTER", "Batnini/knowledge-agent-sft-lora"))
     ap.add_argument("--out", default=os.environ.get("OUTPUT_JSON", "e2e_theta_result.json"))
+    ap.add_argument("--answers-out", default=os.environ.get("E2E_ANSWERS_PATH", "theta_answers.jsonl"))
     ap.add_argument("--seed", type=int, default=42)
     # Notebook-tolerant: Kernel-/colab-Args (z. B. `-f kernel.json`) ignorieren.
     args, _unknown = ap.parse_known_args()
@@ -83,13 +86,19 @@ def main() -> None:
             out = model.generate(**inputs, max_new_tokens=16, do_sample=False)
         return tok.decode(out[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True).strip()
 
+    preds: dict = {}
+
     def exact_match(model) -> int:
         hit = 0
+        out: list = []
         for question, gold in rows:
-            pred = answer(model, question).lower()
+            pred = answer(model, question)
+            out.append(pred)
+            p = pred.lower()
             g = gold.lower().strip()
-            if g and (g in pred or pred[: len(g)] == g):
+            if g and (g in p or p[: len(g)] == g):
                 hit += 1
+        preds[id(model)] = out  # Antworten für den Drift-Kalibrierungs-Dump
         return hit
 
     t0 = time.time()
@@ -106,6 +115,17 @@ def main() -> None:
     em_base = exact_match(base)
     adapter = PeftModel.from_pretrained(base, args.adapter).eval().cuda()
     em_adapter = exact_match(adapter)
+    # Antwort-Dump für die Drift-Kalibrierung (SAHOO Gl. 14–16): je Probe
+    # (question, gold, base_answer, adapter_answer). prev=base (Θ), cur=adapter (Θ′)
+    # -> lokal kalibrierbar (externes Grader-Signal = gold, §6). Der echte
+    # Θ→Θ′-Schritt erzeugt BEIDE Klassen (verbessert UND verschlechtert).
+    base_answers = preds.get(id(base), [])
+    adapter_answers = preds.get(id(adapter), [])
+    answers_path = Path(args.answers_out)
+    with answers_path.open("w", encoding="utf-8") as fh:
+        for (question, gold), b, a in zip(rows, base_answers, adapter_answers):
+            rec = {"question": question, "gold": gold, "base_answer": b, "adapter_answer": a}
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     result = {
         "status": "Auftrag/unverifiziert-lokal",
         "base_model": args.base_model,
@@ -118,6 +138,7 @@ def main() -> None:
         "delta": em_adapter - em_base,
         "gpu": torch.cuda.get_device_name(0),
         "seed": args.seed,
+        "answers_file": str(answers_path),
         "elapsed_s": round(time.time() - t0, 1),
         "source": "AGENTS.md §10.3 · arXiv:2608.22215 §3.4",
     }
