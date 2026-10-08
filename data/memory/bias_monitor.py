@@ -10,9 +10,28 @@ Quellen (verifiziert 2026-10-01, HTTP 200):
   - EU-KI-VO (VO (EU) 2024/1689) **Art. 15(4)**: biased outputs → feedback loops →
     mitigieren; EC-Guidance: fairness metrics + thresholds + human oversight.
   - Agent Drift (arXiv:2601.04170): Jensen-Shannon-Divergenz zur Drift-Messung.
+  - **Goal Drift Index (GDI) / SAHOO** (arXiv:2603.06333, ICLR-2026-Workshop;
+    in `AGENTS.md` §9.1c zitiert): Appendix B, Gl. 5–16 – Semantic/Lexical/
+    Structural/Distributional Drift → GDI, Gewichts-/τ-Kalibrierung, Bootstrap-CI.
 
 Lab-Prinzip: JSD + Drift-Index + Lyapunov-Damping = **belegt** (WhyLab/Agent-Drift);
 die konkrete Entropie-Gewichtung, `w_max` und τ sind **Auftrag**.
+
+GDI-Ergänzung (Rekursion 082): `semantic_drift`, `lexical_drift`,
+`structural_drift`, `distributional_drift` sowie `gdi`, `calibrate_weights`,
+`calibrate_tau`, `bootstrap_ci` setzen **Gl. 5–16** der Quelle arXiv:2603.06333
+um. **Belegt** sind ausschließlich die Formeln/Verfahren der Quelle (Gl. 5–16);
+die **Default-Gewichte** `0.38/0.12/0.21/0.29` stammen aus der Tabelle des
+Haupttexts und sind im Code als **Auftrag**-Default verdrahtet. Die bestehende
+JSD-`BiasDriftMonitor` (WhyLab/Agent-Drift) bleibt unverändert erhalten.
+
+Paper-Inkonsistenz (ehrlich, nicht aufgelöst): Gl. 14 definiert die
+Gewichts-Kalibrierung als `w* = argmax_w Σ_i AUC(GDI_i(w), y_i^drift)`
+(AUC-Maximierung), während der begleitende Haupttext zusätzlich „logistic
+regression" nennt. Beide Angaben sind **nicht** deckungsgleich; implementiert
+ist die explizite Gleichung (AUC über Rang-/Paar-Statistik, kein sklearn).
+Wo die Quelle nichts sagt (numerischer τ-Wert, Bootstrap-**Statistik** je
+Replikat), wird das im Code als „nicht gefunden" kenntlich gemacht.
 
 Gate (K6/B5): `gate` nutzt den einheitlichen Labelraum `allow|ask|deny`
 (`gate_labels`) – Flag ⇒ `ask` (Human-Gate, §9.1c), sonst `allow`.
@@ -21,6 +40,7 @@ Gate (K6/B5): `gate` nutzt den einheitlichen Labelraum `allow|ask|deny`
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -78,6 +98,224 @@ def capped_simplex(w: dict, w_max: float = 0.6, iters: int = 100) -> dict:
         for k in free:
             v[k] += add
     return v
+
+
+# --------------------------------------------------------------------------- #
+# GDI – Goal Drift Index (Quelle: arXiv:2603.06333, Gl. 5–16)
+# --------------------------------------------------------------------------- #
+# Belegt: die Gleichungen Gl. 5–16 (Semantic/Lexical/Structural/Distributional
+#         Drift, GDI-Aggregation, AUC-Gewichts- und F1-τ-Kalibrierung, CI).
+# Auftrag: Default-Gewichte aus dem Haupttext (sem .38 · lex .12 · struct .21 ·
+#          dist .29) sowie die defensive Behandlung leerer Eingaben.
+
+_WEIGHT_KEYS = ("sem", "lex", "struct", "dist")
+
+# Referenz-Gewichte (Haupttext, Tabelle): sem .38 · lex .12 · struct .21 · dist .29
+DEFAULT_WEIGHTS = {"sem": 0.38, "lex": 0.12, "struct": 0.21, "dist": 0.29}
+
+
+def semantic_drift(e0, et, eps=1e-12):
+    """Gl. 5–8: Semantic Drift `Δ_sem = (1 − s_cos) / 2` ∈ [0, 1].
+
+    Normierung `ê = e / (||e|| + ε)` (Gl. 5/6), `s_cos = ê_0 · ê_t` (Gl. 7).
+    """
+    n0 = math.sqrt(sum(x * x for x in e0))
+    nt = math.sqrt(sum(x * x for x in et))
+    e0h = [x / (n0 + eps) for x in e0]
+    eth = [x / (nt + eps) for x in et]
+    s_cos = sum(a * b for a, b in zip(e0h, eth))
+    return (1.0 - s_cos) / 2.0
+
+
+def _to_dist(x):
+    """Wandelt ein Dict oder eine Tokenliste in eine normierte Verteilung (Gl. 9)."""
+    if isinstance(x, dict):
+        return _norm(x)
+    counts: dict = {}
+    for tok in x:
+        counts[tok] = counts.get(tok, 0.0) + 1.0
+    return _norm(counts)
+
+
+def lexical_drift(p0, pt):
+    """Gl. 9: Lexical Drift `Δ_lex = JSD(P_0 || P_t)` (Basis 2, [0, 1])."""
+    return jsd(_to_dist(p0), _to_dist(pt))
+
+
+def structural_drift(s0, st, eps=1e-12):
+    """Gl. 10: `Δ_struct = (1/K) · Σ_k min(1, |s0_k − st_k| / (s0_k + ε))`.
+
+    `s0`/`st` = Dicts Feature→Wert; K = Anzahl der Features (Union). Fehlende
+    Features zählen als 0. Leere Feature-Menge ⇒ 0.0 (defensiv, Auftrag).
+    """
+    keys = set(s0) | set(st)
+    if not keys:
+        return 0.0
+    total = 0.0
+    for k in keys:
+        base = s0.get(k, 0.0)
+        total += min(1.0, abs(base - st.get(k, 0.0)) / (base + eps))
+    return total / len(keys)
+
+
+def distributional_drift(sample0, samplet):
+    """Gl. 11: `Δ_dist = W(P_baseline, P_current)` – 1-D-Wasserstein, closed form.
+
+    Beide Stichproben werden sortiert und paarweise verglichen:
+    `mean(|a_i − b_i|)` (kein scipy). Ungleich lange Stichproben werden auf die
+    kürzere Länge beschnitten (closed form).
+    """
+    a, b = sorted(sample0), sorted(samplet)
+    n = min(len(a), len(b))
+    if n == 0:
+        return 0.0
+    return sum(abs(a[i] - b[i]) for i in range(n)) / n
+
+
+def _resolve_weights(weights):
+    """Prüft Gl. 13 (`Σw = 1`, `w_i ∈ [0, 1]`) und liefert die Gewichte."""
+    w = dict(DEFAULT_WEIGHTS) if weights is None else dict(weights)
+    missing = [k for k in _WEIGHT_KEYS if k not in w]
+    if missing:
+        raise ValueError(f"Gewichte fehlen für: {missing} (Gl. 12/13)")
+    if any(w[k] < 0.0 or w[k] > 1.0 for k in _WEIGHT_KEYS):
+        raise ValueError("Gewichte müssen in [0, 1] liegen (Gl. 13)")
+    if abs(sum(w[k] for k in _WEIGHT_KEYS) - 1.0) > 1e-9:
+        raise ValueError("Gewichte müssen zu 1 summieren (Gl. 13)")
+    return {k: w[k] for k in _WEIGHT_KEYS}
+
+
+def gdi(sem, lex, stru, dist, weights=None):
+    """Gl. 12–13: `GDI = w_s·Δ_sem + w_l·Δ_lex + w_st·Δ_struct + w_d·Δ_dist`.
+
+    Default-Gewichte = Referenz-Gewichte des Haupttexts (Auftrag).
+    """
+    w = _resolve_weights(weights)
+    return w["sem"] * sem + w["lex"] * lex + w["struct"] * stru + w["dist"] * dist
+
+
+def _auc(scores, labels):
+    """AUC über Rang-/Paar-Statistik (Mann-Whitney; kein sklearn).
+
+    `AUC = P(score_pos > score_neg) + ½·P(score_pos = score_neg)`. Ohne beide
+    Klassen ist die AUC nicht definiert ⇒ 0.5.
+    """
+    pos = [s for s, y in zip(scores, labels) if y == 1]
+    neg = [s for s, y in zip(scores, labels) if y == 0]
+    if not pos or not neg:
+        return 0.5
+    wins = 0.0
+    for p in pos:
+        for n in neg:
+            if p > n:
+                wins += 1.0
+            elif p == n:
+                wins += 0.5
+    return wins / (len(pos) * len(neg))
+
+
+def _simplex_grid(step=0.05):
+    """Gitter über den Simplex `{Σw = 1, w_i ≥ 0}` für Gl. 14 (Default w-Schritt)."""
+    n = max(1, int(round(1.0 / step)))
+    grid = []
+    for i in range(n + 1):
+        for j in range(n + 1 - i):
+            for k in range(n + 1 - i - j):
+                m = n - i - j - k
+                grid.append({"sem": i / n, "lex": j / n, "struct": k / n, "dist": m / n})
+    return grid
+
+
+def calibrate_weights(scores, labels, grid=None):
+    """Gl. 14: `w* = argmax_w Σ_i AUC(GDI_i(w), y_i^drift)`.
+
+    `scores` = Liste von Dicts mit den vier Drift-Signalen je Instanz,
+    `labels` = `y_i^drift ∈ {0,1}`; `grid` = Liste von Gewichts-Dicts
+    (Default = 0.05-Simplex-Gitter). Ties ⇒ erster Treffer der Gitterreihenfolge.
+    Rückgabe: `{"weights": w*, "auc": AUC(w*)}`.
+
+    Paper-Inkonsistenz (siehe Modul-Docstring): Gl. 14 schreibt AUC-Optimierung
+    vor, der Haupttext nennt daneben „logistic regression" – implementiert ist
+    die explizite Gleichung (AUC), das Zitat wird nicht erfunden.
+    """
+    if len(scores) != len(labels):
+        raise ValueError("scores und labels müssen gleich lang sein")
+    if grid is None:
+        grid = _simplex_grid()
+    best_w = None
+    best_auc = -1.0
+    for w in grid:
+        wc = _resolve_weights(w)
+        values = [
+            wc["sem"] * sc["sem"] + wc["lex"] * sc["lex"] + wc["struct"] * sc["struct"] + wc["dist"] * sc["dist"]
+            for sc in scores
+        ]
+        a = _auc(values, labels)
+        if a > best_auc:
+            best_auc = a
+            best_w = dict(wc)
+    return {"weights": best_w, "auc": best_auc}
+
+
+def _f1(preds, labels):
+    """F1-Score aus binären Vorhersagen und Labels (0 bei leerem Nenner)."""
+    tp = sum(1 for p, y in zip(preds, labels) if p == 1 and y == 1)
+    fp = sum(1 for p, y in zip(preds, labels) if p == 1 and y == 0)
+    fn = sum(1 for p, y in zip(preds, labels) if p == 0 and y == 1)
+    denom = 2 * tp + fp + fn
+    if denom == 0:
+        return 0.0
+    return 2.0 * tp / denom
+
+
+def calibrate_tau(gdi_values, labels):
+    """Gl. 15: `τ* = argmax_τ F1(GDI > τ, y^drift)`.
+
+    Kandidaten = eindeutige GDI-Werte (aufsteigend); bei gleichem F1 gewinnt der
+    kleinere τ (erster Treffer). Rückgabe: `{"tau": τ*, "f1": F1_max}`.
+    """
+    if len(gdi_values) != len(labels):
+        raise ValueError("gdi_values und labels müssen gleich lang sein")
+    if not gdi_values:
+        return {"tau": 0.0, "f1": 0.0}
+    best_tau = gdi_values[0]
+    best_f1 = -1.0
+    for tau in sorted(set(gdi_values)):
+        preds = [1 if v > tau else 0 for v in gdi_values]
+        f1 = _f1(preds, labels)
+        if f1 > best_f1:
+            best_f1 = f1
+            best_tau = tau
+    return {"tau": best_tau, "f1": best_f1}
+
+
+def _quantile(sorted_vals, q):
+    """Empirisches Quantil (lineare Interpolation zwischen Order-Statistiken)."""
+    n = len(sorted_vals)
+    if n == 1:
+        return sorted_vals[0]
+    pos = q * (n - 1)
+    lo = int(math.floor(pos))
+    hi = int(math.ceil(pos))
+    frac = pos - lo
+    return sorted_vals[lo] * (1.0 - frac) + sorted_vals[hi] * frac
+
+
+def bootstrap_ci(values, B=2000, alpha=0.05):
+    """Gl. 16: `95%-CI` = 0.025-/0.975-Quantile von `B` Bootstrap-Replikaten.
+
+    Nichtparametrisch (Resampling mit Zurücklegen). Rückgabe `{"lo", "hi"}`.
+
+    Anmerkung (ehrlich): Gl. 16 legt nur Quantile und `B≈2000` fest; die
+    **Statistik je Replikat** wird in der zitierten Gleichung nicht benannt
+    („nicht gefunden") – hier der Mittelwert.
+    """
+    vals = list(values)
+    if not vals:
+        raise ValueError("values darf nicht leer sein")
+    n = len(vals)
+    reps = sorted(sum(vals[random.randrange(n)] for _ in range(n)) / n for _ in range(B))
+    return {"lo": _quantile(reps, alpha / 2.0), "hi": _quantile(reps, 1.0 - alpha / 2.0)}
 
 
 @dataclass
