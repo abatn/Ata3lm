@@ -7,6 +7,7 @@ laufen gegen das **echte** Endpoint (`_live.call`); keine Fakes/skripteten Antwo
 import json
 
 import gaama_extract as ge
+import pytest
 from _live import call
 
 
@@ -70,12 +71,14 @@ def test_load_episodes(tmp_path):
 
 
 # --------------------------------------------------- ECHTE LLM-Extraktion
+@pytest.mark.network
 def test_extract_facts_concepts_real():
     eps = [{"id": "ep1", "text": "The capital of Xylophonia is Zentaria.", "date": "2026-01-01"}]
     out = call(ge.extract_facts_concepts, eps)
     assert isinstance(out["facts"], list) and isinstance(out["concepts"], list)
 
 
+@pytest.mark.network
 def test_extract_reflections_real():
     facts = [
         {"id": "f1", "fact_text": "The capital of Xylophonia is Zentaria."},
@@ -86,12 +89,14 @@ def test_extract_reflections_real():
 
 
 # --------------------------------------------------- ECHTES Routing / Persistenz
+@pytest.mark.network
 def test_route_extracted_facts_real():
     facts = [{"fact_text": "The capital of Xylophonia is Zentaria."}]
     out = call(ge.route_extracted_facts, facts)  # realer fast_write_router.classify
     assert out[0]["class"] in {"non-write", "write-new", "write-update", "uncertain"}
 
 
+@pytest.mark.network
 def test_persist_extracted_facts_real(tmp_path):
     facts = [
         {"fact_text": "The capital of Xylophonia is Zentaria.", "source": "user", "verified": True},

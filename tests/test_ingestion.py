@@ -231,6 +231,7 @@ def test_update_graph_knoten_bereits_vorhanden():
     assert d["added_nodes"] == ["b"]  # "a" war bereits vorhanden
 
 
+@pytest.mark.network
 def test_route_experience_nutzt_echten_router(tmp_path):
     """A) Experience-Eintritt: pipeline nutzt den **echten** Router (Guardrail 7)."""
     import mandate

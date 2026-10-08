@@ -204,7 +204,17 @@ def _archive_file(path: Path, now: float) -> Path:
     return archived
 
 
-def _commit(targets, now: float, supersede_existing: bool, append: bool = False) -> dict:
+def _record_line(record: dict) -> str:
+    """JSONL-Zeile für das Provenienz-Log – Format-Zwilling zu `provenance.append_record` (K3).
+
+    N1 (Auftrag): Da das Log als `append_targets` Teil der `_commit`-Transaktion ist,
+    wird die Zeile hier serialisiert. Ein Test vergleicht beide Formate byte-genau
+    (kein Format-Drift zum nicht-transaktionalen `append_record`).
+    """
+    return json.dumps(record, ensure_ascii=False, default=str) + "\n"
+
+
+def _commit(targets, now: float, supersede_existing: bool, append: bool = False, append_targets=()) -> dict:
     """EINZIGER Mutation-Punkt: Ziele schreiben, alten Stand archivieren (falls gefordert).
 
     `targets` = Liste aus (Pfad, Inhalt); erster Eintrag = Primärziel (dessen alter
@@ -217,9 +227,16 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
     Rollback** wiederhergestellt: kein halb-geschriebener Zustand, keine inkonsistente
     Provenienz (`error`, `written=[]`). `append=True` hängt an (JSONL-Historie, R20)
     statt zu überschreiben.
+
+    N1 (Auftrag, §6/Guardrail „Provenienz + Datenwrite = EINE Transaktion"): K3-Records
+    werden über `append_targets` = [(Log-Pfad, JSONL-Zeile)] **in derselben Transaktion**
+    mitgeschrieben (append). Ein Log-Fehler ⇒ **Write verweigert** (R08-Vorprüfung:
+    kein Verzeichnis als Log-Ziel) oder **vollständiger Rollback** (A3). Damit gibt es
+    nie einen Datenwrite ohne Provenienz und nie Provenienz ohne Datenwrite.
     """
     primary = Path(targets[0][0])
-    for target, _content in targets:  # R08: Vorprüfung VOR jeder Mutation
+    tx = list(targets) + list(append_targets)  # N1: Provenienz-Log ist Teil der Transaktion
+    for target, _content in tx:  # R08: Vorprüfung VOR jeder Mutation (inkl. Provenienz-Log)
         t = Path(target)
         if t.exists() and t.is_dir():
             return {"written": [], "superseded": None, "conflict": None, "error": f"Ziel ist ein Verzeichnis: {t}"}
@@ -230,7 +247,7 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
     backups: dict = {}  # A3: Vorzustand je Ziel (None = Datei existierte nicht)
     archived_primary = None
     try:
-        for target, _content in targets:  # A3: Snapshot VOR der ersten Mutation
+        for target, _content in tx:  # A3: Snapshot VOR der ersten Mutation (inkl. Log)
             t = Path(target)
             backups[str(t)] = t.read_text(encoding="utf-8") if t.exists() else None
         written: list = []
@@ -257,11 +274,16 @@ def _commit(targets, now: float, supersede_existing: bool, append: bool = False)
             else:
                 target.write_text(content, encoding="utf-8")
             written.append(str(target))
+        for target, content in append_targets:  # N1: Provenienz-Log in DIESER Transaktion (append)
+            t = Path(target)
+            t.parent.mkdir(parents=True, exist_ok=True)
+            with t.open("a", encoding="utf-8") as fh:
+                fh.write(content)
         return {"written": written, "superseded": superseded, "conflict": None}
     except OSError as exc:
         # A3 (Auftrag): Transaktion/Recovery – JEDES bereits geschriebene Ziel auf den
         # Vorzustand zurücksetzen (best effort), damit kein Teilzustand bleibt.
-        for target, _content in targets:
+        for target, _content in tx:
             t = Path(target)
             old = backups.get(str(t))
             try:
@@ -483,7 +505,16 @@ def store_file(
         }
 
     targets = [(target, clean)] + [(Path(p), clean) for p in (also_write or [])]
-    res = _commit(targets, now, supersede_existing=supersede, append=append)
+    # N1 (Auftrag): Provenienz + Datenwrite = EINE Transaktion – das Log wird in
+    # `_commit` mitgeschrieben; Log-Fehler ⇒ Verweigern (R08) oder Rollback (A3).
+    log = Path(provenance_log) if provenance_log is not None else target.parent / "provenance.jsonl"
+    res = _commit(
+        targets,
+        now,
+        supersede_existing=supersede,
+        append=append,
+        append_targets=[(log, _record_line(record))],
+    )
     if res.get("conflict") or res.get("error"):
         return {
             "ok": False,
@@ -500,9 +531,7 @@ def store_file(
         shared_res = shared_tier.write(agent, shared_key or target.stem, clean)  # Shared-Schritt
         steps.append(("shared", shared_res.get("ok")))
 
-    log = Path(provenance_log) if provenance_log is not None else target.parent / "provenance.jsonl"
-    provenance.append_record(log, record)  # dauerhaftes Provenienz-Protokoll (K3)
-    steps.append(("provenance", record["entity"]["sha256"][:12]))
+    steps.append(("provenance", record["entity"]["sha256"][:12]))  # N1: in der Transaktion protokolliert
     return {
         "ok": True,
         "gate": gate,
@@ -709,7 +738,14 @@ def store(
         write_targets.append((tier3_file, clean))  # §10.7: structured + tier3
     elif tier3_file.exists():
         write_targets.append((tier3_file, clean))  # N4: nur existierende Arbeitskopie aktualisieren
-    res = _commit(write_targets, now, supersede_existing=(cls == "write-update"))
+    # N1 (Auftrag): Provenienz + Datenwrite = EINE Transaktion (siehe `store_file`).
+    log = Path(provenance_log) if provenance_log is not None else Path(tier3_dir) / "provenance.jsonl"
+    res = _commit(
+        write_targets,
+        now,
+        supersede_existing=(cls == "write-update"),
+        append_targets=[(log, _record_line(record))],
+    )
     if res.get("conflict") or res.get("error"):
         return {
             "ok": False,
@@ -729,8 +765,7 @@ def store(
         steps.append(("supersede", superseded_tier1.get("old_found")))
         if not superseded_tier1.get("ok", True):
             # R09 (Auftrag): tier1-Konflikt ⇒ Gesamt-Update unvollständig, NICHT ok=True.
-            log = Path(provenance_log) if provenance_log is not None else Path(tier3_dir) / "provenance.jsonl"
-            provenance.append_record(log, record)  # K3: der geschriebene Teil bleibt belegt
+            # N1: der geschriebene Teil ist bereits in der _commit-Transaktion belegt.
             steps.append(("provenance", record["entity"]["sha256"][:12]))
             return {
                 "ok": False,
@@ -752,9 +787,7 @@ def store(
         shared_res = shared_tier.write(agent, _slug(question), clean)  # Shared-Schritt
         steps.append(("shared", shared_res.get("ok")))
 
-    log = Path(provenance_log) if provenance_log is not None else Path(tier3_dir) / "provenance.jsonl"
-    provenance.append_record(log, record)
-    steps.append(("provenance", record["entity"]["sha256"][:12]))
+    steps.append(("provenance", record["entity"]["sha256"][:12]))  # N1: in der Transaktion protokolliert
     return {
         "ok": True,
         "action": cls,

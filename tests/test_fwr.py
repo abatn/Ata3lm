@@ -6,6 +6,7 @@ Kein Fake/skriptet: `classify()`/`_ask()` laufen gegen das **echte** NVIDIA-Endp
 """
 
 import fast_write_router as fwr
+import pytest
 from _live import call
 
 SMALL = fwr.SMALL_MODEL
@@ -13,6 +14,7 @@ LARGE = fwr.LARGE_MODEL
 
 
 # ------------------------------------------------- Stufe 1: non-write (real)
+@pytest.mark.network
 def test_non_write_real():
     r = call(fwr.classify, "What is the capital of France?", "Paris is the capital of France.", "Paris")
     assert r["class"] == "non-write"
@@ -20,6 +22,7 @@ def test_non_write_real():
 
 
 # ------------------------------------------------- Stufe 2: write-new (real)
+@pytest.mark.network
 def test_write_new_real():
     r = call(fwr.classify, "What is the capital of Xylophonia?", "The capital of Xylophonia is Zentaria.", "Zentaria")
     assert r["class"] == "write-new"
@@ -27,6 +30,7 @@ def test_write_new_real():
 
 
 # ---------------------------------------------- Stufe 2: write-update (real)
+@pytest.mark.network
 def test_write_update_real():
     r = call(
         fwr.classify,
@@ -39,6 +43,7 @@ def test_write_update_real():
 
 
 # --------------------------------------------------- uncertain (real, §10.4)
+@pytest.mark.network
 def test_uncertain_real():
     r = call(
         fwr.classify,
@@ -65,6 +70,7 @@ def test_refusal_marker_und_matches():
 
 
 # ------------------------------------------------- _ask (echter Endpoint)
+@pytest.mark.network
 def test_ask_real_ohne_und_mit_memory():
     a = call(fwr._ask, SMALL, "Answer in one word: capital of France?")
     assert isinstance(a, str) and a.strip()

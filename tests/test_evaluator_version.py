@@ -149,6 +149,7 @@ def test_report_mit_und_ohne_evaluator():
 
 
 # ------------------------------------------------------- Offen 2: echte Anker (HF)
+@pytest.mark.live
 def test_load_anchor_grading_und_coding_real():
     g = ev.load_anchor("grading", limit=5)
     assert g.source == f"HF:{ev.IMO_GRADINGBENCH_ID}" and g.n() >= 1
@@ -163,6 +164,7 @@ def test_load_anchor_unbekannter_typ():
         ev.load_anchor("paper-writing")
 
 
+@pytest.mark.live
 def test_load_anchor_nutzt_datasets_loader_real():
     """Realer HF-Loader (kein Fake): lädt ein echtes Anker-Item."""
     a = ev.load_anchor("grading", limit=1)
@@ -185,6 +187,7 @@ def test_simulate_3_evaluatoren_steigende_schwierigkeit():
     assert out["paper_params"]["min_anchor"] == 5
 
 
+@pytest.mark.live
 def test_simulate_real_anchor_misst_eigene_zahl():
     out = ev.simulate_real_anchor("grading", limit=5)
     assert out["anchor"] == f"HF:{ev.IMO_GRADINGBENCH_ID}" and out["n_items"] >= 1
@@ -193,6 +196,7 @@ def test_simulate_real_anchor_misst_eigene_zahl():
     assert "eigene Messung" in out["note"]
 
 
+@pytest.mark.live
 def test_simulate_real_anchor_ohne_items():
     out = ev.simulate_real_anchor("grading", limit=0)
     assert out["n_items"] == 0 and out["final_accuracy"] == 0.0
@@ -260,6 +264,7 @@ def test_redqueenloop_ohne_kandidaten_und_defaults():
 
 
 # ------------------------------------------------- Offen 3+: LLM-Grader (real)
+@pytest.mark.network
 def test_llm_grader_real_und_fail_soft(monkeypatch):
     item = {"id": "x", "text": "Problem P", "rubric": "full credit", "feature": 0.9}
     g = ev.make_llm_grader(ev.make_grader(0.5))
@@ -289,6 +294,7 @@ def test_default_client_konstruiert():
     assert hasattr(client, "chat")
 
 
+@pytest.mark.live
 def test_simulate_real_anchor_mit_llm():
     out = ev.simulate_real_anchor("grading", limit=2, use_llm=True, grader_log=[])
     assert out["grader"] == "llm+rule-fallback"
@@ -365,6 +371,7 @@ def test_positions_und_repetitions_kennzahlen():
     assert ev.repetition_stability([["x", "x"], ["y", "z"]]) == 0.5
 
 
+@pytest.mark.network
 def test_llm_pairwise_judge_real_und_fail_soft(monkeypatch):
     a = {"id": "1", "text": "kurz", "rubric": "r"}
     b = {"id": "2", "text": "viel laengerer text", "rubric": "r"}
@@ -430,6 +437,7 @@ def test_bootstrap_interpretation_ok_bei_nicht_degeneriert():
     assert r["degenerate_interpretation"] == "ok"
 
 
+@pytest.mark.network
 def test_llm_class_grader_real_und_fail_soft(monkeypatch):
     item = {"id": "GB-1", "text": "t", "rubric": "r"}
     assert call(ev.make_llm_class_grader(votes=1), item) in ev.CLASS_GRADES  # realer Grader
@@ -447,6 +455,7 @@ def test_parse_class_grade():
         ev._parse_class_grade('{"grade": "Superb"}')  # nicht in CLASS_GRADES
 
 
+@pytest.mark.live
 def test_stable_kappa_run_real():
     out = ev.stable_kappa_run("grading", n=2, grader_log=[])
     assert out["n"] >= 1 and out["grader"] == "llm-4class+fallback"
@@ -470,12 +479,14 @@ def test_llm_class_grader_retry_real(monkeypatch):
     assert log[0]["fallback"] == "rule_incorrect"
 
 
+@pytest.mark.network
 def test_llm_class_grader_use_schema_real():
     """use_schema=True (echte Structured Outputs) -> gültige Klasse."""
     item = {"id": "s", "text": "Problem P", "rubric": "full credit"}
     assert call(ev.make_llm_class_grader(use_schema=True, votes=1), item) in ev.CLASS_GRADES
 
 
+@pytest.mark.live
 def test_load_anchor_explicit_loader_real():
     """Expliziter, ECHTER HF-Loader (kein Fake) deckt den Nicht-None-Zweig."""
     import datasets

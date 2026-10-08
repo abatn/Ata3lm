@@ -30,6 +30,7 @@ def test_row_normalize_und_noop_ohne_llm(no_key):
     assert ra.parse_transition_delta("everything matched my inertia", 4) is None
 
 
+@pytest.mark.network
 def test_parse_transition_delta_mit_llm_real():
     """Echtes LLM (Guardrail 7): gültige K×K-Matrix ODER NOOP (None) – modellabhängig."""
     out = call(ra.parse_transition_delta, "The action matched my usual inertia; slight bias to caution.", 4)
@@ -135,6 +136,7 @@ def test_summary_from_raw():
     assert ra._summary_from_raw("", "c").startswith("(LLM leer)")
 
 
+@pytest.mark.network
 def test_distill_mit_llm_real():
     """Echtes LLM; bei transientem Endpoint-Fehler erneut (real, kein Fake)."""
     g = _graph()
@@ -234,6 +236,7 @@ def test_simulate_3_reflections_noop_ohne_llm(no_key):
     assert all(r["note"] == ra.HMM_NOOP_NOTE for r in out)
 
 
+@pytest.mark.network
 def test_simulate_3_reflections_real():
     """Echtes LLM: 3 Reflexionen, je ein Ergebnis (skipped je nach Modell)."""
     out = call(ra.simulate_3_reflections)

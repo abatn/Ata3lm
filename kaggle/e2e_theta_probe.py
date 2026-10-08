@@ -70,7 +70,6 @@ def main() -> None:
         tok.pad_token = tok.eos_token
     dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     base = AutoModelForCausalLM.from_pretrained(args.base_model, torch_dtype=dtype).cuda().eval()
-    adapter = PeftModel.from_pretrained(base, args.adapter).eval().cuda()
 
     def answer(model, question: str) -> str:
         enc = tok.apply_chat_template(
@@ -94,7 +93,18 @@ def main() -> None:
         return hit
 
     t0 = time.time()
+    # N8 (Auftrag): Basismessung VOR `PeftModel.from_pretrained` — PeftModel wickelt
+    # DASSELBE Basismodul ein und addiert die Adapter am Modell (PEFT-Doku:
+    # https://huggingface.co/docs/peft/en/package_reference/peft_model —
+    # `disable_adapter`: "Use this to run inference on the base model"; LoRA injiziert
+    # Matrizen "into each layer":
+    # https://huggingface.co/docs/peft/en/package_reference/lora). Eine Basis-
+    # messung danach misst MIT Adapter (Kaggle-Lauf 2026-10-07: em_base == em_adapter,
+    # Δ=0). Akzeptanz: em_base misst das unveränderte Basismodell.
+    # Hinweis: `elapsed_s` enthält seit N8 auch die Adapter-Ladezeit (Messung umschließt
+    # notwendigerweise den Ladeschritt).
     em_base = exact_match(base)
+    adapter = PeftModel.from_pretrained(base, args.adapter).eval().cuda()
     em_adapter = exact_match(adapter)
     result = {
         "status": "Auftrag/unverifiziert-lokal",

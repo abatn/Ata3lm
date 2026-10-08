@@ -704,3 +704,74 @@ def test_k8_fail_closed_untrusted_und_unverified(tmp_path):
     assert r["ok"] is False and not (tmp_path / "s").exists()
     r2 = _structured_store(tmp_path, verified=False)
     assert r2["ok"] is False and not (tmp_path / "s").exists()
+
+
+# --------------------------- N1: Provenienz + Datenwrite = EINE Transaktion (K3)
+def test_n1_store_provenance_log_ist_verzeichnis_kein_write(tmp_path):
+    """N1 (Auftrag): `provenance_log` = Verzeichnis -> Write VERWEIGERT (R08), keine Mutation."""
+    log = tmp_path / "prov"
+    log.mkdir()  # Log-Ziel ist ein Verzeichnis -> Mit-Append in _commit wuerde scheitern
+    r = wg.store(
+        question="Fakt N1",
+        fact="N1-Fakt",
+        classify_fn=_cls("write-new"),
+        now=1.0,
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t3",
+        mandate_obj=_mandate(),
+        provenance_log=log,
+    )
+    assert r["ok"] is False and "Verzeichnis" in r["reason"]
+    assert not (tmp_path / "s").exists()  # Akzeptanz: provenance_log=Verzeichnis => KEIN Write
+    assert not (tmp_path / "t3").exists()
+
+
+def test_n1_store_file_provenance_log_ist_verzeichnis_kein_write(tmp_path):
+    """N1 (Auftrag): dieselbe Verweigerung im `store_file`-Pfad (gleiche Transaktionsregel)."""
+    t = tmp_path / "fakt.md"
+    log = tmp_path / "prov"
+    log.mkdir()
+    r = wg.store_file(target=t, content="X", now=1.0, origin="user", verified=True, provenance_log=log)
+    assert r["ok"] is False and "Verzeichnis" in r["reason"]
+    assert not t.exists()  # kein Write ohne Provenienz (K3)
+
+
+def test_n1_log_schreibfehler_rollt_datenwrite_zurueck(tmp_path):
+    """N1 (Auftrag): Log-Fehler -> A3-Rollback, kein unprotokollierter Write (kein Teilzustand)."""
+    prim = tmp_path / "prim.md"
+    prim.write_text("ALT", encoding="utf-8")
+    blocker = tmp_path / "blocker"
+    blocker.write_text("datei", encoding="utf-8")
+    log = blocker / "sub" / "provenance.jsonl"  # Elternpfad ist Datei -> Log-Append scheitert REAL
+    r = wg.store_file(target=prim, content="NEU", now=1.0, origin="user", verified=True, provenance_log=log)
+    assert r["ok"] is False and "Rollback" in r["reason"]
+    assert prim.read_text(encoding="utf-8") == "ALT"  # Vorzustand wiederhergestellt
+    assert list(tmp_path.glob("prim.superseded-*")) == []  # Archiv mitgerollt
+
+
+def test_n1_teilpfad_tier1_konflikt_protokolliert_exakt_einmal(tmp_path):
+    """N1: R09-Teilpfad (tier1-Konflikt) -> Record steht GENAU einmal im Provenienz-Log."""
+    t1 = tmp_path / "t1"
+    t1.mkdir()
+    (t1 / "supersede.jsonl").mkdir()  # supersede_entry: Log-Ziel ist Verzeichnis -> echter Fehler
+    r = wg.store(
+        question="Fakt N1 R09",
+        fact="NEU",
+        classify_fn=_cls("write-update"),
+        now=1.0,
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t3",
+        tier1_dir=t1,
+        mandate_obj=_mandate(),
+    )
+    assert r["ok"] is False and r.get("partial") is True
+    lines = (tmp_path / "t3" / "provenance.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1  # kein Doppel-Eintrag (Teilpfad + Transaktion)
+
+
+def test_n1_record_line_ist_format_zwilling_zu_append_record(tmp_path):
+    """N1: `_record_line` serialisiert byte-gleich zu `provenance.append_record` (kein Format-Drift)."""
+    rec = provenance.build_record(fact="F", activity="write", agent="a", source="user", now=1.0)
+    p = tmp_path / "log.jsonl"
+    provenance.append_record(p, rec)
+    assert p.read_text(encoding="utf-8") == wg._record_line(rec)

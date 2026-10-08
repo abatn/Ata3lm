@@ -100,6 +100,8 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 073 | `073-out-of-band-eval.md` | System-Iteration (M3: Out-of-Band-Evaluation / World-State-Oracle §6) | pending (§9 `ask`: neue Quelle + Interface) | siehe File |
 | 074 | `074-m4-lifecycle.md` | System-Iteration (M4: Geschlossener Lifecycle, Router senses consolidation §10.1/§10.3) | pending (§9 `ask`: Interface) | siehe File |
 | 075 | `075-k8-structured-pflichtfelder.md` | System-Iteration (K8: §6-Pflichtfelder im `structured`-Write, Gateway↔Invariante) | **approved**: Batnini, 2026-10-08 | siehe File |
+| 076 | `076-n1-provenienz-transaktion.md` | System-Iteration (N1: Provenienz + Datenwrite = EINE Transaktion, Phase 1 autonom) | umgesetzt; Review im Gesamt-STOPP ausstehend | siehe File |
+| 077 | `077-n8-theta-basismessung.md` | System-Iteration (N8: Basismessung vor `PeftModel.from_pretrained`, Phase 1 autonom) | umgesetzt; §9 `ask` offen (neue Quellen + GPU-Gesamtlauf) | siehe File |
 
 ## Guardrail
 
