@@ -107,6 +107,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 080 | `080-n7-oracle-evidenz-revise.md` | System-Iteration (N7: bei `world_state_probe` entscheidet die Oracle-Evidenz die Revision, Phase 2) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 081 | `081-s9-abschluss-fademem-oob-m4-a5-v12.md` | §9-Abschluss (FadeMem + OOB in Ontologie, A5-Bezüge, 073/074/`fademem` approved, `versions/v12`) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 082 | `082-gdi-sahoo.md` | System-Iteration (GDI exakt nach arXiv:2603.06333, Gl. 5–16; JSD-Monitor bleibt) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 083 | `083-drift-kalibrierung-harness.md` | System-Iteration (Kalibrier-Harness Text→GDI→Gl. 14–16, externes Grader-Signal §6) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 
 ## Guardrail
 
