@@ -1,0 +1,48 @@
+{
+  "tau": 0.2183042638660042,
+  "weights": {
+    "sem": 0.0,
+    "lex": 1.0,
+    "struct": 0.0,
+    "dist": 0.0
+  },
+  "auc": 0.6991452991452991,
+  "f1": 0.5714285714285714,
+  "ci": {
+    "lo": 0.16929564395340058,
+    "hi": 0.24236672795579542
+  },
+  "n": 54,
+  "per_domain": {
+    "code": {
+      "pairs": 18,
+      "no_drift": 15,
+      "drift": 3
+    },
+    "math": {
+      "pairs": 18,
+      "no_drift": 18,
+      "drift": 0
+    },
+    "truth": {
+      "pairs": 18,
+      "no_drift": 6,
+      "drift": 12
+    }
+  },
+  "paper_weights": {
+    "sem": 0.38,
+    "lex": 0.12,
+    "struct": 0.21,
+    "dist": 0.29
+  },
+  "weights_delta": {
+    "sem": -0.38,
+    "lex": 0.88,
+    "struct": -0.21,
+    "dist": -0.29
+  },
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "embed_model": "nvidia/nemotron-3-embed-1b",
+  "source": "arXiv:2603.06333 SAHOO Gl.14-16 · AGENTS.md §9.1c · §6 externes Ground-Truth-Signal (HumanEval/GSM8K/TruthfulQA)"
+}
