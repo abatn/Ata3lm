@@ -1,0 +1,436 @@
+{
+  "tasks": [
+    {
+      "question": "Which replaced the XXX?",
+      "fact": "Le Plessis-Trévise",
+      "correct": "Le Plessis-Trévise",
+      "cycle": {
+        "stages": [
+          "Erfahrung",
+          "Wissen",
+          "Gedächtnis",
+          "Kognition",
+          "Denken",
+          "Nicht-Kognition",
+          "Handeln",
+          "Wissen+"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "revised": false,
+        "DI": null,
+        "results": {
+          "Erfahrung": {
+            "stage": "Erfahrung",
+            "entities": [],
+            "stored": "raw:which-replaced-the-xxx"
+          },
+          "Wissen": {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0
+          },
+          "Gedächtnis": {
+            "stage": "Gedächtnis",
+            "ok": false,
+            "action": "uncertain",
+            "steps": [
+              [
+                "mandate",
+                "ALLOW"
+              ],
+              [
+                "fwr",
+                "uncertain"
+              ]
+            ]
+          },
+          "Kognition": {
+            "stage": "Kognition",
+            "consolidated": true,
+            "strengthened": []
+          },
+          "Denken": {
+            "stage": "Denken",
+            "self_feedback": null
+          },
+          "Nicht-Kognition": {
+            "stage": "Nicht-Kognition",
+            "E_dV": -0.1,
+            "damping": 1.0
+          },
+          "Handeln": {
+            "stage": "Handeln",
+            "action": null,
+            "stored": null,
+            "skipped": true,
+            "reason": "Gedächtnis-Gate nicht ok"
+          },
+          "Wissen+": {
+            "stage": "Wissen+",
+            "DI": null,
+            "gate": "ask",
+            "reason": "keine Referenz (Cold-Start §10.4) – Bootstrap gesetzt",
+            "revised": false,
+            "reference": "bootstrap"
+          }
+        }
+      },
+      "recursion": {
+        "phases": [
+          "Konstrukt",
+          "Akt",
+          "Observe",
+          "Compare",
+          "Revise"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "observed": false,
+        "score": 0.0,
+        "compare_gate": "ask",
+        "revised": false,
+        "results": {
+          "Konstrukt": {
+            "phase": "Konstrukt",
+            "K": 4,
+            "pi0": "uniform (SEAA Listing 1)"
+          },
+          "Akt": {
+            "phase": "Akt",
+            "ok": false,
+            "action": "uncertain",
+            "gate": "ask"
+          },
+          "Observe": {
+            "phase": "Observe",
+            "entities": []
+          },
+          "Compare": {
+            "phase": "Compare",
+            "belief": 0.0253,
+            "score": 0.0,
+            "gate": "ask",
+            "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
+            "observed": false,
+            "oracle": {
+              "ok": false,
+              "evidence": {
+                "answer": "I don't know.",
+                "gold": "Le Plessis-Trévise"
+              },
+              "signal": "kein externes Signal",
+              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
+              "claim": "Which replaced the XXX?",
+              "successes": 0,
+              "failures": 1
+            },
+            "self_report": {
+              "successes": 0,
+              "failures": 0,
+              "belief": 0.05,
+              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
+            }
+          },
+          "Revise": {
+            "phase": "Revise",
+            "skipped": true,
+            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
+          }
+        }
+      }
+    },
+    {
+      "question": "In one word, how did XXX die?",
+      "fact": "suicide",
+      "correct": "suicide",
+      "cycle": {
+        "stages": [
+          "Erfahrung",
+          "Wissen",
+          "Gedächtnis",
+          "Kognition",
+          "Denken",
+          "Nicht-Kognition",
+          "Handeln",
+          "Wissen+"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "allow",
+        "revised": false,
+        "DI": 0.0,
+        "results": {
+          "Erfahrung": {
+            "stage": "Erfahrung",
+            "entities": [],
+            "stored": "raw:in-one-word-how-did-xxx-die"
+          },
+          "Wissen": {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0
+          },
+          "Gedächtnis": {
+            "stage": "Gedächtnis",
+            "ok": false,
+            "action": "uncertain",
+            "steps": [
+              [
+                "mandate",
+                "ALLOW"
+              ],
+              [
+                "fwr",
+                "uncertain"
+              ]
+            ]
+          },
+          "Kognition": {
+            "stage": "Kognition",
+            "consolidated": true,
+            "strengthened": []
+          },
+          "Denken": {
+            "stage": "Denken",
+            "self_feedback": -0.075
+          },
+          "Nicht-Kognition": {
+            "stage": "Nicht-Kognition",
+            "E_dV": -0.1,
+            "damping": 1.0
+          },
+          "Handeln": {
+            "stage": "Handeln",
+            "action": null,
+            "stored": null,
+            "skipped": true,
+            "reason": "Gedächtnis-Gate nicht ok"
+          },
+          "Wissen+": {
+            "stage": "Wissen+",
+            "DI": 0.0,
+            "gate": "allow",
+            "revised": false,
+            "reference": "checkpoint(kept)"
+          }
+        }
+      },
+      "recursion": {
+        "phases": [
+          "Konstrukt",
+          "Akt",
+          "Observe",
+          "Compare",
+          "Revise"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "observed": false,
+        "score": 0.0,
+        "compare_gate": "ask",
+        "revised": false,
+        "results": {
+          "Konstrukt": {
+            "phase": "Konstrukt",
+            "K": 4,
+            "pi0": "uniform (SEAA Listing 1)"
+          },
+          "Akt": {
+            "phase": "Akt",
+            "ok": false,
+            "action": "uncertain",
+            "gate": "ask"
+          },
+          "Observe": {
+            "phase": "Observe",
+            "entities": []
+          },
+          "Compare": {
+            "phase": "Compare",
+            "belief": 0.0253,
+            "score": 0.0,
+            "gate": "ask",
+            "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
+            "observed": false,
+            "oracle": {
+              "ok": false,
+              "evidence": {
+                "answer": "I don't know.",
+                "gold": "suicide"
+              },
+              "signal": "kein externes Signal",
+              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
+              "claim": "In one word, how did XXX die?",
+              "successes": 0,
+              "failures": 1
+            },
+            "self_report": {
+              "successes": 0,
+              "failures": 0,
+              "belief": 0.05,
+              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
+            }
+          },
+          "Revise": {
+            "phase": "Revise",
+            "skipped": true,
+            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
+          }
+        }
+      }
+    },
+    {
+      "question": "What cause of death was listed for XXX?",
+      "fact": "accident",
+      "correct": "accident",
+      "cycle": {
+        "stages": [
+          "Erfahrung",
+          "Wissen",
+          "Gedächtnis",
+          "Kognition",
+          "Denken",
+          "Nicht-Kognition",
+          "Handeln",
+          "Wissen+"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "allow",
+        "revised": false,
+        "DI": 0.0,
+        "results": {
+          "Erfahrung": {
+            "stage": "Erfahrung",
+            "entities": [],
+            "stored": "raw:what-cause-of-death-was-listed-for-xxx"
+          },
+          "Wissen": {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0
+          },
+          "Gedächtnis": {
+            "stage": "Gedächtnis",
+            "ok": false,
+            "action": "uncertain",
+            "steps": [
+              [
+                "mandate",
+                "ALLOW"
+              ],
+              [
+                "fwr",
+                "uncertain"
+              ]
+            ]
+          },
+          "Kognition": {
+            "stage": "Kognition",
+            "consolidated": true,
+            "strengthened": []
+          },
+          "Denken": {
+            "stage": "Denken",
+            "self_feedback": null
+          },
+          "Nicht-Kognition": {
+            "stage": "Nicht-Kognition",
+            "E_dV": -0.1,
+            "damping": 1.0
+          },
+          "Handeln": {
+            "stage": "Handeln",
+            "action": null,
+            "stored": null,
+            "skipped": true,
+            "reason": "Gedächtnis-Gate nicht ok"
+          },
+          "Wissen+": {
+            "stage": "Wissen+",
+            "DI": 0.0,
+            "gate": "allow",
+            "revised": false,
+            "reference": "checkpoint(kept)"
+          }
+        }
+      },
+      "recursion": {
+        "phases": [
+          "Konstrukt",
+          "Akt",
+          "Observe",
+          "Compare",
+          "Revise"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "observed": false,
+        "score": 0.0,
+        "compare_gate": "ask",
+        "revised": false,
+        "results": {
+          "Konstrukt": {
+            "phase": "Konstrukt",
+            "K": 4,
+            "pi0": "uniform (SEAA Listing 1)"
+          },
+          "Akt": {
+            "phase": "Akt",
+            "ok": false,
+            "action": "uncertain",
+            "gate": "ask"
+          },
+          "Observe": {
+            "phase": "Observe",
+            "entities": []
+          },
+          "Compare": {
+            "phase": "Compare",
+            "belief": 0.0253,
+            "score": 0.0,
+            "gate": "ask",
+            "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
+            "observed": false,
+            "oracle": {
+              "ok": false,
+              "evidence": {
+                "answer": "I don't know.",
+                "gold": "accident"
+              },
+              "signal": "kein externes Signal",
+              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
+              "claim": "What cause of death was listed for XXX?",
+              "successes": 0,
+              "failures": 1
+            },
+            "self_report": {
+              "successes": 0,
+              "failures": 0,
+              "belief": 0.05,
+              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
+            }
+          },
+          "Revise": {
+            "phase": "Revise",
+            "skipped": true,
+            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
+          }
+        }
+      }
+    }
+  ],
+  "model": {
+    "router_small": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    "router_large": "nvidia/nemotron-3-ultra-550b-a55b",
+    "reflection": "nvidia/nemotron-3-ultra-550b-a55b"
+  },
+  "source": "ZsRE (community-datasets/qa_zre) · AGENTS.md §2/§3 · §6 externes Signal (World-State-Oracle)",
+  "n": 3,
+  "seed": 42
+}

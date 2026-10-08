@@ -35,9 +35,11 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -108,14 +110,45 @@ def _get_client():
 # --------------------------------------------------------------------------- #
 # Endpoint (LLM + Embeddings) – Antwort wie `fast_write_router._ask`
 # --------------------------------------------------------------------------- #
+_RETRYABLE = (
+    "503",
+    "429",
+    "overloaded",
+    "resourceexhausted",
+    "service unavailable",
+    "temporarily",
+    "rate limit",
+    "too many requests",
+    "capacity",
+    "timed out",
+    "timeout",
+)
+
+
+def _retry(fn: Callable, *, attempts: int = 6, base_delay: float = 3.0, max_delay: float = 15.0):
+    """Transiente Endpoint-Fehler (503/429) mit Backoff wiederholen (wie `tests/_live.py`)."""
+    last: Optional[Exception] = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - echte Fehler prüfen
+            last = exc
+            if not any(m in str(exc).lower() for m in _RETRYABLE):
+                raise
+            time.sleep(min(max_delay, base_delay * (i + 1)) + random.uniform(0, 1))
+    raise last
+
+
 def _ask(question: str, *, client=None, model: str = MODEL, max_tokens: int = 1024) -> str:
     """Eine LLM-Antwort; ``content`` oder ``reasoning_content`` (wie FWR)."""
     c = client or _get_client()
-    r = c.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": question}],
-        max_tokens=max_tokens,
-        temperature=0.0,
+    r = _retry(
+        lambda: c.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": question}],
+            max_tokens=max_tokens,
+            temperature=0.0,
+        )
     )
     msg = r.choices[0].message
     return (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
@@ -124,7 +157,7 @@ def _ask(question: str, *, client=None, model: str = MODEL, max_tokens: int = 10
 def embed(text: str, *, client=None, model: str = EMBED) -> list:
     """Endpoint-Embedding (für Gl. 5–8, ``signal_vector``)."""
     c = client or _get_client()
-    r = c.embeddings.create(model=model, input=text or " ")
+    r = _retry(lambda: c.embeddings.create(model=model, input=text or " "))
     return list(r.data[0].embedding)
 
 
