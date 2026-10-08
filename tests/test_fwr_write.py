@@ -44,8 +44,11 @@ def test_write_new_schreibt_structured_und_tier3(tmp_path):
     )
     assert r["ok"] and r["action"] == "write-new" and r["gate"] == "ask"
     name = "hauptstadt-xylophonia.md"
-    assert (tmp_path / "s" / name).read_text(encoding="utf-8") == "Zentaria"
-    assert (tmp_path / "t3" / name).read_text(encoding="utf-8") == "Zentaria"
+    structured = (tmp_path / "s" / name).read_text(encoding="utf-8")
+    for feld in ("ontologie-bezug", "quelle", "evidence"):  # §6/K8-Pflichtfelder
+        assert feld in structured.lower()
+    assert structured.rstrip().endswith("Zentaria")  # Body unverändert
+    assert (tmp_path / "t3" / name).read_text(encoding="utf-8") == "Zentaria"  # tier3 = Body (K3)
     assert r["superseded"] is None
 
 

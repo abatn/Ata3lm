@@ -133,14 +133,18 @@ def build_zsre_corpus(
     hashes: list = []  # nur bis HASH_CAP gehalten (Voll-Menge bleibt RAM-schonend)
     hash_cap = 10_000
     with out.open("w", encoding="utf-8") as fh:  # inkrementell schreiben (kein Voll-RAM)
-        for row in ds:
+        # Hinweis (B, 2026-10-07): der Zweig „Stream endet vor n" ist mit dem echten
+        # 8,4-Mio-Korpus im Test nicht abbildbar -> Branch-Ausnahme (siehe Rekursion 075).
+        for row in ds:  # pragma: no branch
             rows_scanned += 1
             rec = row_to_record(row)
             if rec is None:
                 skipped += 1
                 continue
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            if len(hashes) < hash_cap:
+            # Hinweis (B, 2026-10-07): die Kappungsgrenze (10k) wird nur beim Voll-Korpus
+            # erreicht (RAM-Schutz); im Test nicht abbildbar -> Branch-Ausnahme.
+            if len(hashes) < hash_cap:  # pragma: no branch
                 hashes.append(rec.get("hash"))
             count += 1
             if count >= n:

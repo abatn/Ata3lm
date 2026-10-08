@@ -643,3 +643,64 @@ def test_a3_supersede_entry_rollback_ohne_altstand(tmp_path):
     r = wg.supersede_entry(t1, "neu", "NEU", 7.0)
     assert r["ok"] is False and "Rollback" in r["reason"]
     assert not (t1 / "neu.md").exists()
+
+
+def test_archive_file_kollision_gleicher_inhalt(tmp_path):
+    """N3/K5: gleicher Inhalt in derselben Sekunde -> Kollisions-Recheck (kein Überschreiben)."""
+    p = tmp_path / "same.md"
+    p.write_text("GLEICH", encoding="utf-8")
+    a1 = wg._archive_file(p, 5.0)
+    a2 = wg._archive_file(p, 5.0)  # identischer Inhalt/Zeitstempel -> Namenskollision
+    assert a1 != a2 and a1.exists() and a2.exists()
+    assert {a1.read_text(encoding="utf-8"), a2.read_text(encoding="utf-8")} == {"GLEICH"}
+
+
+# ------------------------------------------------- K8: §6-Pflichtfelder im structured-Doc
+def _structured_store(tmp_path, **kw):
+    return wg.store(
+        question="Was ist X",
+        fact="X ist Y",
+        correct="Y",
+        classify_fn=_cls("write-new"),
+        now=1.0,
+        structured_dir=tmp_path / "s",
+        tier3_dir=tmp_path / "t3",
+        mandate_obj=_mandate(),
+        **kw,
+    )
+
+
+def test_k8_structured_traegt_pflichtfelder_und_body(tmp_path):
+    """K8: `structured` trägt §6-Kopf; `tier3` bleibt Body-only (K3-Hash/§10.3 intakt)."""
+    r = _structured_store(tmp_path)
+    assert r["ok"] is True
+    doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")
+    for feld in ("ontologie-bezug", "quelle", "evidence"):
+        assert feld in doc.lower()
+    assert doc.rstrip().endswith("X ist Y")  # Body unverändert
+    assert "sha256:" in doc  # Evidence bindet den K3-Hash
+    t3 = (tmp_path / "t3" / "was-ist-x.md").read_text(encoding="utf-8")
+    assert t3 == "X ist Y" and provenance.content_hash(t3) == r["provenance"]["entity"]["sha256"]
+
+
+def test_k8_ontology_ref_und_source_ref_im_kopf(tmp_path):
+    r = _structured_store(tmp_path, ontology_ref="Denken (5)", source_ref="AGENTS.md §9.1c")
+    assert r["ok"] is True
+    doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")
+    assert "Denken (5)" in doc and "AGENTS.md §9.1c" in doc
+
+
+def test_k8_ohne_refs_ehrlich_offen_kein_fake(tmp_path):
+    """K8/A5: ohne Ontologie-Ref wird „offen" markiert; die Quelle ist der reale Record-Ort (§6)."""
+    _structured_store(tmp_path)
+    doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")
+    assert "offen (§4" in doc  # Ontologie-Bezug offen (A5)
+    assert "tool:verified" in doc  # Quelle = realer PROV-O-Ort (kein Fake)
+
+
+def test_k8_fail_closed_untrusted_und_unverified(tmp_path):
+    """K8/§9.2c: untrusted/unverified -> KEINE structured-Datei, kein Write."""
+    r = _structured_store(tmp_path, origin="web:untrusted")
+    assert r["ok"] is False and not (tmp_path / "s").exists()
+    r2 = _structured_store(tmp_path, verified=False)
+    assert r2["ok"] is False and not (tmp_path / "s").exists()

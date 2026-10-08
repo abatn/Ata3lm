@@ -142,6 +142,30 @@ def _gate_drift(drift, label: str):
     return gate_labels.normalize(d["gate"]), ("drift", d["DI"])
 
 
+def _structured_doc(body: str, record: dict, ontology_ref: str = "", source_ref: str = "") -> str:
+    """`knowledge/structured/*.md` mit §6-Pflichtfeldern (K8, Auftrag).
+
+    Kopf (case-insensitiv geprüft von `tests/test_invariants::test_structured_pflichtfelder`):
+    ``Ontologie-Bezug`` · ``Quelle`` · ``Evidence``.
+
+    **Keine Erfindung (§6):** die Werte stammen aus dem PROV-O-Record (K3) bzw. den
+    übergebenen Referenzen. Fehlt der Ontologie-Bezug, wird das ehrlich als
+    „offen (§4)" markiert (A5) – NICHTS wird erfunden. Der **Body** (= der Fakt)
+    bleibt unverändert; `tier3` erhält weiterhin **nur den Body**, damit die
+    `sha256`-Bindung aus K3 und `collect_pending` (§10.3) intakt bleiben (K8).
+    """
+    entity = record.get("entity") or {}
+    sha = entity.get("sha256", "")
+    created = record.get("created", "")
+    approval = record.get("approval")
+    appr = approval["state"] if isinstance(approval, dict) and approval.get("state") else "none"
+    # `record["source"]` ist per `build_record` garantiert nicht-leer (sonst ProvenanceError).
+    quelle = (source_ref or record.get("source") or "").strip()
+    bezug = (ontology_ref or "").strip() or "offen (§4 – Klärung ausstehend)"
+    header = f"- Ontologie-Bezug: {bezug}\n- Quelle: {quelle}\n- Evidence: sha256:{sha} · {created} · approval:{appr}\n"
+    return header + "\n" + body
+
+
 # --------------------------------------------------- Mutation (EIN write_text-Pfad)
 LOCK_STALE_S = 60.0  # Auftrag (K5): Locks älter als 60s gelten als abgebrochen
 
@@ -513,6 +537,8 @@ def store(
     verified: bool = True,
     shared_tier=None,
     provenance_log=None,
+    ontology_ref: str = "",
+    source_ref: str = "",
 ) -> dict:
     """Wissens-Write über die volle K2-Kette (inkl. FWR-Entscheidung, §10).
 
@@ -525,6 +551,11 @@ def store(
     Die non-write-Historie wird **angehängt** (JSONL, R20) statt überschrieben. Ein
     tier1-Supersede-Konflikt führt zu einem **Teilfehler** (R09: `ok=False`,
     `partial=True`) — nicht mehr zu `ok=True`.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, K8):** neue optionale
+    Parameter `ontology_ref`/`source_ref`. Das `structured`-Ziel erhält einen
+    §6-Kopf (`Ontologie-Bezug`/`Quelle`/`Evidence`); `tier3` bleibt Body-only
+    (K3-`sha256`-Bindung + `collect_pending` §10.3 bleiben intakt).
     """
     steps: list = []
     dec, gate = _gate_mandate(mandate_obj, agent, now)
@@ -671,7 +702,14 @@ def store(
             "steps": steps,
         }
 
-    res = _commit(targets, now, supersede_existing=(cls == "write-update"))
+    # K8 (Auftrag): `structured` trägt §6-Pflichtfelder (Kopf) · `tier3` bleibt Body-only
+    # (K3-`sha256`-Bindung + `collect_pending` §10.3 bleiben intakt).
+    write_targets = [(structured_file, _structured_doc(clean, record, ontology_ref, source_ref))]
+    if cls == "write-new":
+        write_targets.append((tier3_file, clean))  # §10.7: structured + tier3
+    elif tier3_file.exists():
+        write_targets.append((tier3_file, clean))  # N4: nur existierende Arbeitskopie aktualisieren
+    res = _commit(write_targets, now, supersede_existing=(cls == "write-update"))
     if res.get("conflict") or res.get("error"):
         return {
             "ok": False,

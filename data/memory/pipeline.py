@@ -58,6 +58,8 @@ def route_and_store(
     self_update: bool = False,
     approval_obj=None,
     approvers: Optional[list] = None,
+    ontology_ref: str = "",
+    source_ref: str = "",
 ) -> dict:
     """Eine Erfahrung durch die ganze Kette schicken (alle Elemente reden mit).
 
@@ -77,6 +79,8 @@ def route_and_store(
         approval_obj=approval_obj,
         approvers=approvers,
         agent="pipeline",
+        ontology_ref=ontology_ref,
+        source_ref=source_ref,
     )
     if res.get("action") == "non-write":
         res["action"] = "none"  # Vertrag der Pipeline: non-write meldet action "none"

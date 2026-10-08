@@ -232,6 +232,8 @@ def apply_write_action(
     approvers=None,
     self_update=False,
     state_path=None,
+    ontology_ref: str = "",
+    source_ref: str = "",
 ) -> dict:
     """Write-Aktion der 3 Klassen (AGENTS.md §10.7, wörtlich).
 
@@ -252,8 +254,9 @@ def apply_write_action(
     Freigabe hält `store` **vor** dem Write an (`gate=ask`, kein Write).
 
     **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
-    Parameter `approval_obj`, `approvers`, `self_update` (Freigabe vor Mutation)
-    und `state_path` (Default `None` ⇒ exakt altes Verhalten).
+    Parameter `approval_obj`, `approvers`, `self_update` (Freigabe vor Mutation),
+    `state_path` (Default `None` ⇒ exakt altes Verhalten) sowie `ontology_ref`/
+    `source_ref` (K8: §6-Kopf der `structured`-Datei; Default `""`).
 
     K2: DELEGATION an `write_gateway.store` (EIN Schreibpfad, feste Reihenfolge
     Mandat → FWR → Trust/PII → Poisoning → Freigabe → Drift → Supersede → Write
@@ -285,6 +288,8 @@ def apply_write_action(
         approval_obj=approval_obj,
         approvers=approvers,
         self_update=self_update,
+        ontology_ref=ontology_ref,
+        source_ref=source_ref,
     )
     res["action"] = cls
     res["superseded"] = res.get("superseded_tier1")

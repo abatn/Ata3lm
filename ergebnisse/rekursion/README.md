@@ -99,6 +99,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 072 | `072-zsre-konsolidierungskorpus.md` | System-Iteration (ZsRE-Konsolidierungskorpus §10.3) | **approved**: Batnini, 2026-10-07 | siehe File |
 | 073 | `073-out-of-band-eval.md` | System-Iteration (M3: Out-of-Band-Evaluation / World-State-Oracle §6) | pending (§9 `ask`: neue Quelle + Interface) | siehe File |
 | 074 | `074-m4-lifecycle.md` | System-Iteration (M4: Geschlossener Lifecycle, Router senses consolidation §10.1/§10.3) | pending (§9 `ask`: Interface) | siehe File |
+| 075 | `075-k8-structured-pflichtfelder.md` | System-Iteration (K8: §6-Pflichtfelder im `structured`-Write, Gateway↔Invariante) | pending (§9 `ask`: Interface) | siehe File |
 
 ## Guardrail
 

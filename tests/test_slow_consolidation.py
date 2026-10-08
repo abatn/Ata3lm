@@ -89,6 +89,38 @@ def test_collect_leerer_puffer_und_fehlendes_log(tmp_path):
     assert sc.collect_pending(tmp_path / "leer", tmp_path / "leer" / "provenance.jsonl") == []
 
 
+# ----------------------------------------------------------------- robuste Randfälle (tolerante Parser)
+def test_read_jsonl_toleriert_defekte_und_nicht_dict_zeilen(tmp_path):
+    """Kein Crash bei defekten Zeilen (kein Fake-Record, §6/§10.3)."""
+    log = tmp_path / "prov.jsonl"
+    good = provenance.build_record(fact="F", activity="write-new", agent="a", source="tool:verified", now=1.0)
+    log.write_text(
+        "\n"  # Leerzeile -> übersprungen
+        + "{kaputt\n"  # defektes JSON -> übersprungen
+        + "42\n"  # valides JSON, aber kein dict -> übersprungen
+        + json.dumps(good, ensure_ascii=False)
+        + "\n",
+        encoding="utf-8",
+    )
+    recs = sc._read_jsonl(log)
+    assert len(recs) == 1 and recs[0]["entity"]["sha256"] == good["entity"]["sha256"]
+
+
+def test_read_jsonl_fehlende_datei_ist_leer(tmp_path):
+    assert sc._read_jsonl(tmp_path / "gibt-es-nicht.jsonl") == []
+
+
+def test_load_state_nicht_dict_ist_leer(tmp_path):
+    state = tmp_path / "state.json"
+    state.write_text("[1, 2, 3]", encoding="utf-8")  # valides JSON, aber keine Map
+    assert sc._load_state(state) == {"consolidated": []}
+
+
+def test_flush_leerer_key_wird_uebersprungen(tmp_path):
+    res = sc.flush(["", "fehlt"], tmp_path / "tier3")
+    assert res["blocked"] == [] and res["missing"] == ["fehlt"] and res["removed"] == []
+
+
 # ----------------------------------------------------------------- build_sft_dataset
 def test_build_sft_dataset_format_und_hash(tmp_path):
     tier3, log = _fixture(tmp_path)

@@ -30,6 +30,11 @@ def _dirs(tmp_path):
     return tmp_path / "structured", tmp_path / "tier3"
 
 
+def _body(doc: str) -> str:
+    """Body hinter dem K8-Kopf (§6-Pflichtfelder); Dateien ohne Kopf bleiben unverändert."""
+    return doc.split("\n\n", 1)[-1]
+
+
 def test_mandat_deny_blockiert(tmp_path):
     s, t3 = _dirs(tmp_path)
     out = pipeline.route_and_store(
@@ -112,8 +117,8 @@ def test_write_update_archiviert_alten_stand(tmp_path):
     )
     assert out["superseded"]["old_found"] is True
     archived = list(s.glob("hauptstadt-x.superseded-5-*.md"))
-    assert len(archived) == 1 and archived[0].read_text(encoding="utf-8") == "ALT"
-    assert (s / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"
+    assert len(archived) == 1 and _body(archived[0].read_text(encoding="utf-8")) == "ALT"
+    assert _body((s / "hauptstadt-x.md").read_text(encoding="utf-8")) == "NEU"
 
 
 def test_n3_update_archiv_kollision_same_second(tmp_path):
@@ -126,8 +131,8 @@ def test_n3_update_archiv_kollision_same_second(tmp_path):
     pipeline.route_and_store(fact="UPDATE-TWO", classify_fn=_cls("write-update"), **common)
     archives = list(s.glob("alpha.superseded-*.md"))
     assert len(archives) == 2  # kein Überschreiben des ersten Archivs
-    assert {p.read_text(encoding="utf-8") for p in archives} == {"ORIGINAL", "UPDATE-ONE"}
-    assert (s / "alpha.md").read_text(encoding="utf-8") == "UPDATE-TWO"
+    assert {_body(p.read_text(encoding="utf-8")) for p in archives} == {"ORIGINAL", "UPDATE-ONE"}
+    assert _body((s / "alpha.md").read_text(encoding="utf-8")) == "UPDATE-TWO"
 
 
 def test_n4_write_update_aktualisiert_tier3(tmp_path):
@@ -154,7 +159,7 @@ def test_n4_write_update_aktualisiert_tier3(tmp_path):
         structured_dir=s,
         tier3_dir=t3,
     )
-    assert (s / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"
+    assert _body((s / "hauptstadt-x.md").read_text(encoding="utf-8")) == "NEU"
     assert (t3 / "hauptstadt-x.md").read_text(encoding="utf-8") == "NEU"  # nicht mehr veraltet
     assert str(t3 / "hauptstadt-x.md") in out["written"]
 
