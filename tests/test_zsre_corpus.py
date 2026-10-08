@@ -76,6 +76,7 @@ def test_records_to_jsonl_leer(tmp_path):
 
 
 # --------------------------------------------------------- echtes load_dataset (skip)
+@pytest.mark.live  # echter HF-Zugriff (load_dataset) -> im Offline-Lauf übersprungen
 def test_build_zsre_corpus_real_or_skip(tmp_path):
     pytest.importorskip("datasets")
     out = tmp_path / "zsre.jsonl"
