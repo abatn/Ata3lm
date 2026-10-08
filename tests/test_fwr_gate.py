@@ -153,3 +153,63 @@ def test_classify_legacy_eskaliert_write_new(monkeypatch):
     monkeypatch.setattr(fwr, "_ask", _fake_ask(stub))
     r = fwr.classify("Hauptstadt Xylophonia?", "Zentaria.", "Zentaria")
     assert r["class"] == "write-new" and r["stage"] == 2 and r["escalated"] is True
+
+
+# --------------------------------------------------------- _ask Retry (Robustheit §7)
+class _Msg:
+    def __init__(self, content="OK", reasoning_content=None):
+        self.content = content
+        self.reasoning_content = reasoning_content
+
+
+class _Resp:
+    def __init__(self, msg):
+        self.choices = [type("C", (), {"message": msg})()]
+
+
+def _client_mit(create):
+    completions = type("Cm", (), {"create": staticmethod(create)})()
+    chat = type("Ch", (), {"completions": completions})()
+    return type("Cl", (), {"chat": chat})()
+
+
+def test_ask_retry_transient_dann_ok(monkeypatch):
+    state = {"n": 0}
+
+    def create(**_):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise RuntimeError("503 Service temporarily overloaded")
+        return _Resp(_Msg("OK"))
+
+    monkeypatch.setattr(fwr, "_get_client", lambda: _client_mit(create))
+    monkeypatch.setattr(fwr.time, "sleep", lambda *_: None)
+    assert fwr._ask("m", "q") == "OK" and state["n"] == 2
+
+
+def test_ask_nicht_retryable_wirft_sofort(monkeypatch):
+    def create(**_):
+        raise ValueError("bad request")
+
+    monkeypatch.setattr(fwr, "_get_client", lambda: _client_mit(create))
+    with pytest.raises(ValueError):
+        fwr._ask("m", "q")
+
+
+def test_ask_alle_versuche_fail(monkeypatch):
+    state = {"n": 0}
+
+    def create(**_):
+        state["n"] += 1
+        raise RuntimeError("503 overloaded")
+
+    monkeypatch.setattr(fwr, "_get_client", lambda: _client_mit(create))
+    monkeypatch.setattr(fwr.time, "sleep", lambda *_: None)
+    with pytest.raises(RuntimeError):
+        fwr._ask("m", "q", attempts=3)
+    assert state["n"] == 3
+
+
+def test_ask_reasoning_content_fallback(monkeypatch):
+    monkeypatch.setattr(fwr, "_get_client", lambda: _client_mit(lambda **_: _Resp(_Msg("", "REASON"))))
+    assert fwr._ask("m", "q") == "REASON"

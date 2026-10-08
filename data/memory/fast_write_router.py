@@ -37,7 +37,9 @@ Die 3-Klassen-*Aktionen* stammen daher aus AGENTS.md §10.7 (Auftrag), nicht aus
 
 import json
 import os
+import random
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -90,18 +92,55 @@ REFUSAL_MARKERS = [
     "keine information",
 ]
 
+# Transiente Endpoint-Fehler (wie `tests/_live.py`) → Backoff-Retry, kein Fake.
+_RETRYABLE = (
+    "503",
+    "429",
+    "overloaded",
+    "resourceexhausted",
+    "service unavailable",
+    "temporarily",
+    "rate limit",
+    "too many requests",
+    "capacity",
+    "timed out",
+    "timeout",
+)
 
-def _ask(model: str, question: str, memory: Optional[str] = None, max_tokens: int = 2000) -> str:
+
+def _ask(
+    model: str,
+    question: str,
+    memory: Optional[str] = None,
+    max_tokens: int = 2000,
+    attempts: int = 6,
+    base_delay: float = 3.0,
+    max_delay: float = 15.0,
+) -> str:
+    """LLM-Antwort; **transiente** Endpoint-Fehler (503/429/…) mit Backoff wiederholen.
+
+    Echte Verifikation (Guardrail 7): nur transiente Fehler werden wiederholt
+    (dasselbe Muster wie `tests/_live.py`), **keine** Fake-Antwort.
+    """
     base = "Answer in ONE short sentence. If you do not know the answer, reply exactly: I don't know.\n\n"
     prompt = base + question if not memory else f"{base}Use this knowledge:\n{memory}\n\nQuestion: {question}"
-    r = _get_client().chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,
-        temperature=0.0,
-    )
-    msg = r.choices[0].message
-    return (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
+    last: Optional[Exception] = None
+    for i in range(attempts):
+        try:
+            r = _get_client().chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=0.0,
+            )
+            msg = r.choices[0].message
+            return (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
+        except Exception as exc:  # noqa: BLE001 - echte Fehler prüfen
+            last = exc
+            if not any(m in str(exc).lower() for m in _RETRYABLE):
+                raise
+            time.sleep(min(max_delay, base_delay * (i + 1)) + random.uniform(0, 1))
+    raise last
 
 
 def is_refusal(answer: str) -> bool:
