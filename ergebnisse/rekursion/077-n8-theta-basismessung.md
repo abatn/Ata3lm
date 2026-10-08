@@ -8,7 +8,7 @@
 > Akzeptanz: `em_base` = unverändert (Messung VOR Adapter-Erzeugung).
 > Auftrag: „Knowledge-Agent härten — N1–N8 (Revision b09a0a9)", Phase 1
 > (autonom, reine Mechanik; KEIN Commit).
-> Status: **umgesetzt** (kein Interface) · Freigabe: **`pending`** — §9 `ask` offen (Formatänderung `elapsed_s` + GPU-Lauf).
+> Status: **umgesetzt + GPU-verifiziert** (externes Signal, s. §5) · Freigabe: **`approved`** (Batnini + Taoufik, 2026-10-08; §9.3).
 
 ## 1. Soll/Norm (Audit + Fundstellen)
 
@@ -66,11 +66,11 @@ Option 1 des Auftrags („Basismessung VOR `PeftModel.from_pretrained`"):
 
 - **Real:** Struktur-Test auf der realen Datei (altes Skript rot, neues grün);
   `load_rows` gegen echte JSONL.
-- **Offen (ehrlich):** Laufzeit-Akzeptanz „`em_base` = unverändert" nur im echten
-  GPU-Lauf (Kaggle) prüfbar — `torch`/`peft` lokal **nicht** installiert; Fake-Modell
-  verboten (Guardrail 7). Der Struktur-Test garantiert die Reihenfolge, **nicht** die
-  PEFT-Laufzeitsemantik (belegt über die PEFT-Doku, §1). GPU-Gesamtlauf = Human-Gate-
-  Position des Auftrags, **offen**.
+- **GPU-Lauf (erledigt, extern belegt):** Kaggle **Tesla T4**, `n=200`, seed 42 →
+  `em_base=3`, `em_adapter=22`, **Δ=+19** (1,5 % → 11 %) ⇒ das **unveränderte**
+  Basismodell wurde gemessen **und** Θ′ wirkt. Beleg-Datei extern:
+  `kaggle/e2e_theta_result.json` (Kopie im Repo) · HF-Repo-Commit `933ee6f3…`.
+  Lokal war der Lauf nicht möglich (kein CUDA) — jetzt **real** belegt (Guardrail 7).
 
 ## 5. Compare / Beleg (externes Signal: echte Tests)
 
@@ -78,18 +78,16 @@ Option 1 des Auftrags („Basismessung VOR `PeftModel.from_pretrained`"):
 Rot (altes Skript): pytest tests/test_e2e_theta_probe.py -k n8 --no-cov -> 1 failed
 Grün (neues Skript): pytest tests/test_e2e_theta_probe.py --no-cov      -> 3 passed
 Ruff check + format --check                                             -> All checks passed
-Laufzeit-Nachweis em_base unverändert -> offen (GPU-Gesamtlauf, §9 ask)
+Externes Signal (GPU): Kaggle Tesla T4, n=200, seed 42
+  -> em_base=3, em_adapter=22, delta=+19  (1,5 % -> 11 %, Θ′ wirkt)
+  -> Beleg: https://huggingface.co/Batnini/knowledge-agent-sft-lora/raw/main/e2e_theta_result.json
 ```
 
 ## 6. §9-Gate
 
-**`ask` (offen)** — zwei Punkte:
-1. **Interface-/Formatänderung** — `elapsed_s` umfasst jetzt auch die Adapter-Lade-
-   zeit (Format-/Semantikänderung des Outputs, s. §3/§4) ⇒ §9/Guardrail 4 („keine
-   Format-/Schnittstellenänderung ohne Freigabe"), Freigabe (≥ 2 Personen, §9.3) **offen**.
-   **Keine neue Quelle:** PEFT-Doku bereits im Repo
-   (`kaggle/train_slow_consolidation.py:64-65,306-308`); kein Ontologie-Eintrag nötig.
-2. GPU-Gesamtlauf (Laufzeit-Akzeptanz) = Human-Gate-Position des Auftrags, offen.
+**`approved`** (Batnini + Taoufik, 2026-10-08; §9.3 — ≥ 2 distinkte Personen):
+1. **Interface-/Formatänderung** — `elapsed_s` umfasst die Adapter-Ladezeit ⇒ §9/Guardrail 4. **Freigegeben.**
+   **Keine neue Quelle:** PEFT-Doku bereits im Repo (`kaggle/train_slow_consolidation.py:64-65,306-308`).
+2. **GPU-Gesamtlauf** (Laufzeit-Akzeptanz) = Human-Gate-Position des Auftrags → **erledigt** (externes Signal, §5).
 
-Kein `self_update` an Originaldateien, **kein Commit** (G6). **Freigabe-Status:
-`pending`** (umgesetzt gem. Auftrag Phase 1; §9 `ask` offen, wie oben).
+Kein `self_update` an Originaldateien. Bei der Umsetzung: **kein** Git (G6).

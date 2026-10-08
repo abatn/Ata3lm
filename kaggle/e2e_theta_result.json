@@ -1,0 +1,15 @@
+{
+  "status": "Auftrag/unverifiziert-lokal",
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "adapter": "Batnini/knowledge-agent-sft-lora",
+  "n": 200,
+  "em_base": 3,
+  "em_adapter": 22,
+  "em_base_ratio": 0.015,
+  "em_adapter_ratio": 0.11,
+  "delta": 19,
+  "gpu": "Tesla T4",
+  "seed": 42,
+  "elapsed_s": 161.9,
+  "source": "AGENTS.md §10.3 · arXiv:2608.22215 §3.4"
+}
