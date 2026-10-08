@@ -1,0 +1,20 @@
+{
+  "n": 200,
+  "tau": 0.10390059629289511,
+  "weights": {
+    "sem": 1.0,
+    "lex": 0.0,
+    "struct": 0.0,
+    "dist": 0.0
+  },
+  "ci": {
+    "lo": 0.16414206550832527,
+    "hi": 0.17578002363784503
+  },
+  "auc": 0.6844994892747702,
+  "f1": 0.9468085106382979,
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "embed_model": "nvidia/nemotron-3-embed-1b",
+  "dataset": "theta_answers.jsonl (Base Θ vs. Adapter Θ', Kaggle e2e_theta_probe)",
+  "source": "arXiv:2603.06333 Gl.14-16 · AGENTS.md §9.1c · §6 externes Signal"
+}
