@@ -26,7 +26,12 @@ sys.path.insert(0, str(ROOT / "data" / "memory"))
 
 _CFG = Path.home() / ".config/opencode/opencode.json"
 if not os.environ.get("OPENAI_API_KEY") and _CFG.exists():
-    _o = json.loads(_CFG.read_text(encoding="utf-8")).get("provider", {}).get("nvidia-llama-nemotron", {}).get("options", {})
+    _o = (
+        json.loads(_CFG.read_text(encoding="utf-8"))
+        .get("provider", {})
+        .get("nvidia-llama-nemotron", {})
+        .get("options", {})
+    )
     os.environ.setdefault("OPENAI_API_KEY", _o.get("apiKey", ""))
     os.environ.setdefault("OPENAI_BASE_URL", _o.get("baseURL", "https://integrate.api.nvidia.com/v1"))
 
@@ -84,7 +89,9 @@ def main() -> None:
         help="JSONL (question, gold, base_answer, adapter_answer). Ohne: generiert prev/cur via LLM-Endpoint aus ZsRE.",
     )
     ap.add_argument("-n", "--num", type=int, default=N)
-    ap.add_argument("--out", default=os.environ.get("DRIFT_OUT", str(ROOT / "ergebnisse" / "drift-calibration-result.json")))
+    ap.add_argument(
+        "--out", default=os.environ.get("DRIFT_OUT", str(ROOT / "ergebnisse" / "drift-calibration-result.json"))
+    )
     args = ap.parse_args()
 
     if args.answers:
