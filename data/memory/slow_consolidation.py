@@ -29,13 +29,31 @@ sind real aus dem externen Puffer gelesen.
 **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** Alle hier definierten
 Funktionen/Signaturen (`collect_pending`, `build_sft_dataset`, `mark_consolidated`,
 `flush`, `write_back`) sowie die neuen optionalen Runner-Parameter
-`consolidation_state_path` sind NEU und noch NICHT menschlich freigegeben (§9).
+`consolidation_state_path` sind §9-pflichtig und **freigegeben** (`approved`
+Batnini + Taoufik, 2026-10-08).
 
 **N2/N3 (Auftrag Phase 2, Audit b09a0a9; §9-Freigabe `approved` Batnini + Taoufik,
 2026-10-08):** Konsolidierung wird an den **Inhalt** gebunden (`fact_sha256` je Key;
 ein geänderter Fakt bleibt nicht versteckt), und `flush` löscht **nur mit Erfolgs-
 beleg** (`state_path` verpflichtend) und **nie** Archiv-Stände (`.superseded-`).
-Rückwärtskompatibel: altes State-Format `{"consolidated": [keys]}` ⇒ Hash unbekannt.
+Das alte State-Format `{"consolidated": [keys]}` wird weiterhin gelesen, gilt aber
+nach F3 als **inert** (Hash unbekannt ⇒ nicht konsolidiert).
+
+**F1/F2/F3 (Auftrag Phase 2, Audit 75095d5; §9-Freigabe `approved` Batnini +
+Taoufik, 2026-10-08):** Verschärfung von N2/N3 auf **fail-closed**:
+  - **F1** `flush` löscht nur bei **Hash-Gleichheit** (`entries[key].fact_sha256` ==
+    `content_hash(Datei-Inhalt)`) **und** `probe_passed=True`; geänderter Fakt,
+    unbekannter Hash, fehlender Eintrag oder negativer Probe ⇒ **blocked**, kein
+    Löschen.
+  - **F2** `mark_consolidated(..., probe_passed=False)` verbucht den Key **nicht**
+    als konsolidiert (und **stuft** eine frühere Konsolidierung **herab**);
+    `flush`/`discard_if_consolidated` respektieren nur den **positiven** Probe.
+  - **F3** `_is_consolidated`: **unbekannter Hash ⇒ False** (fail-closed). ⟹
+    **Legacy-States ohne Hash sind ab jetzt inert** – sie verhindern weder Sammeln
+    noch erneutes Schreiben.
+Quelle (Belegt): nur ein **positiver** Probe erlaubt Konsolidierung
+(Kairos/Validation-Gated, `connectors/gaama.md`); §10.3 (arXiv:2608.22215 §3.4):
+Flush nur nach Erfolg, sonst bleibt der Fakt.
 """
 
 from __future__ import annotations
@@ -105,18 +123,23 @@ def _load_state(state_path) -> dict:
 
 
 def _is_consolidated(entry: Optional[dict], current_sha: Optional[str]) -> bool:
-    """N2: Gilt ein Fakt als konsolidiert? Nur bei **Hash-Gleichheit**.
+    """Gilt ein Fakt als konsolidiert? **Nur** bei positivem Probe **und** Hash-Gleichheit.
 
-    - Kein `entry` (Legacy-State = reine Key-Liste) ⇒ Hash **unbekannt** ⇒ Key-Match.
-    - `fact_sha256` fehlt/None ⇒ Hash **unbekannt** ⇒ Key-Match.
-    - `fact_sha256` gesetzt ⇒ konsolidiert **nur**, wenn == `current_sha`;
-      ein geänderter Fakt (neuer Hash, gleicher Key) ist wieder konsolidierbar.
+    F3 (Audit 75095d5, **fail-closed**):
+      - Kein `entry` (Legacy-State = reine Key-Liste) ⇒ **False** (Hash unbekannt).
+      - `probe_passed` ist nicht `True` (fehlt/None/False) ⇒ **False** (nur **positiv**
+        geprüfte Fakten sind konsolidiert; Kairos/Validation-Gated, `connectors/gaama.md`).
+      - `fact_sha256` fehlt/None ⇒ **False** (Hash unbekannt).
+      - sonst konsolidiert **nur**, wenn `stored == current_sha`; ein geänderter Fakt
+        (neuer Hash, gleicher Key) ist wieder konsolidierbar.
     """
     if not entry:
-        return True
+        return False
+    if entry.get("probe_passed") is not True:
+        return False
     stored = entry.get("fact_sha256")
     if not stored:
-        return True
+        return False
     return stored == current_sha
 
 
@@ -199,7 +222,9 @@ def collect_pending(tier3_dir, provenance_log, *, state_path=None, questions=Non
             fact = p.read_text(encoding="utf-8")
         except OSError:  # pragma: no cover - unlesbare Datei überspringen
             continue
-        # N2: nur ausschließen, wenn der AKTUELLE Fakt-Hash == konsolidierter Hash.
+        # F3 (fail-closed): nur ausschließen, wenn der AKTUELLE Fakt-Hash ==
+        # konsolidierter Hash UND der Probe positiv ist. Unbekannter Hash ⇒ nicht
+        # ausblenden (Legacy-States sind inert).
         if key in done and _is_consolidated(entries.get(key), provenance.content_hash(fact)):
             continue
         seen.add(sha)
@@ -263,13 +288,17 @@ def mark_consolidated(
 
     **N2:** je Key wird zusätzlich `fact_sha256` (Inhalt des konsolidierten Fakts),
     optional `model` und `probe_passed` verbucht. `facts` = Mapping Key → Fakt-Inhalt;
-    fehlt es, bleibt der Hash **unbekannt** (rückwärtskompatibler Key-Match). Ein
+    fehlt es, bleibt der Hash **unbekannt** (fail-closed ⇒ nicht konsolidiert, F3). Ein
     erneutes Verbuchen desselben Keys **aktualisiert** den Hash (nach write-update +
     Retraining ist der neue Fakt wieder konsolidiert).
 
-    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neue optionale
-    Parameter `success` (nur nach Erfolg, §10.3) sowie `facts`/`model`/`probe_passed`
-    (N2-Inhaltsbindung; Defaults ⇒ altes Key-Listen-Verhalten).
+    **F2 (Audit 75095d5):** `probe_passed=False` verbucht den Key **nicht** in
+    `consolidated` und **stuft** eine frühere Konsolidierung **herab** (kein Discard/
+    Flush ohne **positiven** Probe; `connectors/gaama.md`).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, `approved` Batnini +
+    Taoufik 2026-10-08):** neue optionale Parameter `success` (nur nach Erfolg, §10.3)
+    sowie `facts`/`model`/`probe_passed` (N2-Inhaltsbindung/F2-Probe).
     """
     state = _load_state(state_path)
     known = list(state.get("consolidated") or [])
@@ -284,15 +313,18 @@ def mark_consolidated(
         }
     added: list = []
     for k in (str(k) for k in (keys or []) if str(k)):
-        if k not in known:
-            known.append(k)
-            added.append(k)
         entry = dict(entries.get(k) or {})
         if facts and k in facts:
             entry["fact_sha256"] = provenance.content_hash(str(facts[k]))
         entry["model"] = model if model is not None else entry.get("model")
         entry["probe_passed"] = bool(probe_passed)
         entries[k] = entry
+        if probe_passed:
+            if k not in known:
+                known.append(k)
+                added.append(k)
+        elif k in known:  # F2: negativer Probe ⇒ frühere Konsolidierung herabgestuft
+            known.remove(k)
     state["consolidated"] = known
     state["entries"] = entries
     _write_state(state_path, state)
@@ -312,8 +344,15 @@ def flush(keys, tier3_dir, *, state_path=None) -> dict:
       - Archiv-Stände (`.superseded-` im Namen) = Historie und werden **nie**
         gelöscht (§10.7 „invalidieren, NICHT löschen").
 
-    **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** `state_path` ist für
-    einen Flush jetzt **erforderlich**; ohne ihn wird verweigert (Default ⇒ sicher).
+    **F1 (Audit 75095d5, fail-closed):** Gelöscht wird **nur** bei **Hash-Gleichheit**
+    (`entries[key].fact_sha256 == content_hash(Datei-Inhalt)`) **und** positivem Probe
+    (`probe_passed=True`). Ein **geänderter Fakt** (Hash-Mismatch), ein **unbekannter
+    Hash** (kein Eintrag / `fact_sha256=None`) oder ein negativer Probe ⇒ **`blocked`**,
+    die Datei bleibt. Eine fehlende Datei meldet `missing` (bereits weg).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, `approved` Batnini +
+    Taoufik 2026-10-08):** `state_path` ist für einen Flush **erforderlich**; ohne ihn
+    wird verweigert (Default ⇒ sicher).
     """
     tier3 = Path(tier3_dir)
     raw = [str(k) for k in (keys or []) if str(k)]
@@ -325,7 +364,9 @@ def flush(keys, tier3_dir, *, state_path=None) -> dict:
             "blocked": raw,
             "reason": "Flush ohne Erfolgsbeleg verweigert (N3/§10.3)",
         }
-    done = set(_load_state(state_path)["consolidated"])
+    state = _load_state(state_path)
+    done = set(state.get("consolidated") or [])
+    entries = state.get("entries") or {}
     removed: list = []
     missing: list = []
     blocked: list = []
@@ -334,14 +375,18 @@ def flush(keys, tier3_dir, *, state_path=None) -> dict:
             blocked.append(k)
             continue
         if k not in done:
-            blocked.append(k)  # §10.3: nur nach Erfolg entfernen
+            blocked.append(k)  # §10.3: nur nach Erfolg/positivem Probe entfernen
             continue
         f = tier3 / f"{Path(k).stem}.md"
-        if f.exists():
-            f.unlink()
-            removed.append(k)
-        else:
-            missing.append(k)
+        if not f.exists():
+            missing.append(k)  # bereits entfernt/nie geschrieben – kein Fake-Erfolg
+            continue
+        current = provenance.content_hash(f.read_text(encoding="utf-8"))
+        if not _is_consolidated(entries.get(k), current):
+            blocked.append(k)  # F1: Hash unbekannt/geändert oder Probe negativ ⇒ bleibt
+            continue
+        f.unlink()
+        removed.append(k)
     return {"ok": True, "removed": removed, "missing": missing, "blocked": blocked}
 
 

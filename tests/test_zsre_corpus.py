@@ -35,7 +35,9 @@ def test_row_to_record_mapping():
     assert rec["relation"] == "industry"
     assert rec["subject"] == "Commercial Press"
     assert [m["role"] for m in rec["messages"]] == ["user", "assistant"]
-    assert rec["messages"][0]["content"] == FIXTURE["question"]
+    # F6: Frage ist an ihr Subjekt gebunden (XXX → subject), nicht der Roh-Platzhalter.
+    assert rec["messages"][0]["content"] == "Which industry is Commercial Press associated with?"
+    assert "XXX" not in rec["messages"][0]["content"]
     assert rec["messages"][1]["content"] == "publishing"  # answers[0]
 
 

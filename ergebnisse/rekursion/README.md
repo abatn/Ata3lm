@@ -113,6 +113,10 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 086 | `086-fwr-gstar-gate.md` | System-Iteration (Eskalationsgate `g* = V_large − V_small` §3.3.2, λ Tabelle 1) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 087 | `087-live-run-driver.md` | System-Iteration (Live-Run-Driver 8 Stufen + 5 Phasen, §6 externes Signal) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 088 | `088-laeufe-ergebnisse.md` | System-Iteration (Live-Run 3 Aufgaben + größeres Kalibrierset n=180: τ=0.240, AUC 0.760) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 089 | `089-f1-f2-f3-consolidation-binding.md` | System-Iteration (F1/F2/F3: Konsolidierung fail-closed an Inhalt + positiven Probe gebunden) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 090 | `090-f4-mcp-k8-evidence-hash.md` | System-Iteration (F4: MCP-K8-Kopf erst nach PII-Sanitisierung; Evidence-Hash == Body-Hash) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 091 | `091-f5-grader-korrektheit.md` | System-Iteration (F5: Kalibrier-Grader Math=Endantwort nach `####`, Truth=verneinter Treffer falsch; Rekalibrierung nötig) | pending (§9 `ask`: Label-Semantik) | siehe File |
+| 092 | `092-f6-subjekt.md` | System-Iteration (F6: ZsRE-Fragen an Subjekt gebunden – `XXX` → `subject`; Formatänderung §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 
 ## Guardrail
 

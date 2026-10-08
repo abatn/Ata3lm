@@ -51,18 +51,31 @@ SOURCE_NOTE = "volle Menge aus Quelle verfuegbar; hier gesampeltes n"
 def row_to_record(row: dict) -> Optional[dict]:
     """HF-ZsRE-Zeile → TRL-Chat-Record (reine Funktion, kein Netz, kein Fake).
 
-    Bildet den ersten Fakt ``answers[0]`` als assistant-Antwort zur ``question``.
-    Zeilen ohne nicht-leere Frage **oder** Antwort ergeben ``None`` (überspringen,
-    nichts erfinden).
+    **Formatänderung (§9 approved, Batnini + Taoufik, 2026-10-08):** Die Frage
+    wird an ihr **Subjekt** gebunden – im Paper die ``(knowledge, query,
+    answer)``-Triples (arXiv:2608.22215 §4.1 „fact corpus from ZsRE …
+    behavioral labeling"; RQGM-Forderung „subjektgebundene QA-Daten"). Enthält
+    die ``question`` den ZsRE-Platzhalter ``XXX`` **und** ist ein ``subject``
+    vorhanden, wird ``XXX`` durch das Subjekt ersetzt (alle Vorkommen). Das
+    Subjekt bleibt zusätzlich als Feld erhalten. **Kein** Erfinden: fehlt das
+    ``subject``, bleibt die Frage unverändert. (Ursprung der Platzhalter:
+    Levy, Seo, Choi & Zettlemoyer 2017, CoNLL, ``K17-1034``.)
+
+    Bildet den ersten Fakt ``answers[0]`` als assistant-Antwort zur (gebundenen)
+    ``question``. Zeilen ohne nicht-leere Frage **oder** Antwort ergeben
+    ``None`` (überspringen, nichts erfinden).
 
     Rückgabe::
 
-        {"messages": [{"role":"user","content":<question>},
+        {"messages": [{"role":"user","content":<gebundene question>},
                       {"role":"assistant","content":<answers[0]>}],
          "source": "zsre", "relation": <relation>, "subject": <subject>,
          "hash": <sha256 der kanonisch serialisierten messages>}
     """
     question = str(row.get("question") or "").strip()
+    subject = str(row.get("subject") or "").strip()
+    if "XXX" in question and subject:  # Subjektbindung (Formatänderung §9 approved)
+        question = question.replace("XXX", subject)
     answers = row.get("answers") or []
     answer = str(answers[0]).strip() if answers else ""
     if not question or not answer:
@@ -76,7 +89,7 @@ def row_to_record(row: dict) -> Optional[dict]:
         "messages": messages,
         "source": SOURCE,
         "relation": row.get("relation"),
-        "subject": row.get("subject"),
+        "subject": subject or None,
         "hash": provenance.content_hash(canonical),
     }
 

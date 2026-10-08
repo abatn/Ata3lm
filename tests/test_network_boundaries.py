@@ -193,10 +193,19 @@ def test_flush_requires_success_evidence(tmp_path):
     r3 = sc.flush(["gibt-es-nicht"], tier3, state_path=state)
     assert r3["missing"] == ["gibt-es-nicht"] and r3["removed"] == []
 
-    # Fall 4: Erfolg belegt ⇒ löschen.
-    sc.mark_consolidated(["fakt-a"], state)
+    # Fall 4: Erfolg MIT gebundenem Hash belegt ⇒ löschen (F1: nur bei Hash-Gleichheit).
+    f = tier3 / "fakt-a.md"
+    sc.mark_consolidated(["fakt-a"], state, facts={"fakt-a": "Fakt A."})
     r4 = sc.flush(["fakt-a"], tier3, state_path=state)
     assert r4["removed"] == ["fakt-a"] and not f.exists()
+
+    # Fall 5: verbuchter Key OHNE Hash (kein Beleg der Inhalt-Gleichheit) ⇒
+    # fail-closed (F1): blockiert, die Datei bleibt.
+    f2 = tier3 / "fakt-b.md"
+    f2.write_text("Fakt B.", encoding="utf-8")
+    sc.mark_consolidated(["fakt-b"], state)
+    r5 = sc.flush(["fakt-b"], tier3, state_path=state)
+    assert r5["removed"] == [] and r5["blocked"] == ["fakt-b"] and f2.exists()
 
 
 def test_flush_preserves_archive_when_called_with_filename(tmp_path):

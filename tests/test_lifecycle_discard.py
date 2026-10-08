@@ -14,20 +14,35 @@ from pathlib import Path
 
 import fast_write_router as fwr
 import gate_labels
+import provenance
 import pytest
 
 REAL_STATE = Path(__file__).resolve().parents[1] / "data/memory/tier3-working/consolidation-state.json"
 
 
-def _state(tmp_path, keys):
+def _state(tmp_path, keys, *, facts=None, probe_passed=True):
+    """Konsolidierungs-State im N2-Format (Hash-Bindung je Key).
+
+    F3 (Audit 75095d5): Legacy-States ohne Hash sind **inert**; daher wird hier der
+    Inhalt-Hash gebunden. `facts` = Mapping Key → Fakt-Inhalt (fehlt ⇒ Hash None).
+    """
+    facts = facts or {}
+    entries = {
+        k: {
+            "fact_sha256": provenance.content_hash(facts[k]) if k in facts else None,
+            "model": None,
+            "probe_passed": probe_passed,
+        }
+        for k in keys
+    }
     p = tmp_path / "consolidation-state.json"
-    p.write_text(json.dumps({"consolidated": keys}), encoding="utf-8")
+    p.write_text(json.dumps({"consolidated": list(keys), "entries": entries}), encoding="utf-8")
     return p
 
 
 # ------------------------------------------------ (a) konsolidiert ⇒ non-write
 def test_hook_konsolidiert_ist_non_write(tmp_path):
-    state = _state(tmp_path, ["hauptstadt-frankreich"])
+    state = _state(tmp_path, ["hauptstadt-frankreich"], facts={"hauptstadt-frankreich": "Paris"})
     d = fwr.discard_if_consolidated("Paris", question="Hauptstadt Frankreich?", state_path=state)
     assert d["class"] == "non-write"
     assert d["gate"] == "none"
@@ -38,7 +53,7 @@ def test_hook_konsolidiert_ist_non_write(tmp_path):
 
 def test_classify_kurzschluss_ohne_llm(tmp_path):
     """Konsolidiert ⇒ Kaskade VOR Stufe 1 (stage=0), kein LLM-Call."""
-    state = _state(tmp_path, ["hauptstadt-frankreich"])
+    state = _state(tmp_path, ["hauptstadt-frankreich"], facts={"hauptstadt-frankreich": "Paris"})
     r = fwr.classify("Hauptstadt Frankreich?", "Paris", "Paris", state_path=state)
     assert r["class"] == "non-write" and r["stage"] == 0 and r["escalated"] is False
     assert r["gate"] == "none" and r["consolidated_key"] == "hauptstadt-frankreich"
@@ -46,7 +61,7 @@ def test_classify_kurzschluss_ohne_llm(tmp_path):
 
 def test_apply_write_action_kein_externer_write(tmp_path):
     """Angeforderte Klasse write-new wird auf non-write herabgestuft: nur Historie."""
-    state = _state(tmp_path, ["hauptstadt-frankreich"])
+    state = _state(tmp_path, ["hauptstadt-frankreich"], facts={"hauptstadt-frankreich": "Paris"})
     r = fwr.apply_write_action(
         "write-new",
         question="Hauptstadt Frankreich?",
@@ -131,13 +146,30 @@ def test_ohne_question_und_ohne_fakt_kein_treffer(tmp_path):
 
 
 def test_echter_konsolidierungs_state():
-    """Realer Projekt-State (kein Fake): bekannter Schlüssel wird erkannt."""
+    """F3 (Audit 75095d5): realer Legacy-State OHNE Inhalt-Hash ⇒ **inert** ⇒ kein Discard.
+
+    Nur lesend (kein Schreiben in die reale `consolidation-state.json`). Bindet der
+    State später Hashes, greift wieder die reguläre Hash-/Probe-Bindung.
+    """
     if not REAL_STATE.exists():
         pytest.skip("kein Konsolidierungs-State vorhanden")
+    assert not (json.loads(REAL_STATE.read_text(encoding="utf-8")).get("entries") or {})
     d = fwr.discard_if_consolidated(
         "0.10",
         question="Was ist die Standard-Drift-Grenze in AGENTS.md Abschnitt 9.1?",
         state_path=REAL_STATE,
     )
-    assert d is not None and d["class"] == "non-write"
-    assert d["consolidated_key"] == "was-ist-die-standard-drift-grenze-in-agents-md-abschnitt-9-1"
+    assert d is None
+
+
+def test_get_client_lazy_offline(monkeypatch):
+    """A9/Coverage: der Lazy-Client ist offline konstruierbar (kein Netz-Call, gecacht).
+
+    Schließt die Offline-Coverage-Lücke von `fast_write_router._get_client` (nur sonst
+    über Netz-Tests erreicht); es wird lediglich ein Client-Objekt gebaut, kein Request.
+    """
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://127.0.0.1:9/v1")
+    monkeypatch.setattr(fwr, "_client", None)
+    first = fwr._get_client()
+    assert first is fwr._get_client()  # zweiter Aufruf: gecachter Pfad (kein Neu-Bau)

@@ -229,10 +229,13 @@ def discard_if_consolidated(fact: str, question: Optional[str] = None, state_pat
     gespeichert: Rückgabe ``{"class":"non-write","gate":"none",
     "reason":"bereits konsolidiert (§10.3)"}`` — sonst ``None``.
 
-    **N2 (Audit b09a0a9):** Konsolidiert gilt nur bei **Inhalt-Gleichheit**
-    (`fact_sha256` aus `mark_consolidated` == Hash des übergebenen Fakts). Eine
+    **N2 + F2/F3 (Audit b09a0a9 / 75095d5):** Konsolidiert gilt **nur** bei
+    **Inhalt-Gleichheit** (`fact_sha256` aus `mark_consolidated` == Hash des
+    übergebenen Fakts) **und** positivem Probe (`probe_passed=True`). Eine
     **geänderte** Antwort zum alten Key wird NICHT verworfen (Rückgabe ``None``);
-    ist der Hash unbekannt (Legacy-State = reine Key-Liste), bleibt der Key-Match.
+    ein **unbekannter Hash** (Legacy-State = reine Key-Liste, `fact_sha256=None`)
+    oder ein negativer Probe gilt **fail-closed** als **nicht** konsolidiert
+    (Legacy-States sind inert).
 
     Quelle (Belegt, im Gesetz): arXiv:2608.22215 §3.4 — „the router adaptively
     suppress redundant writes as the model's epistemic boundaries evolve"
@@ -266,7 +269,7 @@ def discard_if_consolidated(fact: str, question: Optional[str] = None, state_pat
     for k in candidates:
         if k not in done:
             continue
-        # N2: nur verwerfen, wenn der übergebene Fakt-Hash zum konsolidierten passt.
+        # F2/F3: nur verwerfen bei Hash-Gleichheit UND positivem Probe (fail-closed).
         if not slow_consolidation._is_consolidated(entries.get(k), fact_sha):
             continue
         return {

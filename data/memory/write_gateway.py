@@ -418,6 +418,9 @@ def store_file(
     provenance_log=None,
     domain_rejected: bool = False,
     append: bool = False,
+    structured: bool = False,
+    ontology_ref: str = "",
+    source_ref: str = "",
 ) -> dict:
     """EIN Schreibpfad (K2) für einen direkten Datei-Write mit voller Gate-Kette.
 
@@ -432,6 +435,13 @@ def store_file(
     wiederholte Events erhalten bleiben. Die Freigabe wird an den **aktuellen Inhalt +
     die gesamte Zielmenge** gebunden (`_approval_sha`, R01/A1) statt nur an Inhalt +
     Primärziel; `also_write`-Ziele sind damit mitgebunden.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, F4):** `structured=True`
+    (optional) erzeugt den K8-§6-Kopf (`Ontologie-Bezug`/`Quelle`/`Evidence`)
+    **erst NACH** der PII-Sanitisierung aus dem realen PROV-O-Record. Nur der
+    übergebene **Body** wird bereinigt; `sha256`/Datum im Kopf bleiben unangetastet,
+    sodass `Evidence: sha256:…` == `content_hash(body)` (K8). Zusätzliche optionale
+    Kopffelder: `ontology_ref`/`source_ref`. Ohne `structured=True` unverändert.
     """
     steps: list = []
     if domain_rejected:
@@ -527,11 +537,20 @@ def store_file(
         }
 
     targets = [(target, clean)] + [(Path(p), clean) for p in (also_write or [])]
+    # K8/F4 (Auftrag): Der §6-Kopf wird **erst nach** der PII-Sanitisierung aus dem
+    # realen PROV-O-Record erzeugt — nur der Body wurde bereinigt. So bleiben die
+    # Ziffern von `sha256`/Datum im Kopf unangetastet und `Evidence: sha256:…` ==
+    # `content_hash(body)`. Kopf und Body sind durch eine Leerzeile getrennt.
+    if structured:
+        doc = _structured_doc(clean, record, ontology_ref, source_ref)
+        write_targets = [(target, doc)] + [(Path(p), clean) for p in (also_write or [])]
+    else:
+        write_targets = targets
     # N1 (Auftrag): Provenienz + Datenwrite = EINE Transaktion – das Log wird in
     # `_commit` mitgeschrieben; Log-Fehler ⇒ Verweigern (R08) oder Rollback (A3).
     log = Path(provenance_log) if provenance_log is not None else target.parent / "provenance.jsonl"
     res = _commit(
-        targets,
+        write_targets,
         now,
         supersede_existing=supersede,
         append=append,

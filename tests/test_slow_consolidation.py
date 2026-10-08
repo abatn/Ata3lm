@@ -80,7 +80,10 @@ def test_collect_questions_overrides_rekonstruktion(tmp_path):
 def test_collect_state_filtert_konsolidiertes(tmp_path):
     tier3, log = _fixture(tmp_path)
     state = tmp_path / "state.json"
-    sc.mark_consolidated(["hauptstadt-xylophonia"], state)
+    # F3: nur mit gebundenem Hash (+ positivem Probe) gilt der Fakt als konsolidiert.
+    sc.mark_consolidated(
+        ["hauptstadt-xylophonia"], state, facts={"hauptstadt-xylophonia": "Zentaria ist die Hauptstadt Xylophoniens."}
+    )
     pend = sc.collect_pending(tier3, log, state_path=state)
     assert [p["key"] for p in pend] == ["hauptstadt-frankreich"]
 
@@ -202,7 +205,10 @@ def test_mark_nur_nach_erfolg(tmp_path):
 def test_flush_entfernt_nur_konsolidierte(tmp_path):
     tier3, _log = _fixture(tmp_path)
     state = tmp_path / "state.json"
-    sc.mark_consolidated(["hauptstadt-xylophonia"], state)
+    # F1: Löschen nur bei Hash-Gleichheit eines positiven Probes.
+    sc.mark_consolidated(
+        ["hauptstadt-xylophonia"], state, facts={"hauptstadt-xylophonia": "Zentaria ist die Hauptstadt Xylophoniens."}
+    )
     res = sc.flush(["hauptstadt-xylophonia"], tier3, state_path=state)
     assert res["removed"] == ["hauptstadt-xylophonia"]
     assert not (tier3 / "hauptstadt-xylophonia.md").exists()

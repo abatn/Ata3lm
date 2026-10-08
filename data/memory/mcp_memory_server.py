@@ -30,7 +30,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import provenance
 import trust as trust_mod
 import write_gateway
 
@@ -151,7 +150,9 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
     überschreiben; `tier1` (kuratiert) nur mit `blue`. **§9.2a:** PII wird VOR
     dem Store entfernt (`trust.PIIFilter.minimize`). **N5 (§6/K8):** ein
     `structured`-Write trägt den §6-Kopf (`Ontologie-Bezug`/`Quelle`/`Evidence`);
-    alle übrigen Scopes bleiben body-only (unverändert).
+    alle übrigen Scopes bleiben body-only (unverändert). **F4:** Der Kopf wird
+    **nach** der PII-Sanitisierung im Write-Gateway erzeugt, damit `sha256`/Datum
+    unangetastet bleiben.
     """
     if trust not in TRUST_COLORS:
         return {"ok": False, "reason": f"ungültige Trust-Farbe {trust!r} (erlaubt: {TRUST_COLORS})"}
@@ -212,28 +213,20 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
             "reason": "tier1 (kuratiert) nur mit trust=blue + Approval (§9.2c/§9.3)",
         }
     clean = trust_mod.PIIFilter().minimize(content)  # §9.2a: PII vor dem Store entfernen
-    # N5 (Auftrag, §6/K8): JEDER `structured`-Einstieg trägt die Pflichtfelder
-    # (`Ontologie-Bezug`/`Quelle`/`Evidence`). Nicht-`structured`-Writes
-    # (JSONL/History/tier1/tier3) bleiben UNVERÄNDERT Body-only.
-    written = clean
-    if scope == "structured":
-        record = provenance.build_record(
-            fact=clean,
-            activity=f"mcp-write:{scope}",
-            agent="mcp-memory-server",
-            source="tool:verified",
-            now=time.time(),
-        )
-        written = write_gateway._structured_doc(clean, record)
-    # K2: EIN Schreibpfad – die Mutation läuft durch das Write-Gateway (inkl. Provenienz K3).
+    # N5 (Auftrag, §6/K8) + F4 (Audit 75095d5): Der §6-Kopf (`Ontologie-Bezug`/
+    # `Quelle`/`Evidence`) wird **erst NACH** der PII-Sanitisierung erzeugt — im
+    # Write-Gateway (`structured=True`), das nur den **Body** bereinigt. Andernfalls
+    # entfernt der PII-Filter die Ziffern aus `sha256`/Datum im Kopf (F4).
+    # Nicht-`structured`-Writes (JSONL/History/tier1/tier3) bleiben UNVERÄNDERT Body-only.
     res = write_gateway.store_file(
         target=path,
-        content=written,
+        content=clean,
         now=time.time(),
         activity=f"mcp-write:{scope}",
         agent="mcp-memory-server",
         origin="tool:verified",
         verified=True,  # Tri-Color-Gate + Trust-DB = Write-Time-Validation (§9.2c)
+        structured=(scope == "structured"),
         provenance_log=(SCOPES.get("tier3") or path.parent) / "provenance.jsonl",
     )
     if not res["ok"]:
@@ -247,7 +240,7 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
         "trust": trust,
         "scope": scope,
         "key": key,
-        "bytes": len(written.encode("utf-8")),
+        "bytes": len(path.read_text(encoding="utf-8").encode("utf-8")),
     }
 
 
