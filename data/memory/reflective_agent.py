@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 
 import gate_labels
+from llm_retry import create_with_retry as _create_with_retry
 
 # Projekt-Pfade (Auftrag)
 ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (S6, CI-tauglich)
@@ -102,7 +103,8 @@ def parse_transition_delta(text: str, k: int):
             f"row-normalizable, where a negative diagonal entry means less inertia (more deviation).\n"
             f"Reflection:\n{text}"
         )
-        resp = client.chat.completions.create(
+        resp = _create_with_retry(
+            client,
             model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000,
@@ -322,7 +324,8 @@ def distill(graph: dict, hub: str) -> dict:
                 "Synthesize this cluster of related memories into a single declarative "
                 f"semantic entry (common themes + causal relationships):\n{cluster}"
             )
-            resp = client.chat.completions.create(
+            resp = _create_with_retry(
+                client,
                 model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,

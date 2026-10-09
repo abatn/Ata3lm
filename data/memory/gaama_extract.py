@@ -19,6 +19,8 @@ import os
 import re
 from pathlib import Path
 
+from llm_retry import create_with_retry
+
 ROOT = Path(__file__).resolve().parents[2]  # repo-relativ (S6, CI-tauglich)
 
 # GAAMA Table 1 (wörtlich: 5 Kantentypen) + Table 2 (Gewichte)
@@ -90,7 +92,8 @@ def _default_llm(prompt: str, max_tokens: int = 8000) -> str:  # pragma: no cove
         api_key=os.environ.get("OPENAI_API_KEY", ""),
         base_url=os.environ.get("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1"),
     )
-    r = client.chat.completions.create(
+    r = create_with_retry(
+        client,
         model=os.environ.get("GAAMA_EXTRACT_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
