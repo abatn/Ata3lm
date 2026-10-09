@@ -192,6 +192,14 @@ def _stage_wissen(ctx: dict) -> dict:
 
 
 def _stage_gedaechtnis(ctx: dict) -> dict:
+    # D2 (Audit d25486c, §9.1c): das **kalibrierte GDI-Gate** (SAHOO Gl. 12–16) schützt
+    # den Write VOR der Mutation – nicht erst Stufe 8/Wissen+. Nur wenn der GDI-Schalter
+    # vollständig ist (`gdi_enabled`: gdi + embed_fn + Referenztext + Kalibrierung), wird
+    # GDI hier berechnet und als `gdi_drift` in die Store-Kette gereicht; `gdi > τ ⇒ ask`
+    # ⇒ `write_gateway.store` hält VOR dem Write an. GDI aus ⇒ `gdi_drift=None` (exakt alt).
+    gdi_drift = None
+    if ctx.get("gdi_enabled"):
+        gdi_drift = ctx["gdi_monitor"].observe_gdi(ctx["gdi_prev_text"], ctx["fact"], embed_fn=ctx["embed_fn"], step=1)
     res = pipeline.route_and_store(
         question=ctx["question"],
         fact=ctx["fact"],
@@ -205,6 +213,7 @@ def _stage_gedaechtnis(ctx: dict) -> dict:
         self_update=ctx["self_update"],
         approvers=ctx["approvers"],
         drift=ctx["drift_write"],
+        gdi_drift=gdi_drift,
     )
     action = res.get("action") or res.get("gate")
     return {"stage": "Gedächtnis", "ok": res.get("ok"), "action": action, "steps": res.get("steps")}
@@ -390,6 +399,12 @@ def run_cycle(
     Kalibrierung (`gdi_calibration` oder `bias_monitor.load_calibration()`) vorliegen,
     wird statt des JSD-`observe` das GDI-`observe_gdi` genutzt. Default `gdi=False`
     ⇒ **exakt altes Verhalten** (JSD).
+
+    **D2 (Audit d25486c, §9.1c):** dasselbe kalibrierte GDI-Gate wirkt jetzt **zusätzlich
+    als Pre-Write-Schutz in Stufe 3 (`_stage_gedaechtnis`) VOR der Mutation** (SAHOO
+    Gl. 12–16: GDI ist Schutzmechanismus vor der Änderung). `gdi > τ ⇒ ask ⇒ kein Write`
+    (die Store-Kette hält via `gdi_drift` an); Stufe 8 führt den GDI weiter als
+    Revisionsfilter. Default `gdi=False` ⇒ `gdi_drift=None` ⇒ **exakt altes Verhalten**.
     """
     mandate_obj = mandate_obj if mandate_obj is not None else _default_mandate()
     # S1 §9.1c: Referenz-Priorität (explizit > Env-Erwartung > persistierter Checkpoint > keine).

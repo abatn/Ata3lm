@@ -23,6 +23,17 @@ Guardrail 7 (verbindlich): **kein Fake**. Fehlt der echte Endpoint/Key, bricht d
 Skript mit klarem Fehler ab (kein Stub, keine Platzhalter-Antwort). Der echte Lauf
 wird separat gestartet; dieses Modul ist importierbar ohne Netz.
 
+**D3 (Audit d25486c, P2)** – lokaler Live-Start nutzt **ein** vorhandenes Modell für
+**alle** LLM-Phasen. Nötige ENV:
+  - `OPENAI_BASE_URL` / `OPENAI_API_KEY` – Endpoint (ENV **oder** `opencode.json`).
+  - `FWR_SMALL_MODEL` / `FWR_LARGE_MODEL` – Router-Modelle (Fast Write Router).
+  - `HELA_MODEL` – Reflexion/Oracle (reflective_agent + `_ask`); **fehlt es**, wird
+    es beim Start aus `FWR_LARGE_MODEL` → `FWR_SMALL_MODEL` → `DEFAULT_MODEL`
+    abgeleitet. Ohne diesen Default liefen Reflexion/Oracle gegen `nvidia/…` (404),
+    obwohl der Endpoint lokal war.
+CLI `--require-success`: Exit 1, wenn **kein** erfolgreicher Write **und kein**
+positives Oracle vorliegt (Default **aus** ⇒ exakt altes Verhalten, Exit 0).
+
 **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** NEU – `scripts/live_run.py`,
 `tests/test_live_run.py`. `AGENTS.md`/`data/memory/tier1-base/` unverändert.
 
@@ -60,8 +71,10 @@ _CONFIG = Path.home() / ".config/opencode/opencode.json"
 _PROVIDER = "nvidia-llama-nemotron"
 _DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1"
 SOURCE = "ZsRE (community-datasets/qa_zre) · AGENTS.md §2/§3 · §6 externes Signal (World-State-Oracle)"
+#: Fallback-Modell, wenn weder `HELA_MODEL` noch ein FWR-Router-Modell gesetzt ist.
+DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 # Reflexions-/Probe-Modell (HELA_MODEL, wie reflective_agent.py); Proxy für alle LLM-gestützten Stufen.
-REFLECTION_MODEL = os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
+REFLECTION_MODEL = os.environ.get("HELA_MODEL", DEFAULT_MODEL)
 
 
 # --------------------------------------------------------------------- Endpoint
@@ -97,13 +110,31 @@ def _resolve_endpoint(config_path: Optional[Path] = None) -> dict:
     return {"api_key": api_key, "base_url": base_url or _DEFAULT_BASE_URL}
 
 
+def _apply_hela_model_default(environ: Optional[dict] = None) -> str:
+    """`HELA_MODEL` beim Start auf **ein vorhandenes** Modell defaulten (D3).
+
+    Reihenfolge (Auftrag): ein bereits gesetztes `HELA_MODEL` bleibt **unverändert**;
+    sonst `FWR_LARGE_MODEL` → `FWR_SMALL_MODEL` → `DEFAULT_MODEL`. Damit nutzen
+    Reflexion (`reflective_agent`), Oracle-Probe (`_ask`) und Router **dasselbe**
+    lokale Modell (Audit d25486c, P2): fehlte `HELA_MODEL`, liefen Reflexion/Oracle
+    gegen `nvidia/…` (404), obwohl der Endpoint lokal war.
+    """
+    env = os.environ if environ is None else environ
+    env.setdefault(
+        "HELA_MODEL",
+        env.get("FWR_LARGE_MODEL") or env.get("FWR_SMALL_MODEL") or DEFAULT_MODEL,
+    )
+    return env["HELA_MODEL"]
+
+
 def _ask(question: str, memory: Optional[str] = None, model: Optional[str] = None) -> str:
     """Echte, unabhängige LLM-Abfrage (Out-of-Band; kein Selbstreport)."""
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""), base_url=os.environ.get("OPENAI_BASE_URL"))
     base = "Answer in ONE short sentence. If you do not know the answer, reply exactly: I don't know.\n\n"
     prompt = base + question if not memory else f"{base}Use this knowledge:\n{memory}\n\nQuestion: {question}"
     resp = client.chat.completions.create(
-        model=model or REFLECTION_MODEL,
+        # D3: Oracle nutzt dasselbe Modell wie Reflexion (ENV zur Laufzeit, nicht der Import-Schnappschuss).
+        model=model or os.environ.get("HELA_MODEL") or REFLECTION_MODEL,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=512,
         temperature=0.0,
@@ -187,6 +218,25 @@ def _summarize_recursion(out: dict) -> dict:
         "revised": None if not revise else not bool(revise.get("skipped", True)),
         "results": results,
     }
+
+
+#: Aktionen, die einen echten Write (Write-Back) bedeuten (§10.7).
+_WRITE_ACTIONS = frozenset({"write-new", "write-update"})
+
+
+def _has_success(run: dict) -> bool:
+    """Erfolg = erfolgreicher Write **oder** positives Oracle (D3, §6).
+
+    Der Driver darf einen Lauf ohne belegbaren Erfolg nicht still mit Exit 0
+    beenden. Ein Write gilt als Erfolg, wenn einer der beiden Runner `ok=True`
+    **und** `action` in {`write-new`, `write-update`} meldet; ein positives
+    Oracle, wenn `Compare.observed=True` (echtes externes Signal, §6).
+    """
+    for part in (run.get("cycle"), run.get("recursion")):
+        if isinstance(part, dict) and part.get("ok") is True and part.get("action") in _WRITE_ACTIONS:
+            return True
+    recursion = run.get("recursion")
+    return isinstance(recursion, dict) and recursion.get("observed") is True
 
 
 # -------------------------------------------------------------------- Live-Lauf
@@ -301,6 +351,12 @@ def main(argv: Optional[list] = None) -> int:
         "Mit ≥ 2 distinkten Namen wird `self_update` aktiviert (write-new/write-update schreiben); "
         "ohne bleibt der Write auf `ask`.",
     )
+    parser.add_argument(
+        "--require-success",
+        action="store_true",
+        help="Exit 1, wenn KEIN erfolgreicher Write UND KEIN positives Oracle vorliegt "
+        "(Default: aus ⇒ altes Verhalten, Exit 0).",
+    )
     args = parser.parse_args(argv)
 
     # §9.3: approved nur bei ≥ 2 distinkten Personen; sonst exakt altes Verhalten (ask).
@@ -313,6 +369,8 @@ def main(argv: Optional[list] = None) -> int:
         return 1
     os.environ.setdefault("OPENAI_API_KEY", endpoint["api_key"])
     os.environ.setdefault("OPENAI_BASE_URL", endpoint["base_url"])
+    # D3: alle LLM-Phasen (Reflexion/Oracle/Router) auf EIN vorhandenes Modell.
+    _apply_hela_model_default()
 
     with tempfile.TemporaryDirectory(prefix="live-run-") as tmp:
         tmp_root = Path(tmp)
@@ -340,7 +398,7 @@ def main(argv: Optional[list] = None) -> int:
         "model": {
             "router_small": fast_write_router.SMALL_MODEL,
             "router_large": fast_write_router.LARGE_MODEL,
-            "reflection": REFLECTION_MODEL,
+            "reflection": os.environ.get("HELA_MODEL") or REFLECTION_MODEL,
         },
         "source": SOURCE,
         "n": len(runs),
@@ -352,6 +410,13 @@ def main(argv: Optional[list] = None) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"geschrieben: {out_path} ({len(runs)} Aufgaben)")
+    if args.require_success and not any(_has_success(run) for run in runs):
+        print(
+            f"FEHLER: kein erfolgreicher Write und kein positives Oracle in {len(runs)} "
+            f"Aufgabe(n) – Lauf erfolglos (--require-success). Details: {out_path}",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

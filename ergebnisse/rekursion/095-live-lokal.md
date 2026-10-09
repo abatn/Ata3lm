@@ -18,7 +18,7 @@
 
 ```bash
 OPENAI_BASE_URL=http://127.0.0.1:11434/v1 OPENAI_API_KEY=ollama \
-FWR_SMALL_MODEL=qwen-local FWR_LARGE_MODEL=qwen-local \
+FWR_SMALL_MODEL=qwen-local FWR_LARGE_MODEL=qwen-local HELA_MODEL=qwen-local \
 .venv/bin/python scripts/live_run.py --tasks 3 --seed 42 \
   --approver Batnini --approver Taoufik --out ergebnisse/live-run-local.json
 ```
@@ -26,6 +26,14 @@ FWR_SMALL_MODEL=qwen-local FWR_LARGE_MODEL=qwen-local \
 Ergebnis (`ergebnisse/live-run-local.json`): 3 Aufgaben, **1 erfolgreicher Write**
 (`write-update`, `ok=True`, 2-Personen-Freigabe), 8 Stufen + 5 Phasen je Aufgabe,
 subjektgebundene ZsRE-Fragen (F6).
+
+> **Korrektur (D3, Audit d25486c, Rekursion 098):** Im ursprünglich dokumentierten
+> Befehl fehlte `HELA_MODEL=qwen-local`. Dadurch liefen **Reflexion/Oracle** nicht
+> gegen das lokale Modell, sondern gegen den Default `nvidia/…` (⇒ 404), obwohl
+> der Endpoint lokal war – der CLI-Lauf endete trotzdem mit **Exit 0**. Der Befehl
+> ist oben um `HELA_MODEL=qwen-local` ergänzt; der Driver leitet den Wert jetzt
+> zusätzlich automatisch aus `FWR_LARGE_MODEL`/`FWR_SMALL_MODEL` ab und kann einen
+> erfolglosen Lauf mit `--require-success` als **Exit 1** melden (siehe 098).
 
 ## 3. Ehrliche Einordnung
 

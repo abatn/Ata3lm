@@ -120,6 +120,9 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 093 | `093-gdi-betrieb.md` | System-Iteration (Item 3: kalibriertes GDI Gl. 12–16 im Betriebspfad, `load_calibration`/`observe_gdi` + Runner-Schalter; Interface §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 094 | `094-freigabe-erfolgspfad.md` | System-Iteration (Freigabe-Erfolgspfad: `self_update`/`approvers` in `run_recursion` + CLI `--approver` im Live-Driver; Interface §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 095 | `095-live-lokal.md` | System-Iteration (voller Live-Lauf lokal via Ollama/qwen2.5-1.5b, kein Endpoint) | **approved**: Batnini + Taoufik, 2026-10-09 | siehe File |
+| 096 | `096-d2-gdi-prewrite.md` | System-Iteration (D2/Audit d25486c: kalibriertes GDI-Gate **vor** der Mutation, Stufe 3) | **approved**: Batnini + Taoufik | siehe File |
+| 097 | `097-d1-negation.md` | System-Iteration (D1/Audit d25486c: explizite Verneinung `false`/`untrue`/`wrong`/`nicht wahr`/`falsch` ⇒ falsch; Truth-Grader) | **approved**: Batnini + Taoufik | siehe File |
+| 098 | `098-d3-localstart.md` | System-Iteration (D3/Audit d25486c: lokaler Start nutzt `HELA_MODEL` für Reflexion/Oracle + `--require-success` ⇒ Exit 1 bei erfolglosem Lauf) | **approved**: Batnini + Taoufik | siehe File |
 
 ## Guardrail
 

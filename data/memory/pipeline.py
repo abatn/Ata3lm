@@ -55,6 +55,7 @@ def route_and_store(
     structured_dir: Path,
     tier3_dir: Path,
     drift=None,
+    gdi_drift=None,
     self_update: bool = False,
     approval_obj=None,
     approvers: Optional[list] = None,
@@ -64,6 +65,11 @@ def route_and_store(
     """Eine Erfahrung durch die ganze Kette schicken (alle Elemente reden mit).
 
     K2: DELEGATION an `write_gateway.store` (EIN Schreibpfad, feste Reihenfolge).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, D2):** optionaler
+    Parameter `gdi_drift` (Default None) wird 1:1 an `write_gateway.store`
+    durchgereicht (kalibriertes GDI-Pre-Write-Gate VOR der Mutation, §9.1c).
+    Default None ⇒ unverändertes Verhalten.
     """
     res = write_gateway.store(
         question=question,
@@ -75,6 +81,7 @@ def route_and_store(
         structured_dir=structured_dir,
         tier3_dir=tier3_dir,
         drift=drift,
+        gdi_drift=gdi_drift,
         self_update=self_update,
         approval_obj=approval_obj,
         approvers=approvers,

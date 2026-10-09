@@ -598,6 +598,7 @@ def store(
     tier1_dir=None,
     history_dir=None,
     drift=None,
+    gdi_drift=None,
     self_update: bool = False,
     approval_obj=None,
     approvers=None,
@@ -631,6 +632,12 @@ def store(
     `ontology_ref` (`_approval_sha`); abweichende Kopffelder ⇒ Freigabe-Replay (deny).
     **N6 (Auftrag):** `revision_of` wird über den **Body ohne K8-Kopf** gebildet,
     damit `prov:wasRevisionOf` auf die reale vorige Entity-ID zeigt.
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, D2/Audit d25486c):** neuer
+    optionaler Parameter `gdi_drift` (Default `None`). Ist er gesetzt, ist er das
+    **kalibrierte GDI-Pre-Write-Gate** (SAHOO Gl. 12–16, `AGENTS.md` §9.1c) und wird
+    **vor** jeder Mutation geprüft: `gdi > τ ⇒ ask` ⇒ **kein Write**. Default `None`
+    (GDI aus) ⇒ exakt altes Verhalten. Aufrufer: `lifecycle_runner._stage_gedaechtnis`.
     """
     steps: list = []
     dec, gate = _gate_mandate(mandate_obj, agent, now)
@@ -757,6 +764,27 @@ def store(
             "written": [],
             "steps": steps,
         }
+
+    # D2 (Audit d25486c, §9.1c SAHOO): das **kalibrierte GDI-Gate** wirkt als
+    # **Pre-Write-Schutz VOR der Mutation** – nicht erst in Stufe 8/Wissen+. Der
+    # Aufrufer (`lifecycle_runner._stage_gedaechtnis`) berechnet GDI (Gl. 12–16) und
+    # reicht das Ergebnis als `gdi_drift` herein; `gdi_drift is None` (Default/GDI aus)
+    # ⇒ exakt altes Verhalten. `gdi_drift` ist eine **Interface-Änderung §9 approved**
+    # (Batnini + Taoufik): additiv, Default None.
+    if gdi_drift is not None:
+        gdi_gate = gate_labels.normalize(gdi_drift.get("gate", gate_labels.ALLOW))
+        steps.append(("gdi_drift", gdi_drift.get("gdi")))
+        if not gate_labels.is_allow(gdi_gate):
+            return {
+                "ok": False,
+                "action": cls,
+                "gate": gdi_gate,
+                "gdi": gdi_drift.get("gdi"),
+                "tau": gdi_drift.get("tau"),
+                "reason": f"GDI-Pre-Write-Gate {gdi_gate}: kein Write vor Mutation (§9.1c)",
+                "written": [],
+                "steps": steps,
+            }
 
     # N6 (Auftrag): Revisions-Hash über den **Body ohne K8-Kopf** bilden, damit
     # `prov:wasRevisionOf` == vorige Entity-ID (sha256 des Fakts) ist.

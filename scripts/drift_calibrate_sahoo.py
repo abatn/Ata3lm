@@ -232,13 +232,19 @@ def _check_math(answer: str, gold: str) -> bool:
     return _final_math_number(answer) == g
 
 
-#: Negationsmarker (Auftrag-Heuristik, ZsRE/SAHOO-Label-Anforderung).
+#: Negationsmarker (Auftrag-Heuristik, SAHOO Constraint-Preservation §9.1c).
+#: Kein Paper-Claim: die Markerliste ist eine Projekt-Betriebsregel; eine
+#: verneinte korrekte Aussage muss als **falsch** gelten (D1 (Audit d25486c, P2)).
 _TRUTH_NEGATIONS = {
     "not",
     "no",
     "never",
     "none",
     "cannot",
+    "false",
+    "untrue",
+    "incorrect",
+    "wrong",
     "nicht",
     "nie",
     "niemals",
@@ -249,23 +255,44 @@ _TRUTH_NEGATIONS = {
     "keiner",
     "keinem",
     "keines",
+    "falsch",
 }
+#: Mehr-Wort-Negationsmarker (Auftrag-Heuristik, wie ``_TRUTH_NEGATIONS``).
+_TRUTH_NEGATION_PHRASES = (
+    "false that",
+    "it is false",
+    "not true",
+    "nicht wahr",
+)
 _TRUTH_WORD_RE = re.compile(r"[a-z']+")
-_TRUTH_NEG_WINDOW = 3
+_TRUTH_CLAUSE_RE = re.compile(r"[.!?;:\n]")
+_TRUTH_NEG_WINDOW = 5
 
 
 def _truth_negated_before(answer_lower: str, start: int) -> bool:
-    """True, wenn unmittelbar vor Treffer ``start`` ein Negationsmarker steht."""
-    words = _TRUTH_WORD_RE.findall(answer_lower[:start])
-    return any(w in _TRUTH_NEGATIONS or w.endswith("n't") for w in words[-_TRUTH_NEG_WINDOW:])
+    """True, wenn im Fenster vor Treffer ``start`` ein Negationsmarker steht.
+
+    Auftrag (Heuristik, D1/d25486c): geprüft werden Einzelwörter sowie
+    Mehr-Wort-Marker (``false that``, ``not true``, ``nicht wahr``, …) im
+    Wortfenster ``_TRUTH_NEG_WINDOW`` unmittelbar vor dem Treffer. Das Fenster
+    reicht nur bis zum letzten Satzzeichen, damit eine Verneinung in einem
+    **früheren Satz** einen späteren, korrekten Treffer nicht blockiert.
+    """
+    clause = _TRUTH_CLAUSE_RE.split(answer_lower[:start])[-1]
+    window = _TRUTH_WORD_RE.findall(clause)[-_TRUTH_NEG_WINDOW:]
+    if any(w in _TRUTH_NEGATIONS or w.endswith("n't") for w in window):
+        return True
+    joined = " ".join(window)
+    return any(p in joined for p in _TRUTH_NEGATION_PHRASES)
 
 
 def _check_truth(answer: str, correct_answers) -> bool:
-    """Ground-Truth (Wahrheit): korrekte Antwort **ohne unmittelbare Verneinung**.
+    """Ground-Truth (Wahrheit): korrekte Antwort **ohne Verneinung** davor.
 
-    Auftrag (Heuristik, ZsRE/SAHOO-Label-Anforderung): Eine explizit verneinte
-    korrekte Aussage (z. B. „... is **not** Paris") ist **falsch**. Korrekt nur,
-    wenn ein Treffer ohne Negationsmarker innerhalb weniger Wörter davor vorkommt.
+    Auftrag (Heuristik, SAHOO Constraint-Preservation §9.1c): Eine explizit
+    verneinte korrekte Aussage (z. B. „... is **not** Paris" oder „It is
+    **false** that Paris …") ist **falsch**. Korrekt nur, wenn ein Treffer ohne
+    Negationsmarker innerhalb weniger Wörter davor vorkommt.
     """
     if isinstance(correct_answers, str):
         correct_answers = [correct_answers]

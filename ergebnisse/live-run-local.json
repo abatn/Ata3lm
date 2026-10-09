@@ -73,7 +73,7 @@
           },
           "Denken": {
             "stage": "Denken",
-            "self_feedback": null
+            "self_feedback": 0.0
           },
           "Nicht-Kognition": {
             "stage": "Nicht-Kognition",
@@ -107,10 +107,10 @@
         "ok": true,
         "action": "write-update",
         "gate": "allow",
-        "observed": false,
-        "score": 0.0,
-        "compare_gate": "ask",
-        "revised": false,
+        "observed": true,
+        "score": 1.0,
+        "compare_gate": "allow",
+        "revised": true,
         "results": {
           "Konstrukt": {
             "phase": "Konstrukt",
@@ -129,18 +129,21 @@
           },
           "Compare": {
             "phase": "Compare",
-            "belief": 0.05,
-            "score": 0.0,
-            "gate": "ask",
-            "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
-            "observed": false,
+            "belief": 0.2236,
+            "score": 1.0,
+            "gate": "allow",
+            "signal": "externes Signal (World-State-Oracle)",
+            "observed": true,
             "oracle": {
-              "ok": false,
-              "evidence": null,
-              "signal": "kein externes Signal",
-              "reason": "Probe-Fehler: NotFoundError: Error code: 404 - {'error': {'message': \"model 'nvidia/nemotron-3-ultra-550b-a55b' not found\", 'type': 'not_found_error', 'param': None, 'code': None}}",
+              "ok": true,
+              "evidence": {
+                "answer": "Villiers-sur-Marne was replaced by Le Plessis-Trévise.",
+                "gold": "Le Plessis-Trévise"
+              },
+              "signal": "externes Signal (World-State-Oracle)",
+              "reason": null,
               "claim": "Which replaced the Villiers-sur-Marne?",
-              "successes": 0,
+              "successes": 1,
               "failures": 0
             },
             "self_report": {
@@ -152,8 +155,8 @@
           },
           "Revise": {
             "phase": "Revise",
-            "skipped": true,
-            "reason": "keine passende Evidenz (§9.1d/R10): Score 0.00 < 0.70 oder Signal negativ/unzureichend – keine Revision"
+            "skipped": false,
+            "lr": 0.05
           }
         }
       }
@@ -267,19 +270,22 @@
           },
           "Compare": {
             "phase": "Compare",
-            "belief": 0.05,
+            "belief": 0.0253,
             "score": 0.0,
             "gate": "ask",
             "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
             "observed": false,
             "oracle": {
               "ok": false,
-              "evidence": null,
+              "evidence": {
+                "answer": "I don't know.",
+                "gold": "suicide"
+              },
               "signal": "kein externes Signal",
-              "reason": "Probe-Fehler: NotFoundError: Error code: 404 - {'error': {'message': \"model 'nvidia/nemotron-3-ultra-550b-a55b' not found\", 'type': 'not_found_error', 'param': None, 'code': None}}",
+              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
               "claim": "In one word, how did Chen Yi-hsiung die?",
               "successes": 0,
-              "failures": 0
+              "failures": 1
             },
             "self_report": {
               "successes": 0,
@@ -349,7 +355,7 @@
           },
           "Denken": {
             "stage": "Denken",
-            "self_feedback": null
+            "self_feedback": -1.0
           },
           "Nicht-Kognition": {
             "stage": "Nicht-Kognition",
@@ -405,19 +411,22 @@
           },
           "Compare": {
             "phase": "Compare",
-            "belief": 0.05,
+            "belief": 0.0253,
             "score": 0.0,
             "gate": "ask",
             "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
             "observed": false,
             "oracle": {
               "ok": false,
-              "evidence": null,
+              "evidence": {
+                "answer": "I don't know.",
+                "gold": "accident"
+              },
               "signal": "kein externes Signal",
-              "reason": "Probe-Fehler: NotFoundError: Error code: 404 - {'error': {'message': \"model 'nvidia/nemotron-3-ultra-550b-a55b' not found\", 'type': 'not_found_error', 'param': None, 'code': None}}",
+              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
               "claim": "What cause of death was listed for Vedat Dalokay?",
               "successes": 0,
-              "failures": 0
+              "failures": 1
             },
             "self_report": {
               "successes": 0,
@@ -438,7 +447,7 @@
   "model": {
     "router_small": "qwen-local",
     "router_large": "qwen-local",
-    "reflection": "nvidia/nemotron-3-ultra-550b-a55b"
+    "reflection": "qwen-local"
   },
   "source": "ZsRE (community-datasets/qa_zre) · AGENTS.md §2/§3 · §6 externes Signal (World-State-Oracle)",
   "n": 3,
