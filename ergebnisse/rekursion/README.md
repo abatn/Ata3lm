@@ -124,6 +124,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 097 | `097-d1-negation.md` | System-Iteration (D1/Audit d25486c: explizite Verneinung `false`/`untrue`/`wrong`/`nicht wahr`/`falsch` ⇒ falsch; Truth-Grader) | **approved**: Batnini + Taoufik | siehe File |
 | 098 | `098-d3-localstart.md` | System-Iteration (D3/Audit d25486c: lokaler Start nutzt `HELA_MODEL` für Reflexion/Oracle + `--require-success` ⇒ Exit 1 bei erfolglosem Lauf) | **approved**: Batnini + Taoufik | siehe File |
 | 099 | `099-drift-rekalibrierung-d1.md` | System-Iteration (Drift-Rekalibrierung mit D1-Gradern: τ=0.225, AUC 0.780) | **approved**: Batnini + Taoufik, 2026-10-09 | siehe File |
+| 100 | `100-kaggle-train-cli-t4-fp16.md` | System-Iteration (Kaggle-SFT: echte CLI `--dataset/--out/--gpu/--source` + T4⇒fp16 via Compute Capability; §9 additiv) | **approved**: Batnini (Auftrag 2026-10-09) | siehe File |
 
 ## Guardrail
 

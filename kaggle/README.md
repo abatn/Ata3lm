@@ -128,16 +128,31 @@ wurden am Tag der Erstellung im TRL-Quelltext `v1.14.2` geprüft.
 6. **Zurückschicken**: Adapter als Kaggle-Dataset oder Kaggle-Model veröffentlichen
    (siehe unten) **und** `kaggle_output.json` übergeben. Kein Git (G6).
 
-Lokaler Aufruf auf Kaggle (Alternativ zum Notebook):
+Aufruf auf Kaggle (Alternativ zum Notebook) – CLI **oder** ENV:
 
 ```bash
-python train_slow_consolidation.py
+# CLI (empfohlen): --dataset/--out/--source/--gpu/--epochs
+python train_slow_consolidation.py \
+    --dataset /kaggle/working/train_f6.jsonl --out /kaggle/working \
+    --source local --gpu 0 --epochs 3
+
+# ENV-Alternative (CLI ueberschreibt ENV)
+SFT_SOURCE=local SFT_DATASET_PATH=/kaggle/working/train_f6.jsonl \
+  OUTPUT_DIR=/kaggle/working CUDA_VISIBLE_DEVICES=0 \
+  python train_slow_consolidation.py
 ```
 
 Nützliche Umgebungsvariablen: `BASE_MODEL`, `SFT_DATASET_PATH`, `OUTPUT_DIR`,
 `NUM_EPOCHS` (Default 3), `MAX_LENGTH` (Default 1024), `PER_DEVICE_BATCH` (4),
 `GRAD_ACCUM` (4), `LEARNING_RATE` (2e-4), `LORA_R` (16), `LORA_ALPHA` (32),
 `SEED` (42), `HF_TOKEN`.
+
+Hinweis (belegt): `bf16`-Mathematik braucht Compute Capability ≥ 8.0 (Ampere+). Auf
+**T4 (sm_75)** wählt das Skript automatisch **fp16**
+(`torch.cuda.get_device_capability`), sonst bricht der TRL-Fused-Kernel ab
+(„gemm input type at::BFloat16 and output type float … 8.0 or higher").
+Zwei sichtbare GPUs ⇒ `--gpu 0` (bzw. `CUDA_VISIBLE_DEVICES=0`), sonst `SFTTrainer`
++ `DataParallel` = Fehler.
 
 ## Was der Mensch zurückschickt
 

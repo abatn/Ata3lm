@@ -15,13 +15,21 @@ Waehlbare Datenquelle (`SFT_SOURCE`), klar gekennzeichnet:
   - `local`    : von M1 erzeugtes `consolidation_sft.jsonl` (Default, §10.3).
   - `capybara` : **DEMO** (`LDJnr/Capybara`) – NICHT der §10.3-Korpus.
 
-Aufruf (Kaggle):
-    !python train_slow_consolidation.py
-    bzw. Umgebungsvariablen setzen: SFT_SOURCE, BASE_MODEL, SFT_DATASET_PATH,
-    OUTPUT_DIR, NUM_EPOCHS, MAX_LENGTH, SEED, HF_TOKEN, ZSRE_N, ZSRE_SPLIT,
-    CAPYBARA_N, CAPYBARA_SPLIT.
+Aufruf (Kaggle) – CLI (bevorzugt) oder Umgebungsvariablen:
+    !python train_slow_consolidation.py --dataset /kaggle/working/train_f6.jsonl \
+        --out /kaggle/working --source local --gpu 0 --epochs 3
+    bzw. ENV: SFT_SOURCE, BASE_MODEL, SFT_DATASET_PATH, OUTPUT_DIR, NUM_EPOCHS,
+    MAX_LENGTH, SEED, HF_TOKEN, ZSRE_N, ZSRE_SPLIT, CAPYBARA_N, CAPYBARA_SPLIT.
+    CLI-Argumente ueberschreiben die ENV-Werte.
+
+Hinweis (Hardware, belegt): bf16-Mathematik braucht Compute Capability >= 8.0
+(Ampere+). Auf Turing (T4, sm_75) faellt das Skript automatisch auf fp16 zurueck
+(`torch.cuda.get_device_capability`), weil der TRL-Fused-Kernel sonst mit
+"gemm input type at::BFloat16 and output type float ... 8.0 or higher" abbricht.
+Quelle: PyTorch-Doku `torch.cuda.is_bf16_supported`; CUDA-GEMM bf16->fp32 ab sm_80.
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -297,7 +305,42 @@ def final_train_loss(trainer):
     return None
 
 
-def main():
+def parse_args(argv=None):
+    """CLI (optional) – ueberschreibt die ENV-Werte. Alle Argumente sind optional."""
+    ap = argparse.ArgumentParser(description="M1b Slow Consolidation (Theta -> Theta').")
+    ap.add_argument(
+        "--source",
+        choices=["zsre", "local", "capybara"],
+        default=None,
+        help="Datenquelle (ueberschreibt SFT_SOURCE).",
+    )
+    ap.add_argument(
+        "--dataset",
+        default=None,
+        help="Pfad zur Chat-JSONL (setzt SFT_DATASET_PATH; fuer --source local).",
+    )
+    ap.add_argument("--out", default=None, help="Ausgabeordner (setzt OUTPUT_DIR).")
+    ap.add_argument("--epochs", type=float, default=None, help="Ueberschreibt NUM_EPOCHS.")
+    ap.add_argument("--gpu", default=None, help="Setzt CUDA_VISIBLE_DEVICES (z.B. 0).")
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    global SFT_SOURCE, NUM_EPOCHS, OUTPUT_DIR, ADAPTER_DIR, OUTPUT_JSON
+    args = parse_args(argv)
+    if args.gpu is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    if args.source:
+        SFT_SOURCE = args.source.strip().lower()
+    if args.dataset:
+        os.environ["SFT_DATASET_PATH"] = args.dataset
+    if args.out:
+        OUTPUT_DIR = args.out
+        ADAPTER_DIR = os.path.join(OUTPUT_DIR, "adapter")
+        OUTPUT_JSON = os.path.join(OUTPUT_DIR, "kaggle_output.json")
+    if args.epochs is not None:
+        NUM_EPOCHS = args.epochs
+
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     set_seed(SEED)
@@ -312,7 +355,13 @@ def main():
     if gpu is None:
         raise RuntimeError("Keine GPU gefunden. M1b muss auf Kaggle mit GPU laufen.")
 
-    compute_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    # bf16-Mathematik braucht Compute Capability >= 8.0 (Ampere+); Turing (T4, sm_75)
+    # unterstuetzt nur *emuliertes* bf16 -> der TRL-Fused-Kernel (addmm bf16->fp32)
+    # bricht sonst ab ("... only supported for CUDA devices with compute capability
+    # 8.0 or higher"). Daher anhand der echten Capability waehlen (belegt:
+    # PyTorch-Doku is_bf16_supported(including_emulation); CUDA-GEMM bf16->fp32 ab sm_80).
+    cc_major, cc_minor = torch.cuda.get_device_capability(0)
+    compute_dtype = torch.bfloat16 if cc_major >= 8 else torch.float16
 
     source_meta = {}
     if SFT_SOURCE == "zsre":
@@ -423,6 +472,7 @@ def main():
         "lora_r": LORA_R,
         "lora_alpha": LORA_ALPHA,
         "compute_dtype": str(compute_dtype).replace("torch.", ""),
+        "compute_capability": f"sm_{cc_major}{cc_minor}",
         "gpu": gpu,
         "started_utc": started,
         "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
