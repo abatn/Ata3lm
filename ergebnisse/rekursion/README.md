@@ -119,6 +119,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 092 | `092-f6-subjekt.md` | System-Iteration (F6: ZsRE-Fragen an Subjekt gebunden – `XXX` → `subject`; Formatänderung §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 093 | `093-gdi-betrieb.md` | System-Iteration (Item 3: kalibriertes GDI Gl. 12–16 im Betriebspfad, `load_calibration`/`observe_gdi` + Runner-Schalter; Interface §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 094 | `094-freigabe-erfolgspfad.md` | System-Iteration (Freigabe-Erfolgspfad: `self_update`/`approvers` in `run_recursion` + CLI `--approver` im Live-Driver; Interface §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 095 | `095-live-lokal.md` | System-Iteration (voller Live-Lauf lokal via Ollama/qwen2.5-1.5b, kein Endpoint) | **approved**: Batnini + Taoufik, 2026-10-09 | siehe File |
 
 ## Guardrail
 
