@@ -117,6 +117,8 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 090 | `090-f4-mcp-k8-evidence-hash.md` | System-Iteration (F4: MCP-K8-Kopf erst nach PII-Sanitisierung; Evidence-Hash == Body-Hash) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 | 091 | `091-f5-grader-korrektheit.md` | System-Iteration (F5: Kalibrier-Grader Math=Endantwort nach `####`, Truth=verneinter Treffer falsch; Rekalibrierung nötig) | pending (§9 `ask`: Label-Semantik) | siehe File |
 | 092 | `092-f6-subjekt.md` | System-Iteration (F6: ZsRE-Fragen an Subjekt gebunden – `XXX` → `subject`; Formatänderung §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 093 | `093-gdi-betrieb.md` | System-Iteration (Item 3: kalibriertes GDI Gl. 12–16 im Betriebspfad, `load_calibration`/`observe_gdi` + Runner-Schalter; Interface §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
+| 094 | `094-freigabe-erfolgspfad.md` | System-Iteration (Freigabe-Erfolgspfad: `self_update`/`approvers` in `run_recursion` + CLI `--approver` im Live-Driver; Interface §9) | **approved**: Batnini + Taoufik, 2026-10-08 | siehe File |
 
 ## Guardrail
 

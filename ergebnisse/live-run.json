@@ -1,9 +1,9 @@
 {
   "tasks": [
     {
-      "question": "Which replaced the XXX?",
-      "fact": "Le Plessis-Trévise",
-      "correct": "Le Plessis-Trévise",
+      "question": "What material was used for The Great Warrior of Montauban?",
+      "fact": "bronze",
+      "correct": "bronze",
       "cycle": {
         "stages": [
           "Erfahrung",
@@ -16,7 +16,7 @@
           "Wissen+"
         ],
         "ok": false,
-        "action": "uncertain",
+        "action": "write-new",
         "gate": "ask",
         "revised": false,
         "DI": null,
@@ -24,7 +24,7 @@
           "Erfahrung": {
             "stage": "Erfahrung",
             "entities": [],
-            "stored": "raw:which-replaced-the-xxx"
+            "stored": "raw:what-material-was-used-for-the-great-warrior-of-montauban"
           },
           "Wissen": {
             "stage": "Wissen",
@@ -34,7 +34,7 @@
           "Gedächtnis": {
             "stage": "Gedächtnis",
             "ok": false,
-            "action": "uncertain",
+            "action": "write-new",
             "steps": [
               [
                 "mandate",
@@ -42,7 +42,7 @@
               ],
               [
                 "fwr",
-                "uncertain"
+                "write-new"
               ]
             ]
           },
@@ -53,7 +53,7 @@
           },
           "Denken": {
             "stage": "Denken",
-            "self_feedback": null
+            "self_feedback": -0.05
           },
           "Nicht-Kognition": {
             "stage": "Nicht-Kognition",
@@ -86,11 +86,11 @@
           "Revise"
         ],
         "ok": false,
-        "action": "uncertain",
+        "action": "write-new",
         "gate": "ask",
-        "observed": false,
-        "score": 0.0,
-        "compare_gate": "ask",
+        "observed": true,
+        "score": 1.0,
+        "compare_gate": "allow",
         "revised": false,
         "results": {
           "Konstrukt": {
@@ -101,7 +101,7 @@
           "Akt": {
             "phase": "Akt",
             "ok": false,
-            "action": "uncertain",
+            "action": "write-new",
             "gate": "ask"
           },
           "Observe": {
@@ -110,163 +110,22 @@
           },
           "Compare": {
             "phase": "Compare",
-            "belief": 0.0253,
-            "score": 0.0,
-            "gate": "ask",
-            "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
-            "observed": false,
-            "oracle": {
-              "ok": false,
-              "evidence": {
-                "answer": "I don't know.",
-                "gold": "Le Plessis-Trévise"
-              },
-              "signal": "kein externes Signal",
-              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
-              "claim": "Which replaced the XXX?",
-              "successes": 0,
-              "failures": 1
-            },
-            "self_report": {
-              "successes": 0,
-              "failures": 0,
-              "belief": 0.05,
-              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
-            }
-          },
-          "Revise": {
-            "phase": "Revise",
-            "skipped": true,
-            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
-          }
-        }
-      }
-    },
-    {
-      "question": "In one word, how did XXX die?",
-      "fact": "suicide",
-      "correct": "suicide",
-      "cycle": {
-        "stages": [
-          "Erfahrung",
-          "Wissen",
-          "Gedächtnis",
-          "Kognition",
-          "Denken",
-          "Nicht-Kognition",
-          "Handeln",
-          "Wissen+"
-        ],
-        "ok": false,
-        "action": "uncertain",
-        "gate": "allow",
-        "revised": false,
-        "DI": 0.0,
-        "results": {
-          "Erfahrung": {
-            "stage": "Erfahrung",
-            "entities": [],
-            "stored": "raw:in-one-word-how-did-xxx-die"
-          },
-          "Wissen": {
-            "stage": "Wissen",
-            "added_nodes": [],
-            "added_edges": 0
-          },
-          "Gedächtnis": {
-            "stage": "Gedächtnis",
-            "ok": false,
-            "action": "uncertain",
-            "steps": [
-              [
-                "mandate",
-                "ALLOW"
-              ],
-              [
-                "fwr",
-                "uncertain"
-              ]
-            ]
-          },
-          "Kognition": {
-            "stage": "Kognition",
-            "consolidated": true,
-            "strengthened": []
-          },
-          "Denken": {
-            "stage": "Denken",
-            "self_feedback": -0.075
-          },
-          "Nicht-Kognition": {
-            "stage": "Nicht-Kognition",
-            "E_dV": -0.1,
-            "damping": 1.0
-          },
-          "Handeln": {
-            "stage": "Handeln",
-            "action": null,
-            "stored": null,
-            "skipped": true,
-            "reason": "Gedächtnis-Gate nicht ok"
-          },
-          "Wissen+": {
-            "stage": "Wissen+",
-            "DI": 0.0,
+            "belief": 0.2236,
+            "score": 1.0,
             "gate": "allow",
-            "revised": false,
-            "reference": "checkpoint(kept)"
-          }
-        }
-      },
-      "recursion": {
-        "phases": [
-          "Konstrukt",
-          "Akt",
-          "Observe",
-          "Compare",
-          "Revise"
-        ],
-        "ok": false,
-        "action": "uncertain",
-        "gate": "ask",
-        "observed": false,
-        "score": 0.0,
-        "compare_gate": "ask",
-        "revised": false,
-        "results": {
-          "Konstrukt": {
-            "phase": "Konstrukt",
-            "K": 4,
-            "pi0": "uniform (SEAA Listing 1)"
-          },
-          "Akt": {
-            "phase": "Akt",
-            "ok": false,
-            "action": "uncertain",
-            "gate": "ask"
-          },
-          "Observe": {
-            "phase": "Observe",
-            "entities": []
-          },
-          "Compare": {
-            "phase": "Compare",
-            "belief": 0.0253,
-            "score": 0.0,
-            "gate": "ask",
-            "signal": "kein externes Signal (Oracle) – Selbstreport nur Annotation, kein Ground-Truth-Claim (§1/§6)",
-            "observed": false,
+            "signal": "externes Signal (World-State-Oracle)",
+            "observed": true,
             "oracle": {
-              "ok": false,
+              "ok": true,
               "evidence": {
-                "answer": "I don't know.",
-                "gold": "suicide"
+                "answer": "The user is asking about the material used for \"The Great Warrior of Montauban\". I need to check if this is in the provided knowledge. The knowledge provided is just \"bronze\". That's a single word. The question is about a specific sculpture. I don't have specific knowledge about \"The Great Warrior of Montauban\". The knowledge given is just \"bronze\". That might be a hint, but I cannot assume. The instruction says: \"Use this knowledge: bronze\". So the knowledge provided is \"bronze\". The question: \"What material was used for The Great Warrior of Montauban?\" The knowledge is \"bronze\". Possibly the answer is bronze. But I need to be careful: The user says \"Use this knowledge: bronze\". That implies that the knowledge base contains the word \"bronze\". The question might be answerable from that knowledge. However, the knowledge is just a single word. It might be that the answer is \"bronze\". But I don't know for sure. The instruction: \"If you do not know the answer, reply exactly: I don't know.\" I should only answer if I know. The knowledge provided is \"bronze\". That could be the answer. But I need to consider: The user gave a knowledge snippet: \"bronze\". That might be the only knowledge I have. The question is about a specific artwork. I don't have any other context. The knowledge is just \"bronze\". It's possible that the answer is \"bronze\". But I cannot be certain. However, the instruction says \"Use this knowledge: bronze\". So I should use that knowledge to answer. The knowledge is \"bronze\". So the answer is likely \"bronze\". But the user wants a short sentence. I should answer: \"The Great Warrior of Montauban was made of bronze.\" But I need to be sure. The knowledge is just \"bronze\". It doesn't explicitly say that the sculpture is made of bronze. But the user might be testing if I can use the given knowledge. The knowledge is \"bronze\". The question: \"What material was used for The Great Warrior of Montauban?\" The answer could be \"bronze\". I'll answer with a short sentence: \"It was made of bronze.\" But the instruction: \"Answer in ONE short sentence.\" So I'll do that. However, if I'm not sure, I should say \"I don't know.\" But the user provided knowledge: \"bronze\". That is a strong",
+                "gold": "bronze"
               },
-              "signal": "kein externes Signal",
-              "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
-              "claim": "In one word, how did XXX die?",
-              "successes": 0,
-              "failures": 1
+              "signal": "externes Signal (World-State-Oracle)",
+              "reason": null,
+              "claim": "What material was used for The Great Warrior of Montauban?",
+              "successes": 1,
+              "failures": 0
             },
             "self_report": {
               "successes": 0,
@@ -284,9 +143,9 @@
       }
     },
     {
-      "question": "What cause of death was listed for XXX?",
-      "fact": "accident",
-      "correct": "accident",
+      "question": "Which replaced the Villiers-sur-Marne?",
+      "fact": "Le Plessis-Trévise",
+      "correct": "Le Plessis-Trévise",
       "cycle": {
         "stages": [
           "Erfahrung",
@@ -300,14 +159,14 @@
         ],
         "ok": false,
         "action": "uncertain",
-        "gate": "allow",
+        "gate": "ask",
         "revised": false,
-        "DI": 0.0,
+        "DI": 1.0,
         "results": {
           "Erfahrung": {
             "stage": "Erfahrung",
             "entities": [],
-            "stored": "raw:what-cause-of-death-was-listed-for-xxx"
+            "stored": "raw:which-replaced-the-villiers-sur-marne"
           },
           "Wissen": {
             "stage": "Wissen",
@@ -352,8 +211,149 @@
           },
           "Wissen+": {
             "stage": "Wissen+",
-            "DI": 0.0,
+            "DI": 1.0,
+            "gate": "ask",
+            "revised": false,
+            "reference": "checkpoint(kept)"
+          }
+        }
+      },
+      "recursion": {
+        "phases": [
+          "Konstrukt",
+          "Akt",
+          "Observe",
+          "Compare",
+          "Revise"
+        ],
+        "ok": false,
+        "action": "write-new",
+        "gate": "ask",
+        "observed": true,
+        "score": 1.0,
+        "compare_gate": "allow",
+        "revised": false,
+        "results": {
+          "Konstrukt": {
+            "phase": "Konstrukt",
+            "K": 4,
+            "pi0": "uniform (SEAA Listing 1)"
+          },
+          "Akt": {
+            "phase": "Akt",
+            "ok": false,
+            "action": "write-new",
+            "gate": "ask"
+          },
+          "Observe": {
+            "phase": "Observe",
+            "entities": []
+          },
+          "Compare": {
+            "phase": "Compare",
+            "belief": 0.2236,
+            "score": 1.0,
             "gate": "allow",
+            "signal": "externes Signal (World-State-Oracle)",
+            "observed": true,
+            "oracle": {
+              "ok": true,
+              "evidence": {
+                "answer": "The user is asking: \"Which replaced the Villiers-sur-Marne?\" with the knowledge \"Le Plessis-Trévise\". This seems like a question about French communes or administrative changes. Le Plessis-Trévise is a commune in the Val-de-Marne department. Villiers-sur-Marne is another commune in the same department. The question might be about which commune replaced Villiers-sur-Marne, or perhaps which commune was created from it, or which replaced it in some administrative capacity.\n\nI need to recall: Le Plessis-Trévise was created in 1899 from parts of Villiers-sur-Marne and other communes. Actually, Le Plessis-Trévise was formed from parts of Villiers-sur-Marne, Champigny-sur-Marne, and maybe others. So Le Plessis-Trévise replaced part of Villiers-sur-Marne? Or perhaps the question is: \"Which replaced the Villiers-sur-Marne?\" meaning which commune replaced Villiers-sur-Marne? That doesn't make sense because Villiers-sur-Marne still exists.\n\nMaybe the question is about a specific administrative replacement, like a canton or arrondissement. But the knowledge given is just \"Le Plessis-Trévise\". The user wants a one-sentence answer. If I don't know, I must reply exactly \"I don't know.\"\n\nI should consider: Le Plessis-Trévise is a commune that was created from territory taken from Villiers-sur-Marne (among others). So perhaps Le Plessis-Trévise replaced part of Villiers-sur-Marne. But the phrasing \"Which replaced the Villiers-sur-Marne?\" is ambiguous.\n\nGiven the knowledge provided is only \"Le Plessis-Trévise\", the answer might be \"Le Plessis-Trévise\". But I need to be sure. The user says \"Use this knowledge: Le Plessis-Trévise\". So they are giving me that as the knowledge base. The question: \"Which replaced the Villiers-sur-Marne?\" Possibly the answer is \"Le Plessis-Trévise\". But I need to answer in one short sentence.\n\nIf I'm not certain, I should say \"I don't know.\" But the instruction: \"If you do not know the answer, reply exactly: I don't know.\" So I must decide.\n\nI recall that Le Plessis-Trévise was created in 1899 from parts of Villiers-sur-Marne, Champigny-sur-Marne, and maybe others. So it didn't replace Villiers-sur-Marne; it was created from it. Villiers-sur-Marne still exists. So the",
+                "gold": "Le Plessis-Trévise"
+              },
+              "signal": "externes Signal (World-State-Oracle)",
+              "reason": null,
+              "claim": "Which replaced the Villiers-sur-Marne?",
+              "successes": 1,
+              "failures": 0
+            },
+            "self_report": {
+              "successes": 0,
+              "failures": 0,
+              "belief": 0.05,
+              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
+            }
+          },
+          "Revise": {
+            "phase": "Revise",
+            "skipped": true,
+            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
+          }
+        }
+      }
+    },
+    {
+      "question": "What cause of death was listed for Vedat Dalokay?",
+      "fact": "accident",
+      "correct": "accident",
+      "cycle": {
+        "stages": [
+          "Erfahrung",
+          "Wissen",
+          "Gedächtnis",
+          "Kognition",
+          "Denken",
+          "Nicht-Kognition",
+          "Handeln",
+          "Wissen+"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "revised": false,
+        "DI": 1.0,
+        "results": {
+          "Erfahrung": {
+            "stage": "Erfahrung",
+            "entities": [],
+            "stored": "raw:what-cause-of-death-was-listed-for-vedat-dalokay"
+          },
+          "Wissen": {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0
+          },
+          "Gedächtnis": {
+            "stage": "Gedächtnis",
+            "ok": false,
+            "action": "uncertain",
+            "steps": [
+              [
+                "mandate",
+                "ALLOW"
+              ],
+              [
+                "fwr",
+                "uncertain"
+              ]
+            ]
+          },
+          "Kognition": {
+            "stage": "Kognition",
+            "consolidated": true,
+            "strengthened": []
+          },
+          "Denken": {
+            "stage": "Denken",
+            "self_feedback": null
+          },
+          "Nicht-Kognition": {
+            "stage": "Nicht-Kognition",
+            "E_dV": -0.1,
+            "damping": 1.0
+          },
+          "Handeln": {
+            "stage": "Handeln",
+            "action": null,
+            "stored": null,
+            "skipped": true,
+            "reason": "Gedächtnis-Gate nicht ok"
+          },
+          "Wissen+": {
+            "stage": "Wissen+",
+            "DI": 1.0,
+            "gate": "ask",
             "revised": false,
             "reference": "checkpoint(kept)"
           }
@@ -405,9 +405,291 @@
               },
               "signal": "kein externes Signal",
               "reason": "Probe lief, lieferte aber kein positives externes Ergebnis",
-              "claim": "What cause of death was listed for XXX?",
+              "claim": "What cause of death was listed for Vedat Dalokay?",
               "successes": 0,
               "failures": 1
+            },
+            "self_report": {
+              "successes": 0,
+              "failures": 0,
+              "belief": 0.05,
+              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
+            }
+          },
+          "Revise": {
+            "phase": "Revise",
+            "skipped": true,
+            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
+          }
+        }
+      }
+    },
+    {
+      "question": "What is Abu Yusuf's place of employment?",
+      "fact": "Kufa",
+      "correct": "Kufa",
+      "cycle": {
+        "stages": [
+          "Erfahrung",
+          "Wissen",
+          "Gedächtnis",
+          "Kognition",
+          "Denken",
+          "Nicht-Kognition",
+          "Handeln",
+          "Wissen+"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "revised": false,
+        "DI": 1.0,
+        "results": {
+          "Erfahrung": {
+            "stage": "Erfahrung",
+            "entities": [],
+            "stored": "raw:what-is-abu-yusuf-s-place-of-employment"
+          },
+          "Wissen": {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0
+          },
+          "Gedächtnis": {
+            "stage": "Gedächtnis",
+            "ok": false,
+            "action": "uncertain",
+            "steps": [
+              [
+                "mandate",
+                "ALLOW"
+              ],
+              [
+                "fwr",
+                "uncertain"
+              ]
+            ]
+          },
+          "Kognition": {
+            "stage": "Kognition",
+            "consolidated": true,
+            "strengthened": []
+          },
+          "Denken": {
+            "stage": "Denken",
+            "self_feedback": -0.0125
+          },
+          "Nicht-Kognition": {
+            "stage": "Nicht-Kognition",
+            "E_dV": -0.1,
+            "damping": 1.0
+          },
+          "Handeln": {
+            "stage": "Handeln",
+            "action": null,
+            "stored": null,
+            "skipped": true,
+            "reason": "Gedächtnis-Gate nicht ok"
+          },
+          "Wissen+": {
+            "stage": "Wissen+",
+            "DI": 1.0,
+            "gate": "ask",
+            "revised": false,
+            "reference": "checkpoint(kept)"
+          }
+        }
+      },
+      "recursion": {
+        "phases": [
+          "Konstrukt",
+          "Akt",
+          "Observe",
+          "Compare",
+          "Revise"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "observed": true,
+        "score": 1.0,
+        "compare_gate": "allow",
+        "revised": false,
+        "results": {
+          "Konstrukt": {
+            "phase": "Konstrukt",
+            "K": 4,
+            "pi0": "uniform (SEAA Listing 1)"
+          },
+          "Akt": {
+            "phase": "Akt",
+            "ok": false,
+            "action": "uncertain",
+            "gate": "ask"
+          },
+          "Observe": {
+            "phase": "Observe",
+            "entities": []
+          },
+          "Compare": {
+            "phase": "Compare",
+            "belief": 0.2236,
+            "score": 1.0,
+            "gate": "allow",
+            "signal": "externes Signal (World-State-Oracle)",
+            "observed": true,
+            "oracle": {
+              "ok": true,
+              "evidence": {
+                "answer": "Abu Yusuf served as a judge (qadi) in Kufa.",
+                "gold": "Kufa"
+              },
+              "signal": "externes Signal (World-State-Oracle)",
+              "reason": null,
+              "claim": "What is Abu Yusuf's place of employment?",
+              "successes": 1,
+              "failures": 0
+            },
+            "self_report": {
+              "successes": 0,
+              "failures": 0,
+              "belief": 0.05,
+              "annotation": "Selbstreport – kein ausreichendes Signal (§6)"
+            }
+          },
+          "Revise": {
+            "phase": "Revise",
+            "skipped": true,
+            "reason": "Akt nicht ausdrücklich zulässig (ok=False, gate=ask) – keine Revision (§9)"
+          }
+        }
+      }
+    },
+    {
+      "question": "In one word, how did Chen Yi-hsiung die?",
+      "fact": "suicide",
+      "correct": "suicide",
+      "cycle": {
+        "stages": [
+          "Erfahrung",
+          "Wissen",
+          "Gedächtnis",
+          "Kognition",
+          "Denken",
+          "Nicht-Kognition",
+          "Handeln",
+          "Wissen+"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "revised": false,
+        "DI": 1.0,
+        "results": {
+          "Erfahrung": {
+            "stage": "Erfahrung",
+            "entities": [],
+            "stored": "raw:in-one-word-how-did-chen-yi-hsiung-die"
+          },
+          "Wissen": {
+            "stage": "Wissen",
+            "added_nodes": [],
+            "added_edges": 0
+          },
+          "Gedächtnis": {
+            "stage": "Gedächtnis",
+            "ok": false,
+            "action": "uncertain",
+            "steps": [
+              [
+                "mandate",
+                "ALLOW"
+              ],
+              [
+                "fwr",
+                "uncertain"
+              ]
+            ]
+          },
+          "Kognition": {
+            "stage": "Kognition",
+            "consolidated": true,
+            "strengthened": []
+          },
+          "Denken": {
+            "stage": "Denken",
+            "self_feedback": -0.5
+          },
+          "Nicht-Kognition": {
+            "stage": "Nicht-Kognition",
+            "E_dV": -0.1,
+            "damping": 1.0
+          },
+          "Handeln": {
+            "stage": "Handeln",
+            "action": null,
+            "stored": null,
+            "skipped": true,
+            "reason": "Gedächtnis-Gate nicht ok"
+          },
+          "Wissen+": {
+            "stage": "Wissen+",
+            "DI": 1.0,
+            "gate": "ask",
+            "revised": false,
+            "reference": "checkpoint(kept)"
+          }
+        }
+      },
+      "recursion": {
+        "phases": [
+          "Konstrukt",
+          "Akt",
+          "Observe",
+          "Compare",
+          "Revise"
+        ],
+        "ok": false,
+        "action": "uncertain",
+        "gate": "ask",
+        "observed": true,
+        "score": 1.0,
+        "compare_gate": "allow",
+        "revised": false,
+        "results": {
+          "Konstrukt": {
+            "phase": "Konstrukt",
+            "K": 4,
+            "pi0": "uniform (SEAA Listing 1)"
+          },
+          "Akt": {
+            "phase": "Akt",
+            "ok": false,
+            "action": "uncertain",
+            "gate": "ask"
+          },
+          "Observe": {
+            "phase": "Observe",
+            "entities": []
+          },
+          "Compare": {
+            "phase": "Compare",
+            "belief": 0.2236,
+            "score": 1.0,
+            "gate": "allow",
+            "signal": "externes Signal (World-State-Oracle)",
+            "observed": true,
+            "oracle": {
+              "ok": true,
+              "evidence": {
+                "answer": "Chen Yi-hsiung died by suicide.",
+                "gold": "suicide"
+              },
+              "signal": "externes Signal (World-State-Oracle)",
+              "reason": null,
+              "claim": "In one word, how did Chen Yi-hsiung die?",
+              "successes": 1,
+              "failures": 0
             },
             "self_report": {
               "successes": 0,
@@ -431,6 +713,6 @@
     "reflection": "nvidia/nemotron-3-ultra-550b-a55b"
   },
   "source": "ZsRE (community-datasets/qa_zre) · AGENTS.md §2/§3 · §6 externes Signal (World-State-Oracle)",
-  "n": 3,
+  "n": 5,
   "seed": 42
 }

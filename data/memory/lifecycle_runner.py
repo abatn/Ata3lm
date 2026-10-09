@@ -283,6 +283,20 @@ def _stage_wissen_plus(ctx: dict) -> dict:
             "revised": ok and gate_labels.is_allow(gate),
             "reference": "monitor",
         }
+    # R093 (§9.1c, Interface-Änderung §9 approved): optionales GDI-Gate statt JSD.
+    # Nutzt das **kalibrierte** τ+Gewichte (Gl. 14–16) auf dem Textpaar; kein
+    # Checkpoint-Write im GDI-Modus (die Referenz ist Text, nicht die Label-Verteilung).
+    if ctx.get("gdi_enabled"):
+        d = ctx["gdi_monitor"].observe_gdi(ctx["gdi_prev_text"], ctx["fact"], embed_fn=ctx["embed_fn"], step=1)
+        gate = gate_labels.normalize(d["gate"])
+        return {
+            "stage": "Wissen+",
+            "gdi": d["gdi"],
+            "tau": d["tau"],
+            "gate": gate,
+            "revised": ok and gate_labels.is_allow(gate),
+            "reference": "gdi",
+        }
     reference = ctx["drift_baseline"] if ctx["drift_baseline"] is not None else _load_drift_reference()
     # R16/A5: auch die Stufe-8-Referenz auf denselben Labelraum kanonisieren.
     reference = _canonicalize_distribution(reference) if reference is not None else None
@@ -353,6 +367,10 @@ def run_cycle(
     drift=None,
     state_path=None,
     consolidation_state_path=None,
+    gdi: bool = False,
+    embed_fn=None,
+    gdi_calibration=None,
+    gdi_prev_text=None,
 ) -> dict:
     """Führt die 8 Stufen in gesetzter Reihenfolge aus und liefert die echte Spur.
 
@@ -364,6 +382,14 @@ def run_cycle(
     Lauf am Ende **lesend** konsolidierbare Fakten (`slow_consolidation.collect_pending`)
     und hängt sie als `pending_consolidation` an das Ergebnis. Kein Write/Flush im Lauf
     (§9 Human-Gate); Default `None` ⇒ unverändertes Verhalten.
+
+    **Interface-Änderung §9 approved (Rekursion 093; Batnini + Taoufik, 2026-10-08):**
+    optionale Parameter `gdi`/`embed_fn`/`gdi_calibration`/`gdi_prev_text` binden das
+    **kalibrierte GDI-Gate** (SAHOO Gl. 12–16, AGENTS.md §9.1c) additiv an Stufe 8.
+    Nur wenn `gdi=True` **und** `embed_fn` **und** `gdi_prev_text` **und** eine
+    Kalibrierung (`gdi_calibration` oder `bias_monitor.load_calibration()`) vorliegen,
+    wird statt des JSD-`observe` das GDI-`observe_gdi` genutzt. Default `gdi=False`
+    ⇒ **exakt altes Verhalten** (JSD).
     """
     mandate_obj = mandate_obj if mandate_obj is not None else _default_mandate()
     # S1 §9.1c: Referenz-Priorität (explizit > Env-Erwartung > persistierter Checkpoint > keine).
@@ -388,6 +414,16 @@ def run_cycle(
             drift_write = _CanonicalDriftMonitor(bias_monitor.BiasDriftMonitor(baseline=write_reference, tau=tau))
         else:
             drift_write = None
+    # R093 (§9.1c, Interface-Änderung §9 approved): GDI-Gate nur opt-in UND vollständig.
+    # Kalibrierung: explizit übergeben oder aus `drift-calibration-sahoo.json` geladen.
+    gdi_cal = gdi_calibration
+    if gdi and gdi_cal is None:
+        gdi_cal = bias_monitor.load_calibration()
+    gdi_enabled = bool(gdi and embed_fn is not None and gdi_prev_text is not None and gdi_cal is not None)
+    if gdi_enabled:
+        gdi_monitor = bias_monitor.BiasDriftMonitor(baseline={}, gdi_weights=gdi_cal["weights"], gdi_tau=gdi_cal["tau"])
+    else:
+        gdi_monitor = None
     ctx = {
         "question": question,
         "fact": fact,
@@ -413,6 +449,10 @@ def run_cycle(
         "approvers": approvers,
         "drift_write": drift_write,
         "drift_monitor": drift_monitor,
+        "gdi_enabled": gdi_enabled,
+        "gdi_monitor": gdi_monitor,
+        "embed_fn": embed_fn,
+        "gdi_prev_text": gdi_prev_text,
         "entities": [],
         "results": {},
     }

@@ -1,33 +1,33 @@
 {
-  "tau": 0.2401229870717871,
+  "tau": 0.16304735478503182,
   "weights": {
     "sem": 0.0,
-    "lex": 0.85,
+    "lex": 0.8,
     "struct": 0.0,
-    "dist": 0.15
+    "dist": 0.2
   },
-  "auc": 0.7604353216696514,
-  "f1": 0.6495726495726496,
+  "auc": 0.7901858939311099,
+  "f1": 0.6573426573426573,
   "ci": {
-    "lo": 0.17275097349091917,
-    "hi": 0.21366603950469737
+    "lo": 0.15241285406444086,
+    "hi": 0.19194101880481992
   },
   "n": 180,
   "per_domain": {
     "code": {
       "pairs": 60,
-      "no_drift": 54,
-      "drift": 6
+      "no_drift": 53,
+      "drift": 7
     },
     "math": {
       "pairs": 60,
-      "no_drift": 59,
-      "drift": 1
+      "no_drift": 60,
+      "drift": 0
     },
     "truth": {
       "pairs": 60,
-      "no_drift": 6,
-      "drift": 54
+      "no_drift": 5,
+      "drift": 55
     }
   },
   "paper_weights": {
@@ -38,9 +38,9 @@
   },
   "weights_delta": {
     "sem": -0.38,
-    "lex": 0.73,
+    "lex": 0.68,
     "struct": -0.21,
-    "dist": -0.14
+    "dist": -0.09
   },
   "model": "nvidia/nemotron-3-super-120b-a12b",
   "embed_model": "nvidia/nemotron-3-embed-1b",

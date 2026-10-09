@@ -56,7 +56,7 @@ def _phase_konstrukt(ctx: dict) -> dict:
 
 
 def _phase_akt(ctx: dict) -> dict:
-    """Akt: π ausführen → Pipeline-Kette (Mandat→FWR→Trust→Write)."""
+    """Akt: π ausführen → Pipeline-Kette (Mandat→FWR→Trust→Freigabe→Write)."""
     res = pipeline.route_and_store(
         question=ctx["question"],
         fact=ctx["fact"],
@@ -66,6 +66,10 @@ def _phase_akt(ctx: dict) -> dict:
         now=ctx["now"],
         structured_dir=ctx["structured_dir"],
         tier3_dir=ctx["tier3_dir"],
+        # R094/§9.3: Zwei-Personen-Freigabe an die Pipeline durchreichen – nur so kann
+        # ein `write-new`/`write-update` (Router-Gate `ask`) tatsächlich geschrieben werden.
+        self_update=ctx["self_update"],
+        approvers=ctx["approvers"],
     )
     # K6/B5: `gate` im einheitlichen Labelraum (allow|ask|deny) mitführen.
     return {
@@ -232,6 +236,8 @@ def run_recursion(
     successes: int = 0,
     failures: int = 0,
     revise_approved: bool = False,
+    self_update: bool = False,
+    approvers=None,
     state_path=None,
     consolidation_state_path=None,
     world_state_probe=None,
@@ -246,6 +252,14 @@ def run_recursion(
     (A4) schaltet die HMM-Revision im **ask-Band** (Compare-Score 70–94 %) frei; ohne
     Freigabe bleibt sie dort aus (§9, 70–94 % ⇒ Human-Gate). `Compare` meldet nun
     `score` + `gate` (allow/ask/deny).
+
+    **Interface-Änderung (§9-pflichtig, kenntlich gemacht, R094):** neue optionale
+    Parameter `self_update` (Default `False`) und `approvers` (Default `None`). Sie
+    werden in der Akt-Phase an `pipeline.route_and_store(self_update=..., approvers=...)`
+    durchgereicht; nur mit `self_update=True` **und** einer §9.3-Zwei-Personen-Freigabe
+    (`approvers` mit ≥ 2 distinkten Personen) wird ein `write-new`/`write-update`
+    (Router-Gate `ask`) geschrieben. Default `False`/`None` ⇒ **exakt altes Verhalten**
+    (kein Write ohne Freigabe, Gate bleibt `ask`).
 
     **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** neuer optionaler
     Parameter `consolidation_state_path` (Auftrag §10.3) – ist er gesetzt, sammelt der
@@ -274,6 +288,8 @@ def run_recursion(
         "successes": successes,
         "failures": failures,
         "revise_approved": revise_approved,
+        "self_update": self_update,
+        "approvers": approvers,
         "world_state_probe": world_state_probe,
         "world_state_claim": world_state_claim,
         "hmm": None,

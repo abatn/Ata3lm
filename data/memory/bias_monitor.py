@@ -35,13 +35,22 @@ Replikat), wird das im Code als „nicht gefunden" kenntlich gemacht.
 
 Gate (K6/B5): `gate` nutzt den einheitlichen Labelraum `allow|ask|deny`
 (`gate_labels`) – Flag ⇒ `ask` (Human-Gate, §9.1c), sonst `allow`.
+
+Betriebspfad (Rekursion 093, **Interface-Änderung §9 approved** Batnini+Taoufik):
+`load_calibration()` liest das **kalibrierte** τ+Gewichte aus
+`ergebnisse/drift-calibration-sahoo.json` (AGENTS.md §9.1c); `observe_gdi`
+nutzt sie über `drift_calibration.signal_vector`. Fehlt/ungültig ⇒ `None`
+(JSD-Fallback, kein Crash). Defaults (`tau=0.10`, JSD-`observe`) bleiben
+**unverändert** – die GDI-Bindung ist additiv und nur opt-in.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import random
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 import gate_labels
@@ -109,6 +118,10 @@ def capped_simplex(w: dict, w_max: float = 0.6, iters: int = 100) -> dict:
 #          dist .29) sowie die defensive Behandlung leerer Eingaben.
 
 _WEIGHT_KEYS = ("sem", "lex", "struct", "dist")
+
+#: Kalibrierte Schwellwert-/Gewichtsdatei (SAHOO Gl. 14–16; AGENTS.md §9.1c).
+#: Pfad **relativ zu diesem Modul** (repo-root/ergebnisse/…) – cwd-unabhängig.
+CALIBRATION_PATH = Path(__file__).resolve().parents[2] / "ergebnisse" / "drift-calibration-sahoo.json"
 
 # Referenz-Gewichte (Haupttext, Tabelle): sem .38 · lex .12 · struct .21 · dist .29
 DEFAULT_WEIGHTS = {"sem": 0.38, "lex": 0.12, "struct": 0.21, "dist": 0.29}
@@ -192,6 +205,25 @@ def gdi(sem, lex, stru, dist, weights=None):
     """
     w = _resolve_weights(weights)
     return w["sem"] * sem + w["lex"] * lex + w["struct"] * stru + w["dist"] * dist
+
+
+def load_calibration(path=None) -> Optional[dict]:
+    """Liest kalibrierte GDI-Gewichte + τ (SAHOO Gl. 14–16, AGENTS.md §9.1c).
+
+    **Interface-Änderung §9 approved** (Batnini + Taoufik, 2026-10-08): bindet die
+    Kalibrierung (`ergebnisse/drift-calibration-sahoo.json`) an den Betrieb.
+    ``path=None`` ⇒ :data:`CALIBRATION_PATH`. Fehlende Datei, ungültiges JSON,
+    fehlende/ungültige Schlüssel ⇒ ``None`` (JSD-Fallback, **kein Crash**).
+    Rückgabe: ``{"weights": {sem,lex,struct,dist}, "tau": float}``.
+    """
+    target = Path(path) if path is not None else CALIBRATION_PATH
+    try:
+        data = json.loads(Path(target).read_text(encoding="utf-8"))
+        weights = _resolve_weights(data["weights"])
+        tau = float(data["tau"])
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return None
+    return {"weights": weights, "tau": tau}
 
 
 def _auc(scores, labels):
@@ -325,6 +357,8 @@ class BiasDriftMonitor:
     baseline: dict
     tau: float = 0.10  # Auftrag
     w_max: float = 0.6  # Auftrag (Capped Simplex)
+    gdi_weights: Optional[dict] = None  # §9.1c: kalibrierte GDI-Gewichte (Gl. 14), Default None
+    gdi_tau: Optional[float] = None  # §9.1c: kalibriertes τ (Gl. 15), Default None
     history: list = field(default_factory=list)
     _prev: Optional[dict] = None
 
@@ -374,6 +408,33 @@ class BiasDriftMonitor:
         self._prev = d
         return rec
 
+    def observe_gdi(self, prev_text: str, cur_text: str, *, embed_fn, step: Optional[int] = None) -> dict:
+        """Kalibriertes GDI-Gate (Gl. 12–16, **Interface-Änderung §9 approved**).
+
+        Nutzt `drift_calibration.signal_vector` (Gl. 8–11) → `gdi` (Gl. 12–13) mit den
+        **kalibrierten Gewichten** (`gdi_weights`, sonst Default-Auftrag) und flaggt gegen
+        das **kalibrierte τ** (`gdi_tau`, sonst `self.tau`). `embed_fn` ist injizierbar
+        (Guardrail 7). Rückgabe: `{"step","gdi","flagged","gate","weights","tau"}`.
+        """
+        import drift_calibration  # lazy: vermeidet Zyklus bias_monitor <-> drift_calibration
+
+        weights = self.gdi_weights if self.gdi_weights is not None else DEFAULT_WEIGHTS
+        w = _resolve_weights(weights)
+        tau = self.gdi_tau if self.gdi_tau is not None else self.tau
+        sig = drift_calibration.signal_vector(prev_text, cur_text, embed_fn=embed_fn)
+        value = gdi(sig["semantic"], sig["lexical"], sig["structural"], sig["distributional"], weights=w)
+        flagged = value > tau
+        rec = {
+            "step": step,
+            "gdi": round(value, 4),
+            "flagged": flagged,
+            "gate": gate_labels.ASK if flagged else gate_labels.ALLOW,
+            "weights": {k: round(v, 4) for k, v in w.items()},
+            "tau": tau,
+        }
+        self.history.append(rec)
+        return rec
+
     def report(self) -> dict:
         flagged = [h for h in self.history if h["flagged"]]
         return {
@@ -381,8 +442,8 @@ class BiasDriftMonitor:
             "tau": self.tau,
             "w_max": self.w_max,
             "flagged_steps": [h["step"] for h in flagged],
-            "max_DI": max((h["DI"] for h in self.history), default=0.0),
-            "max_jsd": max((h["jsd"] for h in self.history), default=0.0),
+            "max_DI": max((h.get("DI", 0.0) for h in self.history), default=0.0),
+            "max_jsd": max((h.get("jsd", 0.0) for h in self.history), default=0.0),
         }
 
 

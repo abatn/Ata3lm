@@ -25,6 +25,13 @@ wird separat gestartet; dieses Modul ist importierbar ohne Netz.
 
 **Interface-Änderung (§9-pflichtig, kenntlich gemacht):** NEU – `scripts/live_run.py`,
 `tests/test_live_run.py`. `AGENTS.md`/`data/memory/tier1-base/` unverändert.
+
+**Interface-Änderung §9 approved (Rekursion 094; Batnini + Taoufik, 2026-10-08):**
+CLI-Option `--approver NAME` (mehrfach, `action="append"`). Bei **≥ 2 distinkten**
+Namen wird `self_update=True` gesetzt und `approvers=[…]` an **beide** Runner
+(`run_cycle` und `run_recursion`) gereicht; damit schreiben `write-new`/`write-update`
+(Router-Gate `ask`) nur mit §9.3-Zwei-Personen-Freigabe. Ohne `--approver` (bzw. < 2
+distinkten Namen) bleibt `self_update=False` ⇒ **exakt altes Verhalten** (Gate `ask`).
 """
 
 from __future__ import annotations
@@ -213,8 +220,30 @@ def _make_probe(task: dict) -> Callable[[], dict]:
     return probe
 
 
-def _run_task(task: dict, workdir: Path, now: float) -> dict:
-    """Eine Aufgabe durch **beide** Runner (gemeinsame State-Datei)."""
+def _resolve_approvers(approvers: Optional[list]) -> tuple:
+    """`--approver`-Namen → (self_update, distinkte Namen in Reihenfolge).
+
+    §9.3: `approved` nur bei **≥ 2 distinkten** natürlichen Personen (approval.py).
+    Ohne/mit < 2 distinkten Namen bleibt `self_update=False` ⇒ exakt altes Verhalten
+    (Router-Gate `ask`, kein Write ohne Freigabe). Doppelte Namen zählen NICHT.
+    """
+    distinct: list = []
+    for person in approvers or []:
+        name = (person or "").strip()
+        if name and name not in distinct:
+            distinct.append(name)
+    return len(distinct) >= 2, distinct
+
+
+def _run_task(
+    task: dict, workdir: Path, now: float, self_update: bool = False, approvers: Optional[list] = None
+) -> dict:
+    """Eine Aufgabe durch **beide** Runner (gemeinsame State-Datei).
+
+    §9.3: `self_update`/`approvers` werden an **beide** Runner gereicht – nur mit
+    ≥ 2-Personen-Freigabe schreiben `write-new`/`write-update` (Gateway-Gate `ask`).
+    Default `self_update=False`/`approvers=None` ⇒ unverändertes Verhalten.
+    """
     structured = workdir / "structured"
     tier3 = workdir / "tier3"
     state_path = workdir / "state.json"
@@ -230,6 +259,8 @@ def _run_task(task: dict, workdir: Path, now: float) -> dict:
         now=now,
         state_path=state_path,
         reflection_text=reflection,
+        self_update=self_update,
+        approvers=approvers,
     )
     recursion_out = recursion_runner.run_recursion(
         task["question"],
@@ -244,6 +275,8 @@ def _run_task(task: dict, workdir: Path, now: float) -> dict:
         reflection_text=reflection,
         world_state_probe=_make_probe(task),  # §6: echtes externes Signal
         world_state_claim=task["question"],
+        self_update=self_update,
+        approvers=approvers,
     )
     return {
         "question": task["question"],
@@ -259,7 +292,19 @@ def main(argv: Optional[list] = None) -> int:
     parser.add_argument("--tasks", type=int, default=3, help="Anzahl echter Aufgaben (Default: 3)")
     parser.add_argument("--out", default=str(ROOT / "ergebnisse" / "live-run.json"), help="Ziel-JSON")
     parser.add_argument("--seed", type=int, default=None, help="Seed für reproduzierbare Aufgabenauswahl")
+    parser.add_argument(
+        "--approver",
+        action="append",
+        default=None,
+        metavar="NAME",
+        help="Natürliche Person für die §9.3-Zwei-Personen-Freigabe (mehrfach). "
+        "Mit ≥ 2 distinkten Namen wird `self_update` aktiviert (write-new/write-update schreiben); "
+        "ohne bleibt der Write auf `ask`.",
+    )
     args = parser.parse_args(argv)
+
+    # §9.3: approved nur bei ≥ 2 distinkten Personen; sonst exakt altes Verhalten (ask).
+    self_update, approvers = _resolve_approvers(args.approver)
 
     try:
         endpoint = _resolve_endpoint()
@@ -280,7 +325,15 @@ def main(argv: Optional[list] = None) -> int:
         runs = []
         for i, task in enumerate(tasks):
             print(f"[{i + 1}/{len(tasks)}] {task['question'][:80]!r}", flush=True)
-            runs.append(_run_task(task, tmp_root / f"task-{i:03d}", now=100.0 + i))
+            runs.append(
+                _run_task(
+                    task,
+                    tmp_root / f"task-{i:03d}",
+                    now=100.0 + i,
+                    self_update=self_update,
+                    approvers=approvers,
+                )
+            )
 
     payload = {
         "tasks": runs,
@@ -292,6 +345,8 @@ def main(argv: Optional[list] = None) -> int:
         "source": SOURCE,
         "n": len(runs),
         "seed": args.seed,
+        "self_update": self_update,
+        "approvers": approvers,
     }
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
