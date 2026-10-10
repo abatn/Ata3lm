@@ -15,3 +15,6 @@ data/memory/tier3-working/consolidation-state.json
 .coverage
 coverage.xml
 htmlcov/
+#git_token_private
+know_git.txt
+.serena/
