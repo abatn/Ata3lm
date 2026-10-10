@@ -126,6 +126,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 099 | `099-drift-rekalibrierung-d1.md` | System-Iteration (Drift-Rekalibrierung mit D1-Gradern: τ=0.225, AUC 0.780) | **approved**: Batnini + Taoufik, 2026-10-09 | siehe File |
 | 100 | `100-kaggle-train-cli-t4-fp16.md` | System-Iteration (Kaggle-SFT: echte CLI `--dataset/--out/--gpu/--source` + T4⇒fp16 via Compute Capability; §9 additiv) | **approved**: Batnini (Auftrag 2026-10-09) | siehe File |
 | 101 | `101-llm-retry-backoff.md` | System-Iteration (LLM-Aufrufe robust gegen Überlast: `_create_with_retry` in `distill`/`parse_transition_delta`; CI-Flake behoben) | **approved**: Batnini (Auftrag 2026-10-09) | siehe File |
+| 102 | `102-kaggle-sft-precision-fp16.md` | System-Iteration (Kaggle-SFT: Einzel-Präzision fp16 beim Modell-Load — bf16-Config vs. fp16-GradScaler behoben) | **approved**: Batnini (Auftrag 2026-10-10) | siehe File |
 
 ## Guardrail
 

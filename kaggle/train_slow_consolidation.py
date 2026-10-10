@@ -393,12 +393,22 @@ def main(argv=None):
         bnb_4bit_compute_dtype=compute_dtype,
         bnb_4bit_use_double_quant=True,
     )
-    model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL,
-        quantization_config=bnb_config,
-        device_map="auto",
-        token=hf_token,
+    # Einzel-Praezision erzwingen: sonst erbt das Modell (und LoRA) das bf16 der
+    # Basis-Config -> bf16-Grads, aber fp16-GradScaler (SFTConfig) ->
+    # NotImplementedError "_amp_foreach_non_finite_check_and_unscale_cuda ... 'BFloat16'".
+    # Auf T4 => fp16 (siehe compute_dtype). Version-sicher: v5 `dtype`, aeltere `torch_dtype`.
+    import inspect
+
+    _load_kwargs = {
+        "quantization_config": bnb_config,
+        "device_map": "auto",
+        "token": hf_token,
+    }
+    _dtype_key = (
+        "dtype" if "dtype" in inspect.signature(AutoModelForCausalLM.from_pretrained).parameters else "torch_dtype"
     )
+    _load_kwargs[_dtype_key] = compute_dtype
+    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, **_load_kwargs)
     model.config.use_cache = False
     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
@@ -473,6 +483,7 @@ def main(argv=None):
         "lora_alpha": LORA_ALPHA,
         "compute_dtype": str(compute_dtype).replace("torch.", ""),
         "compute_capability": f"sm_{cc_major}{cc_minor}",
+        "model_dtype_key": _dtype_key,
         "gpu": gpu,
         "started_utc": started,
         "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
