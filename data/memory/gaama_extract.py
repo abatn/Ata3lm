@@ -34,6 +34,18 @@ EDGE_WEIGHTS = {
     "ABOUT_CONCEPT": 0.8,
 }
 
+# Modell-Kette fuer die Extraktion: primaer GAAMA_EXTRACT_MODEL, dann Fallbacks
+# (falls ein Modell am Endpoint fehlt -> 404). Echt (kein Fake).
+GAAMA_MODELS = list(
+    dict.fromkeys(
+        [
+            os.environ.get("GAAMA_EXTRACT_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+            "nvidia/nemotron-3-super-120b-a12b",
+        ]
+    )
+)
+
 # Prompts (Schema + Regeln aus dem GAAMA-Repo, prompts/fact_generation.md bzw.
 # prompts/reflection_generation.md; Platzhalter werden zur Laufzeit gefüllt).
 FACT_PROMPT = """# Extract facts and concepts from conversation episodes
@@ -94,7 +106,7 @@ def _default_llm(prompt: str, max_tokens: int = 8000) -> str:  # pragma: no cove
     )
     r = create_with_retry(
         client,
-        model=os.environ.get("GAAMA_EXTRACT_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+        models=GAAMA_MODELS,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         temperature=0.0,

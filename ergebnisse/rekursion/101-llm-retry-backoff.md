@@ -45,6 +45,12 @@ Eingebunden in:
   (`from llm_retry import create_with_retry as _create_with_retry`).
 - **`gaama_extract.py`** — `_default_llm` (2. Failing-Test `test_route_extracted_facts_real`).
 
+Zusätzlich **Modell-Kette** (`models=[…]` in `create_with_retry`): primär `HELA_MODEL`
+bzw. `GAAMA_EXTRACT_MODEL` (`reflective_agent.HELA_MODELS` / `gaama_extract.GAAMA_MODELS`),
+dann verifizierte Fallbacks (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`,
+`nvidia/nemotron-3-super-120b-a12b`). Fehlt das Primärmodell am Endpoint (CI: `ultra-550b`
+→ **404**), weicht der Aufruf **real** auf das nächste Modell aus (kein Fake).
+
 Additiv/behavioral: **keine** Signatur-/Interface-Änderung (§9 `allow`).
 
 ## 4. Verifikation (echt)
@@ -57,6 +63,9 @@ Additiv/behavioral: **keine** Signatur-/Interface-Änderung (§9 `allow`).
   Zweige offline (kein torch/netz).
 - `test_distill_fehler_real` (unerreichbarer Host) fliegt **sofort** (nicht
   transient) — kein 8×-Warten.
+- **Echter Fallback-Test:** `HELA_MODEL` auf ein **nicht existierendes** Modell gesetzt →
+  `distill` weicht real auf `nemotron-3-nano-omni-30b` aus und liefert eine echte Antwort
+  (`FALLBACK ERFOLGREICH: True`).
 
 ## 5. §9-Gate
 

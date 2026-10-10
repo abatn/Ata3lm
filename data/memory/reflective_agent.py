@@ -38,6 +38,19 @@ DELTA_PRUNE = float(os.environ.get("HELA_DELTA_PRUNE", "0.05"))  # Auftrag
 DELTA_AGE_DAYS = float(os.environ.get("HELA_DELTA_AGE_DAYS", "60"))  # Auftrag (HeLa-Mem tau=60)
 RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))  # legacy (nur 1 Bedingung)
 
+# Modell-Kette fuer echte LLM-Aufrufe: primaer HELA_MODEL, dann verfuegbare
+# Fallbacks (falls ein Modell am Endpoint fehlt -> 404 "page not found").
+# Echt (kein Fake): nur echte Modelle, echte Antworten.
+HELA_MODELS = list(
+    dict.fromkeys(
+        [
+            os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+            "nvidia/nemotron-3-super-120b-a12b",
+        ]
+    )
+)
+
 # --- SEAA HMM-Trägheit (arXiv:2609.17331) ---
 # Zustandsraum (Paper §5.7.1): K=4 latente Zustände
 HMM_STATES = int(os.environ.get("SEAA_STATES", "4"))  # K (SEAA Table 2)
@@ -105,7 +118,7 @@ def parse_transition_delta(text: str, k: int):
         )
         resp = _create_with_retry(
             client,
-            model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+            models=HELA_MODELS,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000,
             temperature=0.0,
@@ -326,7 +339,7 @@ def distill(graph: dict, hub: str) -> dict:
             )
             resp = _create_with_retry(
                 client,
-                model=os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+                models=HELA_MODELS,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
                 temperature=0.0,

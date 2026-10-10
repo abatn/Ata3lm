@@ -47,16 +47,22 @@ def is_transient(exc) -> bool:
     return any(marker in text for marker in TRANSIENT_MARKERS)
 
 
-def create_with_retry(client, **kwargs):
+def create_with_retry(client, *, models=None, **kwargs):
     """Chat-Completion mit begrenztem Retry/Backoff bei transienten Fehlern.
 
-    Echt (kein Fake): die Antwort kommt immer vom echten Endpoint; nur bei
-    Ueberlast/Gateway wird mit Backoff erneut angefragt (vgl. `ci_preflight.py`).
+    `models`: optionale Modell-Kette. Ist sie gesetzt, wird pro Versuch das
+    naechste Modell probiert (Fallback, falls ein Modell am Endpoint nicht
+    verfuegbar ist -> 404 "page not found"). Echt: Antworten kommen immer vom
+    echten Endpoint; es wird nur geduldig/ausweichend wiederholt (kein Fake).
     """
+    chain = list(models) if models else None
     last = None
     for attempt in range(1, RETRY_ATTEMPTS + 1):
+        call_kwargs = dict(kwargs)
+        if chain:
+            call_kwargs["model"] = chain[(attempt - 1) % len(chain)]
         try:
-            return client.chat.completions.create(**kwargs)
+            return client.chat.completions.create(**call_kwargs)
         except Exception as exc:  # echte Fehler klassifizieren
             last = exc
             if not is_transient(exc) or attempt >= RETRY_ATTEMPTS:

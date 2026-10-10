@@ -27,10 +27,12 @@ class _FakeClient:
     def __init__(self, seq):
         self._seq = list(seq)
         self.calls = 0
+        self.models = []
         self.chat = types.SimpleNamespace(completions=self)
 
     def create(self, **kwargs):
         self.calls += 1
+        self.models.append(kwargs.get("model"))
         item = self._seq.pop(0)
         if isinstance(item, Exception):
             raise item
@@ -71,3 +73,12 @@ def test_create_with_retry_nicht_transient_sofort(monkeypatch):
     with pytest.raises(_FakeExc):
         lr.create_with_retry(client, model="m")
     assert client.calls == 1
+
+
+def test_create_with_retry_modellkette_fallback(monkeypatch):
+    """404 am ersten Modell -> naechstes Modell der Kette (echter Fallback)."""
+    monkeypatch.setattr(lr.time, "sleep", lambda *_: None)
+    client = _FakeClient([_FakeExc("404 page not found"), _FakeResp("ok")])
+    out = lr.create_with_retry(client, models=["primary", "fallback"])
+    assert out.choices[0].message.content == "ok"
+    assert client.models == ["primary", "fallback"]
