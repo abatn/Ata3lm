@@ -129,6 +129,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 102 | `102-kaggle-sft-precision-fp16.md` | System-Iteration (Kaggle-SFT: Einzel-Präzision fp16 beim Modell-Load — bf16-Config vs. fp16-GradScaler behoben) | **approved**: Batnini (Auftrag 2026-10-10) | siehe File |
 | 103 | `103-theta-prime-negativ.md` | System-Iteration (Θ′-Write-Back echter Lauf: `ΔEM=+1` (8→9/200) → **`rejected`**: nicht internalisiert; §9 deny) | **rejected** (Compare < 70 %) | siehe File |
 | 104 | `104-fixes-e1-e4.md` | System-Iteration (E1–E4: reflective_agent ENV, llm_retry 404-Trennung, zsre-Subjektbindung; Audit e2e-699dda4) | **approved** (Score 793/793 = 100 %) | Audit e2e-699dda4; AGENTS.md §10.2/§11, §6, §9 |
+| 105 | `105-e1-e2-e2e.md` | System-Iteration (E1/E2 echter lokaler Live-Lauf: E1 wirkt (`model.reflection=qwen-local`); 3/3 nicht reproduziert — FWR `uncertain`/Oracle „I don't know", nicht E1; E2-404-Fallback belegt) | **approved** (technischer Pfad) + Caveat | `live_run.py:40-45,273`; AGENTS.md §10.2/§11/§9.3 |
 
 ## Guardrail
 
