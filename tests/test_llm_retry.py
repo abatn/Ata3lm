@@ -41,8 +41,16 @@ class _FakeClient:
 
 def test_is_transient_klassifikation():
     assert lr.is_transient(_FakeExc("x", 503)) is True
-    assert lr.is_transient(_FakeExc("Error code: 404 page not found")) is True
+    assert lr.is_transient(_FakeExc("Error code: 404 page not found")) is False
     assert lr.is_transient(_FakeExc("bad request", 400)) is False
+
+
+def test_is_model_unavailable_klassifikation():
+    assert lr.is_model_unavailable(_FakeExc("x", 404)) is True
+    assert lr.is_model_unavailable(_FakeExc("model foo not found")) is True
+    assert lr.is_model_unavailable(_FakeExc("NotFound")) is True
+    assert lr.is_model_unavailable(_FakeExc("x", 503)) is False
+    assert lr.is_model_unavailable(_FakeExc("503 service unavailable")) is False
 
 
 def test_create_with_retry_erster_erfolg(monkeypatch):
@@ -82,3 +90,44 @@ def test_create_with_retry_modellkette_fallback(monkeypatch):
     out = lr.create_with_retry(client, models=["primary", "fallback"])
     assert out.choices[0].message.content == "ok"
     assert client.models == ["primary", "fallback"]
+
+
+def test_create_with_retry_modellkette_fallback_echter_404(monkeypatch):
+    """Echter 404-Status (openai NotFoundError) -> naechstes Modell, kein Backoff."""
+    sleeps = []
+    monkeypatch.setattr(lr.time, "sleep", lambda d: sleeps.append(d))
+    client = _FakeClient([_FakeExc("model primary not found", 404), _FakeResp("ok")])
+    out = lr.create_with_retry(client, models=["primary", "fallback"])
+    assert out.choices[0].message.content == "ok"
+    assert client.models == ["primary", "fallback"]
+    assert sleeps == []  # Modell fehlt -> sofort wechseln, nicht warten
+
+
+def test_create_with_retry_modellkette_erschoepft_raise(monkeypatch):
+    """Alle Modelle 404 -> raise nach genau len(chain) Versuchen (kein Backoff)."""
+    sleeps = []
+    monkeypatch.setattr(lr.time, "sleep", lambda d: sleeps.append(d))
+    client = _FakeClient([_FakeExc("model a not found", 404), _FakeExc("model b not found", 404)])
+    with pytest.raises(_FakeExc):
+        lr.create_with_retry(client, models=["a", "b"])
+    assert client.calls == 2
+    assert sleeps == []
+
+
+def test_create_with_retry_modell_fehlt_ohne_kette(monkeypatch):
+    """404 ohne Modell-Kette -> sofort raise (kein Fallback-Ziel vorhanden)."""
+    monkeypatch.setattr(lr.time, "sleep", lambda *_: None)
+    client = _FakeClient([_FakeExc("model m not found", 404)])
+    with pytest.raises(_FakeExc):
+        lr.create_with_retry(client, model="m")
+    assert client.calls == 1
+
+
+def test_create_with_retry_503_bleibt_backoff(monkeypatch):
+    """503 ist kein Modell-Fehlen -> Retry mit Backoff (nicht sofortiger Wechsel)."""
+    sleeps = []
+    monkeypatch.setattr(lr.time, "sleep", lambda d: sleeps.append(d))
+    client = _FakeClient([_FakeExc("503 service unavailable", 503), _FakeResp("ok")])
+    out = lr.create_with_retry(client, models=["primary", "fallback"])
+    assert out.choices[0].message.content == "ok"
+    assert sleeps == [min(lr.RETRY_MAX_DELAY, lr.RETRY_BASE_DELAY)]

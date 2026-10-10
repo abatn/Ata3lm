@@ -41,15 +41,29 @@ RETAIN_MIN = float(os.environ.get("HELA_RETAIN_MIN", "0.05"))  # legacy (nur 1 B
 # Modell-Kette fuer echte LLM-Aufrufe: primaer HELA_MODEL, dann verfuegbare
 # Fallbacks (falls ein Modell am Endpoint fehlt -> 404 "page not found").
 # Echt (kein Fake): nur echte Modelle, echte Antworten.
-HELA_MODELS = list(
-    dict.fromkeys(
-        [
-            os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
-            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-            "nvidia/nemotron-3-super-120b-a12b",
-        ]
+
+
+def _hela_models() -> list:
+    """Modell-Kette zur **Aufrufzeit** aus `os.environ` auflösen (AGENTS.md §10.2/§11).
+
+    Eine Import-Zeit-Konstante würde `HELA_MODEL` einfrieren; `scripts/live_run.py`
+    setzt die ENV aber erst zur Laufzeit (nach dem Import). Daher liest der Helper
+    `os.environ` bei jedem Aufruf – alle LLM-Phasen nutzen dasselbe, zur Laufzeit
+    gesetzte Modell (Audit e2e-699dda4).
+    """
+    return list(
+        dict.fromkeys(
+            [
+                os.environ.get("HELA_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+                "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+                "nvidia/nemotron-3-super-120b-a12b",
+            ]
+        )
     )
-)
+
+
+#: Import-Zeit-Schnappschuss (Rückwärtskompatibilität); Aufrufe nutzen `_hela_models()`.
+HELA_MODELS = _hela_models()
 
 # --- SEAA HMM-Trägheit (arXiv:2609.17331) ---
 # Zustandsraum (Paper §5.7.1): K=4 latente Zustände
@@ -118,7 +132,7 @@ def parse_transition_delta(text: str, k: int):
         )
         resp = _create_with_retry(
             client,
-            models=HELA_MODELS,
+            models=_hela_models(),  # Aufrufzeit: zur Laufzeit gesetztes HELA_MODEL
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000,
             temperature=0.0,
@@ -339,7 +353,7 @@ def distill(graph: dict, hub: str) -> dict:
             )
             resp = _create_with_retry(
                 client,
-                models=HELA_MODELS,
+                models=_hela_models(),  # Aufrufzeit: zur Laufzeit gesetztes HELA_MODEL
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
                 temperature=0.0,

@@ -128,6 +128,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 101 | `101-llm-retry-backoff.md` | System-Iteration (LLM-Aufrufe robust gegen Überlast: `_create_with_retry` in `distill`/`parse_transition_delta`; CI-Flake behoben) | **approved**: Batnini (Auftrag 2026-10-09) | siehe File |
 | 102 | `102-kaggle-sft-precision-fp16.md` | System-Iteration (Kaggle-SFT: Einzel-Präzision fp16 beim Modell-Load — bf16-Config vs. fp16-GradScaler behoben) | **approved**: Batnini (Auftrag 2026-10-10) | siehe File |
 | 103 | `103-theta-prime-negativ.md` | System-Iteration (Θ′-Write-Back echter Lauf: `ΔEM=+1` (8→9/200) → **`rejected`**: nicht internalisiert; §9 deny) | **rejected** (Compare < 70 %) | siehe File |
+| 104 | `104-fixes-e1-e4.md` | System-Iteration (E1–E4: reflective_agent ENV, llm_retry 404-Trennung, zsre-Subjektbindung; Audit e2e-699dda4) | **approved** (Score 793/793 = 100 %) | Audit e2e-699dda4; AGENTS.md §10.2/§11, §6, §9 |
 
 ## Guardrail
 

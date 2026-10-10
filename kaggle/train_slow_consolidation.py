@@ -214,8 +214,19 @@ def load_zsre_rows(n, split, dataset_name):
 
     Quelle: `community-datasets/qa_zre` (Levy et al. 2017); Fakten-Korpus des
     Papers arXiv:2608.22215v2 (Appendix A.1). Je Fakt ein Chat-Beispiel
-    `(question, answers[0])`. Zeilen ohne nicht-leere Antwort werden uebersprungen
-    (reale Daten - es wird nichts erfunden).
+    `(question, answers[0])`.
+
+    Subjektbindung (analog `data/memory/zsre_corpus.py::row_to_record`; die
+    Formatänderung ist dort §9-approved, Batnini + Taoufik, 2026-10-08): enthält
+    die ``question`` den ZsRE-Platzhalter ``XXX`` **und** ist ein ``subject``
+    vorhanden, wird ``XXX`` durch das Subjekt ersetzt (alle Vorkommen). Fehlt das
+    ``subject``, bleibt die Frage unverändert - es wird nichts erfunden. Die Logik
+    ist hier **inline gespiegelt**, weil dieses Skript laut `kaggle/README.md`
+    „in sich geschlossen" auf Kaggle laeuft und `zsre_corpus.py` dort nicht
+    mitgeliefert wird.
+
+    Zeilen ohne nicht-leere Frage oder Antwort werden uebersprungen (reale Daten -
+    es wird nichts erfunden).
     """
     from datasets import Dataset, load_dataset
 
@@ -227,6 +238,9 @@ def load_zsre_rows(n, split, dataset_name):
     for row in stream:
         scanned += 1
         question = str(row.get("question") or "").strip()
+        subject = str(row.get("subject") or "").strip()
+        if "XXX" in question and subject:  # Subjektbindung (analog row_to_record)
+            question = question.replace("XXX", subject)
         answers = row.get("answers") or []
         answer = str(answers[0]).strip() if answers else ""
         if not question or not answer:

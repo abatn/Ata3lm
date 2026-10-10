@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Bounded Retry/Backoff fuer echte LLM-Endpoint-Aufrufe (AGENTS.md Guardrail 7).
 
-Kein Fake: Nur transiente Ueberlast-/Gateway-Fehler (429/5xx, "page not found",
-"rate limit", "overloaded", Timeouts) werden mit Backoff wiederholt; alles andere
-fliegt sofort. Muster: `tests/_live.py::call`, `scripts/ci_preflight.py`.
+Kein Fake: Transiente Ueberlast-/Gateway-Fehler (429/5xx, "rate limit",
+"overloaded", Timeouts) werden mit Backoff wiederholt; ein fehlendes Modell
+(404/NotFound) loest den Modell-Fallback aus (naechstes Modell der Kette, ohne
+Backoff); alles andere fliegt sofort. Muster: `tests/_live.py::call`,
+`scripts/ci_preflight.py`.
 
 Quelle (Projekt-Auftrag, kein Paper): Ueberlast des geteilten NVIDIA-Endpoints
 (Log: `Worker local total request limit reached (16/16)` → 503).
@@ -35,14 +37,38 @@ TRANSIENT_MARKERS = (
     "rate_limit",
     "too many requests",
     "capacity",
-    "page not found",
 )
+# Modell fehlt am Endpoint (404/NotFound) -> Fallback auf naechstes Modell der
+# Kette, NICHT Retry mit Backoff. Klar getrennt von Ueberlast (429/5xx): bei
+# gesetztem Status zaehlt allein 404 (500/503 sind NIE "Modell fehlt").
+MODEL_UNAVAILABLE_STATUS = {404}
+MODEL_UNAVAILABLE_MARKERS = (
+    "not found",
+    "notfound",
+    "model_not_found",
+    "does not exist",
+)
+
+
+def is_model_unavailable(exc) -> bool:
+    """True, wenn das angefragte Modell am Endpoint nicht existiert (404/NotFound).
+
+    Bei gesetztem Status zaehlt allein 404 (500/503 sind nie "Modell fehlt");
+    ohne Status greifen Text-Marker wie "model ... not found"/"NotFound".
+    """
+    status = getattr(exc, "status_code", None)
+    if status is not None:
+        return status in MODEL_UNAVAILABLE_STATUS
+    text = str(exc).lower()
+    return any(marker in text for marker in MODEL_UNAVAILABLE_MARKERS)
 
 
 def is_transient(exc) -> bool:
     """True, wenn der Fehler ein Retry rechtfertigt (Ueberlast/Gateway)."""
     if getattr(exc, "status_code", None) in TRANSIENT_STATUS:
         return True
+    if is_model_unavailable(exc):
+        return False
     text = str(exc).lower()
     return any(marker in text for marker in TRANSIENT_MARKERS)
 
@@ -65,6 +91,11 @@ def create_with_retry(client, *, models=None, **kwargs):
             return client.chat.completions.create(**call_kwargs)
         except Exception as exc:  # echte Fehler klassifizieren
             last = exc
+            if is_model_unavailable(exc):
+                # Modell fehlt: naechstes Modell der Kette (kein Backoff).
+                if chain and attempt < len(chain):
+                    continue
+                raise
             if not is_transient(exc) or attempt >= RETRY_ATTEMPTS:
                 raise
             time.sleep(min(RETRY_MAX_DELAY, RETRY_BASE_DELAY * attempt))
