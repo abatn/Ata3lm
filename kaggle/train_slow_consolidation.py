@@ -371,12 +371,22 @@ def main(argv=None):
         tokenizer.pad_token = tokenizer.eos_token
 
     # Offizielles QLoRA-Muster (TRL/PEFT): das Modell wird VOM TRAINER geladen.
-    # `model_init_kwargs={"dtype": compute_dtype}` erzwingt die Praezision; in
-    # transformers >= 4.56/v5 waere der Default sonst der Config-dtype (bf16) ->
-    # bf16-Grads gegen den fp16-GradScaler (SFTConfig) -> NotImplementedError
-    # "_amp_foreach_non_finite_check_and_unscale_cuda ... 'BFloat16'".
-    # Quellen: https://huggingface.co/docs/trl/main/en/sft_trainer
-    #          https://huggingface.co/docs/peft/main/en/developer_guides/quantization
+    # `model_init_kwargs={"dtype": compute_dtype}` setzt die Ladepraezision (T4 -> fp16).
+    # WICHTIG: Mixed Precision (AMP) bleibt KOMPLETT AUS (fp16=False, bf16=False):
+    # TRL zwingt bei 4-Bit-Modellen alle trainierbaren Parameter nach bf16
+    # (TRL v1.14.2 sft_trainer.py L1162-1169), und fp16=True erzeugt einen
+    # GradScaler (transformers v5.19.0 training_args.py L1581-1586 ->
+    # accelerate v1.15.0 accelerator.py L563-584) -> unscale_ auf bf16-Grads ->
+    # NotImplementedError "_amp_foreach_non_finite_check_and_unscale_cuda ...
+    # 'BFloat16'". Ohne AMP existiert kein GradScaler -> unscale_ entfaellt.
+    # Gemischte Praezision (fp16-Base + bf16-Adapter) ist im Forward abgedeckt
+    # (PEFT v0.21.2 lora/layer.py L1100-1113: Cast auf Adapter-Dtype + zurueck).
+    # Quellen:
+    #  https://github.com/huggingface/trl/blob/v1.14.2/trl/trainer/sft_trainer.py#L1162-L1169
+    #  https://github.com/huggingface/transformers/blob/v5.19.0/src/transformers/training_args.py#L1581-L1586
+    #  https://github.com/huggingface/accelerate/blob/v1.15.0/src/accelerate/accelerator.py#L563-L584
+    #  https://github.com/huggingface/peft/blob/v0.21.2/src/peft/tuners/lora/layer.py#L1100-L1113
+    #  https://huggingface.co/docs/peft/main/en/developer_guides/quantization
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -408,8 +418,10 @@ def main(argv=None):
         max_length=MAX_LENGTH,
         packing=False,
         model_init_kwargs=model_init_kwargs,
-        bf16=(compute_dtype == torch.bfloat16),
-        fp16=(compute_dtype == torch.float16),
+        # AMP komplett aus (Details siehe Kommentar oben): weder fp16 noch bf16,
+        # damit kein GradScaler existiert und `unscale_` bf16-Grads nie trifft.
+        fp16=False,
+        bf16=False,
         optim="paged_adamw_8bit",
         seed=SEED,
         data_seed=SEED,
@@ -459,6 +471,7 @@ def main(argv=None):
         "lora_r": LORA_R,
         "lora_alpha": LORA_ALPHA,
         "compute_dtype": str(compute_dtype).replace("torch.", ""),
+        "amp": "disabled (fp16=False, bf16=False)",
         "compute_capability": f"sm_{cc_major}{cc_minor}",
         "model_init_dtype": str(compute_dtype).replace("torch.", ""),
         "gpu": gpu,
