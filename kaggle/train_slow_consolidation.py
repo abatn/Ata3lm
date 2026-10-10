@@ -281,23 +281,6 @@ def load_capybara_rows(n, split, dataset_name):
     return Dataset.from_list(rows), row_hashes, meta
 
 
-def pick_target_modules(model):
-    candidates = [
-        "q_proj",
-        "k_proj",
-        "v_proj",
-        "o_proj",
-        "gate_proj",
-        "up_proj",
-        "down_proj",
-    ]
-    present = set()
-    for name, _module in model.named_modules():
-        present.add(name.split(".")[-1])
-    selected = [c for c in candidates if c in present]
-    return selected or ["q_proj", "v_proj"]
-
-
 def final_train_loss(trainer):
     for record in reversed(trainer.state.log_history):
         if "loss" in record and record["loss"] is not None:
@@ -346,8 +329,8 @@ def main(argv=None):
     set_seed(SEED)
 
     import torch
-    from peft import LoraConfig, prepare_model_for_kbit_training
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from peft import LoraConfig
+    from transformers import AutoTokenizer, BitsAndBytesConfig
     from trl import SFTConfig, SFTTrainer
 
     hf_token = get_hf_token()
@@ -387,30 +370,22 @@ def main(argv=None):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    # Offizielles QLoRA-Muster (TRL/PEFT): das Modell wird VOM TRAINER geladen.
+    # `model_init_kwargs={"dtype": compute_dtype}` erzwingt die Praezision; in
+    # transformers >= 4.56/v5 waere der Default sonst der Config-dtype (bf16) ->
+    # bf16-Grads gegen den fp16-GradScaler (SFTConfig) -> NotImplementedError
+    # "_amp_foreach_non_finite_check_and_unscale_cuda ... 'BFloat16'".
+    # Quellen: https://huggingface.co/docs/trl/main/en/sft_trainer
+    #          https://huggingface.co/docs/peft/main/en/developer_guides/quantization
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=compute_dtype,
         bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=compute_dtype,
     )
-    # Einzel-Praezision erzwingen: sonst erbt das Modell (und LoRA) das bf16 der
-    # Basis-Config -> bf16-Grads, aber fp16-GradScaler (SFTConfig) ->
-    # NotImplementedError "_amp_foreach_non_finite_check_and_unscale_cuda ... 'BFloat16'".
-    # Auf T4 => fp16 (siehe compute_dtype). Version-sicher: v5 `dtype`, aeltere `torch_dtype`.
-    import inspect
-
-    _load_kwargs = {
-        "quantization_config": bnb_config,
-        "device_map": "auto",
-        "token": hf_token,
-    }
-    _dtype_key = (
-        "dtype" if "dtype" in inspect.signature(AutoModelForCausalLM.from_pretrained).parameters else "torch_dtype"
-    )
-    _load_kwargs[_dtype_key] = compute_dtype
-    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, **_load_kwargs)
-    model.config.use_cache = False
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    model_init_kwargs = {"dtype": compute_dtype}
+    if hf_token:
+        model_init_kwargs["token"] = hf_token
 
     lora_config = LoraConfig(
         r=LORA_R,
@@ -418,7 +393,7 @@ def main(argv=None):
         lora_dropout=LORA_DROPOUT,
         bias="none",
         task_type="CAUSAL_LM",
-        target_modules=pick_target_modules(model),
+        target_modules="all-linear",  # QLoRA-Stil (PEFT-Doku)
     )
 
     sft_args = SFTConfig(
@@ -432,6 +407,7 @@ def main(argv=None):
         save_strategy="epoch",
         max_length=MAX_LENGTH,
         packing=False,
+        model_init_kwargs=model_init_kwargs,
         bf16=(compute_dtype == torch.bfloat16),
         fp16=(compute_dtype == torch.float16),
         optim="paged_adamw_8bit",
@@ -441,10 +417,11 @@ def main(argv=None):
     )
 
     trainer = SFTTrainer(
-        model=model,
+        model=BASE_MODEL,
         args=sft_args,
         train_dataset=dataset,
         peft_config=lora_config,
+        quantization_config=bnb_config,
         processing_class=tokenizer,
     )
 
@@ -483,7 +460,7 @@ def main(argv=None):
         "lora_alpha": LORA_ALPHA,
         "compute_dtype": str(compute_dtype).replace("torch.", ""),
         "compute_capability": f"sm_{cc_major}{cc_minor}",
-        "model_dtype_key": _dtype_key,
+        "model_init_dtype": str(compute_dtype).replace("torch.", ""),
         "gpu": gpu,
         "started_utc": started,
         "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

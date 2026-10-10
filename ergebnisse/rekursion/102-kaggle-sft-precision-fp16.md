@@ -1,67 +1,90 @@
-# Rekursion 102: Kaggle-SFT – Präzisions-Mismatch (bf16-Config vs. fp16-Scaler)
+# Rekursion 102: Kaggle-SFT – offizielles QLoRA-Muster (Präzision/dtype)
 
 > Datum: 2026-10-10 · Phasen: Konstrukt → Akt → Observe → Compare (echtes Signal:
 > Kaggle-Lauf-Traceback).
-> Ziel `g` (§2): das Kaggle-SFT-Skript so korrigieren, dass das Training auf der
-> **T4** durchläuft (nach dem dtype-Fix aus Rek. 100).
-> Quelle (belegt): `Qwen/Qwen2.5-0.5B-Instruct` `config.json` → `torch_dtype=bfloat16`
-> (HF, HTTP 200); PyTorch/`torch.amp.GradScaler` (`unscale_`) + `SFTConfig(fp16=…)`.
-> Status: **approved** (Auftrag Batnini, 2026-10-10; keine Interface-Änderung).
+> Ziel `g` (§2): das Kaggle-SFT-Skript so definieren, dass es auf der **T4**
+> durchläuft — nach dem **offiziellen** TRL/PEFT-Muster.
+> Quellen (belegt):
+> - TRL `SFTTrainer`: <https://huggingface.co/docs/trl/main/en/sft_trainer>
+>   („pass the kwargs of `from_pretrained()` to `SFTConfig` via `model_init_kwargs`";
+>   „If `dtype` is not specified … it defaults to `float32`"; `quantization_config`
+>   „Ignored if the model is already instantiated").
+> - PEFT `Quantization`: <https://huggingface.co/docs/peft/main/en/developer_guides/quantization>
+>   (QLoRA = `BitsAndBytesConfig(load_in_4bit, nf4, …)` + PEFT-Adapter).
+> - HF-PR #39782 („Use `dtype` instead of `torch_dtype`"), vLLM-Issue #54187
+>   (`torch_dtype` deprecated seit transformers 4.56).
+> Status: **approved** (Auftrag Batnini, 2026-10-10).
 
 ## 1. Anlass (echter Lauf)
 
-Nach Rek. 100 lief das Training an, brach aber im ersten Optimizer-Schritt ab:
-
+`trainer.train()` brach im ersten Schritt ab:
 ```
 NotImplementedError: "_amp_foreach_non_finite_check_and_unscale_cuda"
 not implemented for 'BFloat16'
-  ... torch/amp/grad_scaler.py:358 unscale_ ...
+  ... torch/amp/grad_scaler.py unscale_ ...
 ```
+(Log-Warnung: `` `torch_dtype` is deprecated! Use `dtype` instead! ``)
 
 ## 2. Ursache (belegt)
 
-- Rek. 100 wählt auf der T4 `compute_dtype = fp16` (CC 7.5 < 8.0) ⇒ `SFTConfig(fp16=True)`
-  ⇒ **fp16-`GradScaler`**.
-- Das Skript lud das Modell **ohne** `dtype`. `Qwen/Qwen2.5-0.5B-Instruct` hat aber
-  `torch_dtype=bfloat16` (verifiziert in `config.json`) → die nicht-quantisierten Teile
-  **und die LoRA-Adapter** wurden **bf16**.
-- Folge: **bf16-Grads** treffen auf den **fp16-Scaler** (`unscale_`) → der obige Fehler.
-  (Kein Netz-/Fake-Problem — reine Präzisions-Inkonsistenz.)
+- **transformers v5** (Notebook-Pin `==5.19.0`): Default-`dtype` = `auto` ⇒ das Modell
+  erbt den **Config-dtype = bf16** (`Qwen2.5` `config.json` `torch_dtype=bfloat16`).
+- Das Skript **lud das Modell selbst** ⇒ TRL ignoriert `model_init_kwargs`
+  (`quantization_config`/`model_init_kwargs` gelten nur, wenn TRL lädt).
+- Mein voriger Versuch mit `torch_dtype=` ist seit 4.56 **deprecated** und bewirkt in v5
+  **nicht** die Umstellung ⇒ LoRA/Grads bleiben **bf16**, aber `SFTConfig(fp16=True)`
+  erzeugt einen **fp16-GradScaler** ⇒ `unscale_` auf bf16 → Crash.
+- **AGENTS.md-Verstoß (ehrlich):** ich änderte **ohne** die Ziel-Umgebung vorher zu
+  beobachten ⇒ **Prinzip 1** + **Guardrail 5** (kein Handeln ohne Beobachten),
+  **§6/Guardrail 2** (kein Compare ohne externes Signal), **§9.1d** (Evidenz).
 
-## 3. Fix (`kaggle/train_slow_consolidation.py`)
+## 3. Fix = offizielles TRL/PEFT-Muster (`kaggle/train_slow_consolidation.py`)
 
 ```diff
--    model = AutoModelForCausalLM.from_pretrained(
--        BASE_MODEL, quantization_config=bnb_config, device_map="auto", token=hf_token)
-+    # Einzel-Praezision erzwingen (belegt: Basis-Config ist bf16 -> sonst bf16-Grads
-+    # gegen fp16-Scaler). Version-sicher: v5 `dtype`, aeltere `torch_dtype`.
-+    import inspect
-+    _load_kwargs = {"quantization_config": bnb_config, "device_map": "auto", "token": hf_token}
-+    _dtype_key = "dtype" if "dtype" in inspect.signature(
-+        AutoModelForCausalLM.from_pretrained).parameters else "torch_dtype"
-+    _load_kwargs[_dtype_key] = compute_dtype
-+    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, **_load_kwargs)
+-    from peft import LoraConfig, prepare_model_for_kbit_training
+-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
++    from peft import LoraConfig
++    from transformers import AutoTokenizer, BitsAndBytesConfig
+...
+-    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, ..., torch_dtype/dtype=...)
+-    model = prepare_model_for_kbit_training(model, ...)
+-    lora_config = LoraConfig(..., target_modules=pick_target_modules(model))
++    bnb_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
++                                    bnb_4bit_use_double_quant=True,
++                                    bnb_4bit_compute_dtype=compute_dtype)
++    model_init_kwargs = {"dtype": compute_dtype}          # v5: dtype (T4 => fp16)
++    lora_config = LoraConfig(..., target_modules="all-linear")  # QLoRA-Stil
+...
+     trainer = SFTTrainer(
+-        model=model,
++        model=BASE_MODEL,                # String -> TRL lädt mit model_init_kwargs
+         args=sft_args,                   # SFTConfig(..., model_init_kwargs=model_init_kwargs)
+         train_dataset=dataset,
+         peft_config=lora_config,
++        quantization_config=bnb_config,
+         processing_class=tokenizer,
+     )
 ```
 
-- Alles einheitlich **fp16** auf der T4 (Modell + LoRA + bnb-Compute + Scaler).
-- `model_dtype_key` wird als Evidenz ins `kaggle_output.json` geschrieben (§9.1d).
-- `train_slow_consolidation.ipynb` synchron nachgezogen (ruff-formatiert).
+- Damit lädt **TRL** das Modell in **fp16** (T4) → Grads fp16 → GradScaler passt.
+- `pick_target_modules` entfällt (String-Modell); QLoRA nutzt `"all-linear"`.
+- Evidenz: `model_init_dtype` statt `model_dtype_key`.
 
-## 4. Verifikation (echt)
+## 4. Verifikation
 
 - `python -c ast.parse(...)`: Syntax ok.
 - `ruff check .` + `ruff format --check .`: **grün** (116 Dateien).
-- `tests/test_kaggle_train_cli.py`: **3 passed** (CLI unverändert).
-- (Der Trainingslauf selbst wird auf Kaggle vom Menschen ausgeführt — Status
-  bleibt `Auftrag/unverifiziert-lokal`.)
+- `tests/test_kaggle_train_cli.py`: **3 passed**.
+- **Ehrlich:** GPU-Beweis nur auf Kaggle (lokal keine GPU) — als Hypothese
+  gekennzeichnet; bei erneutem Fehler: **Stopp + Rollback**.
 
 ## 5. §9-Gate
 
-- Keine neue Quelle, kein `self_update`, Interface stabil ⇒ kein Human-Gate nötig
-  (Freigabe dennoch dokumentiert). Guardrail 6: Commit/Push nach Erlaubnis.
+- Keine neue Quelle (TRL/PEFT already Projekt), kein `self_update`, Interface stabil.
+- Guardrail 6 (Git): Commit/Push nur nach Erlaubnis.
 
 ## 6. Ehrlicher Caveat
 
-- Der Fix **erzwingt** fp16 statt bf16; auf Ampere+ (CC ≥ 8.0) bleibt bf16 aktiv
-  (dort ist der Mismatch nicht zu erwarten, da kein fp16-Scaler).
-- Ob der Trainingslauf konvergiert, bestätigt erst der Kaggle-Lauf + Rückfluss (M1).
+- `all-linear` bindet mehr Layer als zuvor (Qwen: q/k/v/o/gate/up/down) — gewollt
+  (QLoRA-Stil), kann minimal mehr Speicher brauchen.
+- Ob das Training konvergiert, bestätigt erst der Kaggle-Lauf + Rückfluss (M1).
