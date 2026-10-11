@@ -1,15 +1,17 @@
 # Verbindungen-Diagramm (alle Elemente → alle Elemente)
 
-> Datum: 2026-10-04 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + Runner 048 + Interpreter 050 + Connector-Binding 051 + Reverse Engineering 056 + 5-Phasen-Runner 057) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
-> Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` über `data/memory/**`,
-> `skills/**`, `connectors/**`, `AGENTS.md`.
+> Datum: 2026-10-11 (konsolidiert + CI 042 + SHACL 046 + Spreading 047 + Runner 048 + Interpreter 050 + Connector-Binding 051 + GAAMA/Kairos + E1–E4 + Write-Back 103/108/109) · Lab-Prinzip §6: **nur belegte Kanten** (Code oder Doku).
+> Nicht belegte Kanten sind **LÜCKE**. Methode: `grep -rn` + **serena** über `data/memory/**`,
+> `skills/**`, `connectors/**`, `knowledge/**`, `AGENTS.md`; Drift via **governance-mcp** (§9.1c).
 > Legende: **CODE** = verdrahtet (`Datei:Zeile`) · **DOKU** = Auftrag/Regel ·
 > **LÜCKE** = kein Code/Doku-Pfad.
 
 ## 0. Kernbefund (Ist-Stand, verifiziert)
 
-- **Module in `data/memory/**`: 21** (19 top-level + `shared/shared_memory.py` +
-  `tier3-working/lru_cache.py`). *(Selbst-Korrektur: früher 19/20 gezählt — Glob übersah Unterordner.)*
+- **Module in `data/memory/**`: 31** (29 top-level + `shared/shared_memory.py` +
+  `tier3-working/lru_cache.py`). *(2026-10-11: +10 ggü. 21 — `llm_retry`, `drift_calibration`,
+  `write_gateway`, `world_state_oracle`, `zsre_corpus`, `slow_consolidation`, `trace_audit`,
+  `runner_state`, `provenance`, `gate_labels`.)*
 - **Import-Graph (echt, 9 Gruppen):** `pipeline`→{approval, bi_temporal, bias_monitor, fast_write_router, mandate, trust};
   `connector_binding`→{bias_monitor, evaluator_version, fast_write_router, ingestion_hook, mandate, mcp_memory_server, pipeline, reflective_agent, shacl_inferenz, trust};
   `lifecycle_runner`→{bias_monitor, ingestion_hook, mandate, pipeline, reflective_agent};
@@ -24,7 +26,8 @@
   werden von `pipeline.py` **aufgerufen** → geschlossen.
 - **MCP-Server** werden **extern** gestartet (opencode), nicht importiert; der
   MCP-Memory-Server exponiert die Tiers über 5 Tools → geschlossen.
-- **MCP-Registry: 19 Einträge · 16 aktiv** (context7, sqlalchemy-mcp, visuals-mcp deaktiviert).
+- **MCP-Registry: 22 Einträge · 19 aktiv** (deaktiviert: context7, sqlalchemy-mcp, visuals-mcp;
+  neu 2026-10-11: rea, serena, codebase-memory-mcp).
 - **A–D geschlossen:** pipeline hat Aufrufer (Hub + Experience-Eintritt), FWR hart
   verdrahtet, shared_memory exportiert, Mappings CI-enforced.
 - **Stand 2026-10-03 (D):** Datei ↔ Code abgeglichen; LÜCKEN (`shared_memory`,
@@ -34,6 +37,14 @@
   (Preflight) + Modell-IDs + Snapshots (`vN`) + Connector-Konsistenz + Provenienz.
   **Offen (nicht verdrahtet):** `ci_drift`, `pre-commit`, `gitleaks`-Action, Live-MCPs,
   Branch-Protection, Windows/macOS.
+- **Stand 2026-10-11 (Write-Back, §10.3 — belegt):** geschlossener Zyklus Θ→Θ′ real
+  gefahren — Rek. **103** (Θ′-Probe `em_base 8 / em_adapter 9`, **`rejected`**) +
+  Rek. **108/109** (Treiber `kaggle/write_back_cycle.py`, Lauf; Adapter+JSON auf HF
+  `Batnini/knowledge-agent-write-back`). Kanten: `slow_consolidation.write_back` ←
+  `train_fn`/`probe_fn` (injiziert), `flush` nur bei positivem Probe.
+- **Stand 2026-10-11 (Governance, §9.1c):** Drift dieses Diagramm-Updates vs. 2026-10-04
+  via **governance-mcp `drift_index`** → **DI = 0.0533 > τ = 0.02** ⇒ **`flagged`, Gate `ask`**
+  (menschliche Freigabe nötig); **`lyapunov_check`** `E[ΔV] = −1.8` ⇒ **stabil**.
 
 ## 1. Diagramm (Mermaid)
 
@@ -70,6 +81,9 @@ flowchart TB
     CONNB["connector_binding"]:::code
     MLIVE["mcp_live_binding"]:::code
     RRUN["recursion_runner"]:::code
+    WG["write_gateway (EIN Store-Pfad)"]:::code
+    SC["slow_consolidation (write_back Θ→Θ′)"]:::code
+    LR2["llm_retry (Retry + Modell-Fallback)"]:::code
   end
 
   subgraph TIER["Gedächtnis-Tiers"]
@@ -150,6 +164,17 @@ flowchart TB
   REF -.->|"CODE: PIPELINE_ROUTE=1 (Hub)"| PIPE
   ING -->|"CODE: route_experience (echter Router)"| PIPE
   CN -.->|"DOKU: enforced by test_mappings"| TST
+
+  %% CODE-Kanten 2026-10-11 (Write-Back, Gateway, Retry)
+  PIPE -->|"CODE: store (EIN Pfad)"| WG
+  FWR -->|"CODE: apply_write_action → write_gateway"| WG
+  WG -->|"CODE: write-new/-update"| T3
+  WG -->|"CODE: supersede (archiviert)"| T1
+  SC -->|"CODE: collect_pending + build_sft_dataset"| T3
+  SC -->|"CODE: flush (nur positiver Probe)"| T3
+  SC -.->|"CODE: train_fn / probe_fn (injiziert, §10.3)"| LRUN
+  REF -->|"CODE: create_with_retry"| LR2
+  GEX -->|"CODE: create_with_retry"| LR2
 ```
 
 ## 2. Tabelle aller Verbindungen
@@ -203,6 +228,11 @@ flowchart TB
 | pipeline → fast_write_router | Klassen-Entscheidung | `classify_fn=None` | **CODE**: `pipeline.py:31-35` (`_default_classify`) |
 | gaama_extract → fast_write_router | §10.1: Fact zuerst routen | `route_extracted_facts` | **CODE**: `gaama_extract.py` |
 | gaama_extract → trust → fast_write_router → Write | §9.2c/a + §10.1 (Write-Kette) | `persist_extracted_facts` | **CODE**: `gaama_extract.py` |
+| pipeline → write_gateway | **EIN** Store-Pfad (Delegation) | `store(...)` | **CODE**: `pipeline.py:23,74` (import + `write_gateway.store`) |
+| fast_write_router → write_gateway | Write-Aktion delegiert | `apply_write_action` | **CODE**: `fast_write_router.py:431,486` |
+| skill_interpreter · mcp_memory_server → write_gateway | Write über Gateway | — | **CODE**: `skill_interpreter.py:42`, `mcp_memory_server.py:34` |
+| slow_consolidation.write_back → tier3/structured | Pending sammeln + flush (nur positiv) | `train_fn`/`probe_fn` injiziert | **CODE**: `slow_consolidation.py:417` (`write_back`), `kaggle/write_back_cycle.py` |
+| reflective_agent · gaama_extract → llm_retry | Retry/Backoff + **Modell-Fallback** (404) | transient/404 | **CODE**: `reflective_agent.py:23`, `gaama_extract.py:22` (`create_with_retry`) |
 
 ### 2.4 Skill-Verbindungen (14 Skills)
 
@@ -221,6 +251,7 @@ flowchart TB
 | hela-semantic → Wissen (2), Wissen+ (8) | `AGENTS.md:381` |
 | mars-seaa → Denken (5) | `AGENTS.md:384-385` |
 | reflexion-trace → Kognition/Reflexion (4) | `connectors/reflexion-trace.md` |
+| gaama → Gedächtnis (3) | `connectors/gaama.md` (GAAMA arXiv:2603.27910 · Kairos NeurIPS 2025) |
 | (übrige) → Phase/Stufe | `AGENTS.md:378-392` |
 | **jeder Connector nennt seinen Prozess** (17) | **CODE/DOKU**: `connectors/*.md` §Prozess, `ergebnisse/connector-prozess.md` (Test `test_connector_prozess.py`, SHACL/W3C) |
 | connector_binding → connectors/pipeline/mcp | 17 Connectoren **binden** (SHACL-Validierung → Prozess → MCP-Record) | **CODE**: `connector_binding.bind` / `bind_all` (9 Executoren), Test `test_connector_binding.py` |
@@ -256,11 +287,15 @@ flowchart TB
 
 ## 4. Quellen (geprüft)
 
-- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter,connector_binding,mcp_live_binding,recursion_runner}.py`,
-  `data/memory/tier3-working/lru_cache.py`, `data/memory/shared/shared_memory.py`
-- Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:378-392`),
-  `skills/README.md`, `data/memory/README.md`, `ergebnisse/mcp-memory.md`
-- Methode: `grep -rn` über `data/memory/**`, `skills/**`, `connectors/**`
+- Code: `data/memory/{reflective_agent,ingestion_hook,fast_write_router,write_gateway,trust,approval,bias_monitor,bi_temporal,mandate,evaluator_version,pipeline,mcp_memory_server,mcp_catalog,shacl_inferenz,lifecycle_runner,skill_interpreter,connector_binding,mcp_live_binding,recursion_runner,gaama_extract,slow_consolidation,zsre_corpus,llm_retry,drift_calibration,world_state_oracle,trace_audit,runner_state,provenance,gate_labels}.py`,
+  `data/memory/tier3-working/lru_cache.py`, `data/memory/shared/shared_memory.py`,
+  `kaggle/{train_slow_consolidation,write_back_cycle,e2e_theta_probe}.py`
+- Doku: `AGENTS.md` §9–§11 + Connector-Tabelle (`AGENTS.md:391-411`),
+  `skills/README.md`, `data/memory/README.md`, `ergebnisse/mcp-memory.md`,
+  `connectors/gaama.md` (GAAMA/Kairos)
+- Werkzeuge: **serena** (`search_for_pattern`, Datei-Symbole) für die Code-/Doku-Zuordnung;
+  **governance-mcp** (`drift_index`/`lyapunov_check`/`resolve_entities`) für §9.1c.
+- Methode: `grep -rn` + serena über `data/memory/**`, `skills/**`, `connectors/**`, `knowledge/**`
 
 ## 5. Pipeline-Kanten + Connector → Prozess
 
@@ -333,3 +368,19 @@ Ein Job `verify` (Python 3.12) in `.github/workflows/ci.yml`; Regeln: AGENTS.md 
 | `pre-commit` | Hooks | J | **OFFEN** |
 | `gitleaks`-Action | Secret-Scan | G | **OFFEN** (nur Skript) |
 | Live-MCPs (Graphiti/Cognee/…) | externe Server | D | **OFFEN** (Nightly-Option) |
+
+## 8. Diagramm-Update 2026-10-11 (Quelle + Governance)
+
+- **Quelle der Aktualisierung:** `AGENTS.md` (§1–§11), `skills/**` (14 aktive SKILL.md),
+  `knowledge/**` (8 Lifecycle-Stufen + 5 Rekursions-Phasen), `connectors/**` (17).
+- **Werkzeuge:** **serena** (Code/Doku-Suche) + **governance-mcp**.
+- **Governance (§9.1c):**
+  | Prüfung | Ergebnis | Gate |
+  |---|---|---|
+  | `drift_index` (alt 2026-10-04 → neu 2026-10-11) | **DI = 0.0533**, `weighted_shift = 0.0663`, τ = 0.02 | **`flagged` → `ask`** |
+  | `lyapunov_check` (`E[ΔV]`) | **−1.8** (≤ 0) | **`ok` (stabil)** |
+- **Geänderte Kennzahlen:** Module 21→**31** · MCP 19/16→**22/19** · Connectoren 16→**17**
+  (gaama fehlte) · Tests 30/324→**61 Dateien/774 Test-Funktionen** · Rekursion 000–057→**000–108**.
+- **Bilder:** `ergebnisse/knowledge-agent-diagramm.dot` (Quelle) → `…-diagramm.png`
+  (gerendert, `dot` 2.44.0). Der **Drift > τ** verlangt **menschliche Freigabe** (§9.1c),
+  bevor dieser Stand als „akzeptiert" gilt.

@@ -5,7 +5,7 @@ digraph KnowledgeAgent {
   fontname="DejaVu Sans";
   labelloc="t";
   fontsize=20;
-  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten (2026-10-04 · Rekursion 000–057)\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/";
+  label="Knowledge-Agent  —  alle Stufen × alle Phasen × alle Schichten (2026-10-11 · Rekursion 000–108)\nQuelle: AGENTS.md · knowledge/lifecycle/ · knowledge/lifecycle/rekursion/ · connectors/ · skills/";
   node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, margin="0.14,0.09"];
   edge [fontname="DejaVu Sans", fontsize=9, color="#595959"];
 
@@ -48,13 +48,13 @@ digraph KnowledgeAgent {
 
   // ================= Schicht 3 · Gedächtnis (3-Tier) =================
   subgraph cluster_mem {
-    label="Schicht 3 · Gedächtnis — data/memory (3-Tier + L4 + Shared)";
+    label="Schicht 3 · Gedächtnis — data/memory (31 Module · 3-Tier + L4 + Shared)";
     style="filled,rounded"; fillcolor="#FFF2CC"; color="#BF8F00"; fontsize=14;
     {rank=same; m1; m2; m3;}
     m1 [label="tier1-base\nidentity · ontology\ncore-relations\nepisodic_graph.json", fillcolor="#FFE699", color="#BF8F00"];
     m2 [label="tier2-index\nconcept-index\nhub-index\nevicted-index", fillcolor="#FFE699", color="#BF8F00"];
-    m3 [label="tier3-working\nlru_cache.py\n(Adaptive Forgetting + Spreading)\n(+ README)", fillcolor="#FFE699", color="#BF8F00"];
-    mx [label="shacl_inferenz.py (rdflib+pyshacl) · mcp_catalog.py (TTC/Lazy-Gating)\nlifecycle_runner.py (8 Stufen) · skill_interpreter.py (ReAct-Loop + MCP)\nconnector_binding.py (17 Connectoren → Prozess, SHACL) · mcp_live_binding.py (stdio live)\nrecursion_runner.py (5 Phasen, SEAA-HMM)", fillcolor="#FFE699", color="#BF8F00"];
+    m3 [label="tier3-working\nlru_cache.py\n(Adaptive Forgetting + Spreading + Consolidate)", fillcolor="#FFE699", color="#BF8F00"];
+    mx [label="Schreib-/Kern: write_gateway.py (EIN Store-Pfad) · pipeline.py (§10-Kette) · fast_write_router.py (§10.7)\nWissen/Query: shacl_inferenz.py (rdflib+pyshacl) · gaama_extract.py (Graph+PPR) · world_state_oracle.py\nRunner: lifecycle_runner.py (8 Stufen) · recursion_runner.py (5 Phasen) · skill_interpreter.py (ReAct+MCP)\nBindung: connector_binding.py (17 → Prozess, SHACL) · mcp_catalog.py (TTC/Lazy-Gating) · mcp_live_binding.py (stdio)\nKonsolidierung: slow_consolidation.py (write_back Θ→Θ′) · zsre_corpus.py · llm_retry.py · drift_calibration.py · trace_audit.py · runner_state.py · provenance.py · gate_labels.py", fillcolor="#FFE699", color="#BF8F00"];
     m1 -> m2 -> m3 [style=invis];
     m3 -> mx [style=invis];
   }
@@ -63,35 +63,35 @@ digraph KnowledgeAgent {
   subgraph cluster_conn {
     label="Schicht 4 · Connectoren (17) — connectors/";
     style="filled,rounded"; fillcolor="#FBE5D6"; color="#ED7D31"; fontsize=14;
-    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · goedel-agent · governance-mcp · hela-evolution\nhela-semantic · htac-agentdice · mars-seaa · observer-agent · react · reflexion-trace\n17 Connectoren · jeder nennt seinen Prozess (SHACL/W3C + connector_binding)", fillcolor="#F8CBAD", color="#ED7D31"];
+    conn [label="affective-signals · agento-ariadne · cca-framework · cognee-memory · cognee-validation\nconsistency-gap · fast-write-routing · gaama · goedel-agent · governance-mcp · hela-evolution\nhela-semantic · htac-agentdice · mars-seaa · observer-agent · react · reflexion-trace\n17 Connectoren · jeder nennt seinen Prozess (SHACL/W3C + connector_binding)", fillcolor="#F8CBAD", color="#ED7D31"];
   }
 
   // ================= Schicht 5 · MCP =================
   subgraph cluster_mcp {
-    label="Schicht 5 · MCP-Server (19 konfiguriert · 16 aktiv)";
+    label="Schicht 5 · MCP-Server (22 konfiguriert · 19 aktiv)";
     style="filled,rounded"; fillcolor="#E4DFEC"; color="#7030A0"; fontsize=14;
-    mcp [label="Projekt (11): graphiti · cognee · hela-mem · reflexion · react · mars · trace · godel-agent · agent-dice · adas · governance-mcp(stdio)\nUmgebung (8): n8n · obsidian · kubernetes · livekit-docs · memory · sqlalchemy* · visuals* · context7(aus)\n* = Binary fehlt → inaktiv", fillcolor="#D9D2E9", color="#7030A0"];
+    mcp [label="Projekt (11): graphiti · cognee · hela-mem · reflexion · react · mars · trace · godel-agent · agent-dice · adas · governance-mcp(stdio)\nUmgebung (11): n8n · obsidian · kubernetes · livekit-docs · memory · rea · serena · codebase-memory-mcp · context7* · sqlalchemy* · visuals*\n* = deaktiviert (3) · lokal = Pflicht-Basis (data/memory), MCPs optional (§11.2 Fallback)", fillcolor="#D9D2E9", color="#7030A0"];
   }
 
   // ================= Schicht 6 · Skills =================
   subgraph cluster_skills {
-    label="Schicht 6 · Skills — skills/";
+    label="Schicht 6 · Skills — skills/ (14 aktive)";
     style="filled,rounded"; fillcolor="#DDEBF7"; color="#1F4E79"; fontsize=14;
-    sk [label="recursive-improve → konstrukt · akt · observe · compare · revise\n(jeweils SKILL.md) · 14 Skills nennen je ihren Prozess\nInterpreter: skill_interpreter (ReAct-Tool-Calling)", fillcolor="#BDD7EE", color="#1F4E79"];
+    sk [label="recursive-improve → konstrukt · akt · observe · compare · revise (jeweils SKILL.md)\n8-Stufen: collect-experience · structure-knowledge · store-memory · cognize · reflect · non-cognitive · expand-knowledge · act\n14 Skills · jeder nennt seinen Prozess · Interpreter: skill_interpreter (ReAct-Tool-Calling)", fillcolor="#BDD7EE", color="#1F4E79"];
   }
 
   // ================= Schicht 7 · Ergebnisse =================
   subgraph cluster_res {
     label="Schicht 7 · Ergebnisse — ergebnisse/";
     style="filled,rounded"; fillcolor="#E2EFDA"; color="#375623"; fontsize=14;
-    res [label="rekursion/NNN-*.md (Provenienz je Iteration, 000–057)\n327 MD gesamt\nPläne · Testberichte · Analysen · Diagramme", fillcolor="#C6E0B4", color="#375623"];
+    res [label="rekursion/NNN-*.md (Provenienz je Iteration, 000–108 · 109 Dateien)\nNachweise: Θ′-Probe (Rek. 103, negativ) · Write-Back-Zyklus (Rek. 108/109; HF Batnini/knowledge-agent-write-back)\nPläne · Testberichte · Analysen · Diagramme (verbindungen-diagramm.md · knowledge-agent-diagramm.png)", fillcolor="#C6E0B4", color="#375623"];
   }
 
   // ================= Schicht 8 · Tests & CI =================
   subgraph cluster_tests {
     label="Schicht 8 · Tests & CI — tests/ + .github/workflows/";
     style="filled,rounded"; fillcolor="#E1D5E7"; color="#9673A6"; fontsize=14;
-    tst [label="tests/ 30 Dateien · 324 Tests · 100 % Line+Branch (2640/616)\nCI verify (Python 3.12, ein Job): Ruff · Markdown(adv) · scripts/* · Preflight · echte Tests\nscripts/ · .gitleaks.toml · .pymarkdown.json · pyproject.toml (Ruff) · make test", fillcolor="#D5C6E0", color="#9673A6"];
+    tst [label="tests/ 61 Dateien · 774 Test-Funktionen (def test_) · Coverage-Pflicht 100 % (pyproject)\nCI verify (Python 3.12, ein Job): Ruff · Markdown(adv) · links · artifacts · secrets · Preflight · echte Tests\nscripts/ · .gitleaks.toml · .pymarkdown.json · pyproject.toml (Ruff) · make test", fillcolor="#D5C6E0", color="#9673A6"];
   }
 
   // ================= Schicht-Spine (von oben nach unten) =================
@@ -99,10 +99,25 @@ digraph KnowledgeAgent {
   s1 -> p1 [ltail=cluster_stufen, lhead=cluster_phasen, style=dashed, color="#548235", label="Stufen ↔ Phasen"];
   p1 -> m1 [ltail=cluster_phasen, lhead=cluster_mem, style=dashed, color="#BF8F00", label="liest / schreibt M"];
   m1 -> conn [ltail=cluster_mem, lhead=cluster_conn, style=dashed, color="#ED7D31", label="belegt durch"];
-  conn -> mcp [ltail=cluster_conn, lhead=cluster_mcp, style=dashed, color="#7030A0", label="optional über lokaler Memory"];
+  conn -> mcp [ltail=cluster_conn, lhead=cluster_mcp, style=dashed, color="#7030A0", label="optional über lokaler Memory (§11)"];
   mcp -> sk [ltail=cluster_mcp, lhead=cluster_skills, style=dashed, color="#1F4E79"];
   sk -> res [ltail=cluster_skills, lhead=cluster_res, style=dashed, color="#375623", label="dokumentiert"];
   res -> tst [ltail=cluster_res, lhead=cluster_tests, style=dashed, color="#9673A6", label="geprüft durch"];
+
+  // ================= Write-Back-Zyklus (Θ → Θ′, §10.3) =================
+  subgraph cluster_wb {
+    label="Write-Back Θ→Θ′ (§10.3, Kaggle/GPU — Rückschleife in Schicht 3)";
+    style="filled,rounded"; fillcolor="#FFF2CC"; color="#7F6000"; fontsize=13;
+    wb1 [label="write-new/-update\n→ Puffer (tier3/structured)", fillcolor="#FFE699", color="#7F6000"];
+    wb2 [label="collect_pending\n→ SFT-Dataset", fillcolor="#FFE699", color="#7F6000"];
+    wb3 [label="SFT trainieren\n(kaggle/train_slow_consolidation.py)", fillcolor="#FFE699", color="#7F6000"];
+    wb4 [label="Θ′-Probe\n(Base-vor-Adapter, extern)", fillcolor="#FFE699", color="#7F6000"];
+    wb5 [label="flush (nur positiv)\nsonst im Puffer", fillcolor="#FFE699", color="#7F6000"];
+    wb1 -> wb2 -> wb3 -> wb4 -> wb5;
+    wb5 -> wb1 [constraint=false, style=dashed, color="#7F6000", label="kept"];
+  }
+  m3 -> wb1 [style=dashed, color="#7F6000", label="pending"];
+  wb1 -> m1 [style=dashed, color="#7F6000", label="supersede"];
 
   // ================= Mapping-Tabelle (das "×") =================
   subgraph cluster_map {
@@ -128,6 +143,7 @@ digraph KnowledgeAgent {
       <TR><TD ALIGN="LEFT">──  Ablauf / Zyklus</TD></TR>
       <TR><TD ALIGN="LEFT">- -  Bezug / Mapping</TD></TR>
       <TR><TD ALIGN="LEFT">· ·  Self-Feedback / Dämpfung</TD></TR>
+      <TR><TD ALIGN="LEFT">Stand 2026-10-11 · Drift DI=0.053 &gt; τ=0.02 ⇒ Gate <B>ask</B> (§9.1c)</TD></TR>
     </TABLE>>];
 
   res -> map [style=invis];
