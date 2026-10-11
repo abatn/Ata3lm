@@ -4,7 +4,7 @@ digraph Aufbau {
   fontname="DejaVu Sans";
   labelloc="t";
   fontsize=16;
-  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-04)";
+  label="Knowledge-Agent — Aufbau-Struktur (verifiziert aus Dateien, 2026-10-11 · Rekursion 000–108)\nQuelle: AGENTS.md · skills/ · knowledge/ · connectors/ · serena + governance-mcp";
   node [shape=folder, style=filled, fillcolor="#E8F0FE", color="#2E75B6", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.07"];
   edge [color="#7F7F7F", arrowsize=0.6];
 
@@ -12,34 +12,37 @@ digraph Aufbau {
 
   agents [shape=note, label="AGENTS.md (411 Zeilen)\nGesetz §1–§8 · §9/§9.1–9.3 · §10/§10.1–10.7 · §11/§11.1–11.4", fillcolor="#FFF2CC", color="#BF8F00"];
   docs [shape=note, label="README.md · CONTRIBUTING.md · LICENSE\n(MIT, c 2026 batnini)", fillcolor="#F2F2F2", color="#808080"];
-  git [shape=note, label="git: abatn/Ata3lm (privat, gepusht 2026-10-04)", fillcolor="#F2F2F2", color="#808080"];
+  git [shape=note, label="git: abatn/Ata3lm (privat, gepusht 2026-10-11)", fillcolor="#F2F2F2", color="#808080"];
 
-  knowledge [label="knowledge/", fillcolor="#E2EFDA", color="#548235"];
+  knowledge [label="knowledge/  ·  35 MD", fillcolor="#E2EFDA", color="#548235"];
   kn_life [label="lifecycle/\n8 Stufen-Dateien", fillcolor="#E2EFDA", color="#548235"];
   kn_rek [label="lifecycle/rekursion/\n5 Phasen + index + 8-Stufen-Zyklus = 7", fillcolor="#E2EFDA", color="#548235"];
-  kn_struct [label="structured/\n(entity-/relation-/distilled)", fillcolor="#E2EFDA", color="#548235"];
+  kn_struct [label="structured/\nentity-/relation-/distilled\n+ §10 FWR · §9.3 Zwei-Personen · §9.1 Drift", fillcolor="#E2EFDA", color="#548235"];
   kn_cog [label="cognition/\nREADME + inference-001..003", fillcolor="#D5E8D4", color="#548235"];
   kn_shell [label="5 README-Schalen\naction · expansion\nnon-cognitive · raw · reflection", fillcolor="#EDEDED", color="#808080"];
 
-  conn [label="connectors/  ·  17 Dateien\n(jeder nennt seinen Prozess, SHACL/W3C)", fillcolor="#FBE5D6", color="#ED7D31"];
+  conn [label="connectors/  ·  17 Dateien\n(jeder nennt seinen Prozess, SHACL/W3C)\n+ gaama.md (GAAMA arXiv:2603.27910 · Kairos NeurIPS 2025)", fillcolor="#FBE5D6", color="#ED7D31"];
 
-  data [label="data/memory/", fillcolor="#FFF2CC", color="#BF8F00"];
-  t1 [label="tier1-base/\n4 Dateien + versions/v1–v9", fillcolor="#FFF2CC", color="#BF8F00"];
+  data [label="data/memory/  ·  31 Module", fillcolor="#FFF2CC", color="#BF8F00"];
+  t1 [label="tier1-base/\n4 Dateien + versions/v1–vN", fillcolor="#FFF2CC", color="#BF8F00"];
   t2 [label="tier2-index/\n3 (concept · hub · evicted)", fillcolor="#FFF2CC", color="#BF8F00"];
-  t3 [label="tier3-working/\nlru_cache.py (Adaptive Forgetting + Spreading) + README", fillcolor="#FFF2CC", color="#BF8F00"];
-  py [label="Prozesse (21)\nfast_write_router · reflective_agent · ingestion_hook · gaama_extract\ntrust · approval · bias_monitor · bi_temporal · pipeline · mcp_memory_server\nshared_memory · lru_cache · evaluator_version (Red-Queen) · mcp_catalog · shacl_inferenz\nlifecycle_runner (8 Stufen) · skill_interpreter (ReAct) · connector_binding (SHACL) · mcp_live_binding (stdio)\nrecursion_runner (5 Phasen, SEAA) · mandate (Mandat: attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
+  t3 [label="tier3-working/\nlru_cache.py (Adaptive Forgetting + Spreading + Consolidate) + README", fillcolor="#FFF2CC", color="#BF8F00"];
+  py [label="Prozesse (31)\nSchreiben: write_gateway (EIN Pfad) · pipeline · fast_write_router · trust · approval · bias_monitor · bi_temporal\nWissen/Query: reflective_agent · ingestion_hook · gaama_extract · world_state_oracle · shacl_inferenz · mcp_catalog\nRunner/Bindung: lifecycle_runner (8 Stufen) · recursion_runner (5 Phasen, SEAA) · skill_interpreter (ReAct) · connector_binding (SHACL) · mcp_live_binding (stdio) · mcp_memory_server\nKonsolidierung (§10.3): slow_consolidation (write_back Θ→Θ′) · zsre_corpus · llm_retry · drift_calibration · trace_audit · runner_state · provenance · gate_labels\nBasis: shared_memory · lru_cache · evaluator_version (Red-Queen) · mandate (attenuate-nie-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
   shared [label="shared/\nSharedTier (ACL + Sync)", fillcolor="#FFF2CC", color="#BF8F00"];
   mandate [shape=note, label="mandate.md\nIdentität · Aktionen · Limits · Approval-Schwellen\n(§9: kein self-expand)", fillcolor="#FFF2CC", color="#BF8F00"];
+  wb [shape=note, label="Write-Back Θ→Θ′ (§10.3, Kaggle/GPU)\nkaggle/write_back_cycle.py → train_slow_consolidation.py\nRek. 103 (Θ′-Probe, negativ) · Rek. 108/109 (Lauf)\nHF: Batnini/knowledge-agent-write-back", fillcolor="#FFF2CC", color="#7F6000"];
 
   skills [label="skills/  ·  14 SKILL.md\n(jeder nennt seinen Prozess)", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_top [label="8 Stufen-Skills\ncollect-experience · structure-knowledge\nstore-memory · cognize · reflect\nnon-cognitive · act · expand-knowledge", fillcolor="#DEEBF7", color="#1F4E79"];
   sk_rec [label="recursive-improve/\nSKILL + konstrukt/akt/observe/compare/revise = 6", fillcolor="#DEEBF7", color="#1F4E79"];
 
-  tests [label="tests/  ·  30 Testdateien · 324 Tests\n100 % Line+Branch (2640/616 Statements/Branches)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten\nSkills · Connectoren · MCP-Katalog · SHACL · Runner (8+5) · Interpreter · Connector-Binding · MCP-Live", fillcolor="#E1D5E7", color="#9673A6"];
+  tests [label="tests/  ·  61 Testdateien · 774 Test-Funktionen (def test_)\nCoverage-Pflicht 100 % (pyproject)\nFWR · Governance · Memory · Ingestion · Reflective\nBi-Temporal · Shared · LRU · Procedural · Solver\nEvaluator/Red-Queen · Mandat · AGENTS-Gesetz · GAAMA · Invarianten\nSkills · Connectoren · MCP-Katalog · SHACL · Runner (8+5) · Interpreter · Connector-Binding · MCP-Live\nθ′-Probe · Write-Back/Consolidation · llm_retry · Kaggle-CLI", fillcolor="#E1D5E7", color="#9673A6"];
 
   ci [label="CI & Qualität (ein verify-Job, Python 3.12)\nRuff · Markdown(adv) · scripts/* (Links/Artefakte/Secrets)\nPreflight · echte Tests · .gitleaks.toml · .pymarkdown.json\npyproject.toml (Ruff) · requirements-dev.txt · Makefile (make test)", fillcolor="#D5E8D4", color="#375623"];
 
-  res [label="ergebnisse/  ·  327 MD gesamt\nrekursion/ 000–057 (58) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration\nmcp-kontext · mcp-kalibrierung · adaptive-forgetting · inferenz-shacl\nrunner-8-stufen · runner-5-phasen · skill-interpreter · connector-binding · mcp-live · reverse-engineering", fillcolor="#E2EFDA", color="#375623"];
+  res [label="ergebnisse/  ·  256 MD gesamt\nrekursion/ 000–108 (109) · Systemtests · red-queen · mandat\nversionierung · zwei-personen · Diagramme · ci-integration\nmcp-kontext · mcp-kalibrierung · adaptive-forgetting · inferenz-shacl\nrunner-8-stufen · runner-5-phasen · skill-interpreter · connector-binding · mcp-live · reverse-engineering\nTheta-Prime (103) · Write-Back (108/109) · Kaggle (100–102)", fillcolor="#E2EFDA", color="#375623"];
+
+  gov [shape=note, label="Governance (§9.1c, governance-mcp)\nDrift Diagramm-Update 2026-10-04 → 2026-10-11: DI = 0.0666 > τ = 0.02\n⇒ flagged, Gate ask (menschliche Freigabe) · lyapunov_check stabil", fillcolor="#FCE4D6", color="#C55A11"];
 
   root -> agents;
   root -> docs;
@@ -51,6 +54,7 @@ digraph Aufbau {
   root -> tests;
   root -> ci;
   root -> res;
+  root -> gov;
 
   knowledge -> kn_life;
   knowledge -> kn_rek;
@@ -64,6 +68,7 @@ digraph Aufbau {
   data -> shared;
   data -> py;
   data -> mandate;
+  data -> wb;
 
   skills -> sk_top;
   skills -> sk_rec;
