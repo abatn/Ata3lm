@@ -4,7 +4,9 @@ Echte Dateisystem-Tests (kein Netz, kein Fake): tier3-Puffer + echte PROV-O-Reco
 (`provenance.build_record`) → collect → SFT-Dataset → mark → flush.
 
 Quelle (Belegt): arXiv:2608.22215 §3.4 (Write-Back/Slow Consolidation).
-Kaggle-Stub: das Θ→Θ′-Training läuft NICHT hier (`write_back` → NotImplementedError).
+Kaggle-Stub: ohne injizierten `train_fn` bleibt `write_back` → NotImplementedError
+(das Θ→Θ′-Training läuft NICHT hier). Der **geschlossene Zyklus** ist über echte
+`train_fn`/`probe_fn`-Injektion testbar (kein GPU, kein Fake-Ergebnis).
 """
 
 import json
@@ -234,6 +236,186 @@ def test_write_back_ist_stub_kein_fake(tmp_path):
     with pytest.raises(NotImplementedError) as exc:
         sc.write_back(tmp_path / "sft.jsonl", model="qwen3-8B")
     assert sc.TRAIN_LOCATION in str(exc.value)
+
+
+# --------------------------------------------- write_back: geschlossener Zyklus (§10.3)
+def test_write_back_ohne_trainer_ist_stub_auch_mit_pfaden(tmp_path):
+    """Ohne train_fn greift der ehrliche Stub – unabhängig von Puffer/Log (kein FS-Zugriff)."""
+    with pytest.raises(NotImplementedError) as exc:
+        sc.write_back(
+            tmp_path / "sft.jsonl",
+            model="qwen3-8B",
+            tier3_dir=tmp_path / "tier3",
+            provenance_log=tmp_path / "prov.jsonl",
+        )
+    assert sc.TRAIN_LOCATION in str(exc.value)
+
+
+def test_write_back_leer_pending_note_kein_training(tmp_path):
+    """Ohne Puffer/Log nichts zu tun ⇒ Note; das Training wird NICHT aufgerufen (§10.3)."""
+    calls = []
+    res = sc.write_back(tmp_path / "sft.jsonl", train_fn=lambda *a, **k: calls.append(a) or {"ok": True})
+    assert res == {"ok": True, "flushed": [], "kept": [], "note": "keine pending"}
+    assert calls == []  # kein Trainingslauf ohne pending
+
+
+def test_write_back_train_fail_kein_flush(tmp_path):
+    """Trainingsmisserfolg ⇒ fail-closed: kein Mark, kein Flush, Fakten bleiben (§10.3)."""
+    tier3, log = _fixture(tmp_path)
+    state = tmp_path / "state.json"
+    dataset = tmp_path / "sft.jsonl"
+
+    def train_fail(path, model):
+        assert Path(path) == dataset and dataset.exists()  # Korpus real geschrieben
+        return {"ok": False, "loss": 0.5, "adapter_path": "/should/not/leak"}
+
+    res = sc.write_back(dataset, tier3_dir=tier3, provenance_log=log, state_path=state, train_fn=train_fail)
+    assert res["ok"] is False and res["flushed"] == []
+    assert sorted(res["kept"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+    assert not state.exists()  # kein Erfolg verbucht
+    assert (tier3 / "hauptstadt-xylophonia.md").exists()
+    assert (tier3 / "hauptstadt-frankreich.md").exists()
+
+
+def test_write_back_probe_positiv_flusht(tmp_path):
+    """Positiver externer Probe ⇒ Hash-gebundenes Mark + Flush; loss/adapter durchgereicht."""
+    tier3, log = _fixture(tmp_path)
+    state = tmp_path / "state.json"
+    seen = {}
+
+    def probe(item):
+        seen[item["key"]] = item["fact"]  # echte pending-Einträge, nichts erfunden
+        return {"passed": True}
+
+    res = sc.write_back(
+        tmp_path / "sft.jsonl",
+        "qwen3-8B",
+        tier3_dir=tier3,
+        provenance_log=log,
+        state_path=state,
+        train_fn=lambda path, model: {"ok": True, "loss": 0.123, "adapter_path": "/kaggle/adapter"},
+        probe_fn=probe,
+    )
+    assert res["ok"] is True
+    assert sorted(res["flushed"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+    assert res["kept"] == []
+    assert res["loss"] == 0.123 and res["adapter_path"] == "/kaggle/adapter"
+    assert not (tier3 / "hauptstadt-xylophonia.md").exists()
+    assert not (tier3 / "hauptstadt-frankreich.md").exists()
+    assert seen == {
+        "hauptstadt-xylophonia": "Zentaria ist die Hauptstadt Xylophoniens.",
+        "hauptstadt-frankreich": "Paris ist die Hauptstadt Frankreichs (neu).",
+    }
+
+
+def test_write_back_probe_negativ_kein_flush(tmp_path):
+    """Negativer Probe ⇒ kein Mark, kein Flush; Fakten bleiben im Puffer (§10.3)."""
+    tier3, log = _fixture(tmp_path)
+    state = tmp_path / "state.json"
+    res = sc.write_back(
+        tmp_path / "sft.jsonl",
+        tier3_dir=tier3,
+        provenance_log=log,
+        state_path=state,
+        train_fn=lambda path, model: {"ok": True, "loss": 0.001},
+        probe_fn=lambda item: False,
+    )
+    assert res["ok"] is True and res["flushed"] == []
+    assert sorted(res["kept"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+    assert (tier3 / "hauptstadt-xylophonia.md").exists()
+    assert not state.exists()  # nichts verbucht
+
+
+def test_write_back_ohne_probe_fn_kein_flush(tmp_path):
+    """Ohne probe_fn kein externes Signal ⇒ kein Flush (fail-closed)."""
+    tier3, log = _fixture(tmp_path)
+    state = tmp_path / "state.json"
+    res = sc.write_back(
+        tmp_path / "sft.jsonl",
+        tier3_dir=tier3,
+        provenance_log=log,
+        state_path=state,
+        train_fn=lambda path, model: {"ok": True},
+    )
+    assert res["flushed"] == [] and sorted(res["kept"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+    assert (tier3 / "hauptstadt-xylophonia.md").exists()
+
+
+def test_write_back_ohne_state_kein_flush(tmp_path):
+    """Ohne state_path kein Erfolgsbeleg ⇒ kein Verbuchen/Flush (N3, fail-closed)."""
+    tier3, log = _fixture(tmp_path)
+    res = sc.write_back(
+        tmp_path / "sft.jsonl",
+        tier3_dir=tier3,
+        provenance_log=log,
+        state_path=None,
+        train_fn=lambda path, model: {"ok": True},
+        probe_fn=lambda item: {"passed": True},
+    )
+    assert res["flushed"] == []
+    assert sorted(res["kept"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+    assert (tier3 / "hauptstadt-xylophonia.md").exists()
+
+
+# ------------------------------------- fail-closed Pfade (F1/F2/F3, Einheit)
+def test_is_consolidated_fail_closed_early_returns():
+    """F3: kein Eintrag / negativer Probe / unbekannter Hash ⇒ False; sonst Hash-Gleichheit."""
+    assert sc._is_consolidated(None, "h") is False  # kein Eintrag
+    assert sc._is_consolidated({}, "h") is False  # leerer Eintrag
+    assert sc._is_consolidated({"fact_sha256": "h", "probe_passed": False}, "h") is False
+    assert sc._is_consolidated({"fact_sha256": None, "probe_passed": True}, "h") is False
+    assert sc._is_consolidated({"fact_sha256": "h", "probe_passed": True}, "h") is True
+    assert sc._is_consolidated({"fact_sha256": "h", "probe_passed": True}, "other") is False
+
+
+def test_mark_negative_probe_demotes_prior(tmp_path):
+    """F2: negativer Probe stuft eine frühere Konsolidierung herab (kein Flush)."""
+    state = tmp_path / "state.json"
+    sc.mark_consolidated(["k1"], state, facts={"k1": "F"})
+    assert sc._load_state(state)["consolidated"] == ["k1"]
+    sc.mark_consolidated(["k1"], state, facts={"k1": "F"}, probe_passed=False)  # Herabstufung
+    # Negativer Probe für einen NICHT zuvor konsolidierten Key ⇒ kein Remove (elif False).
+    sc.mark_consolidated(["k2"], state, facts={"k2": "G"}, probe_passed=False)
+    loaded = sc._load_state(state)
+    assert loaded["consolidated"] == []
+    assert loaded["entries"]["k1"]["probe_passed"] is False
+    assert loaded["entries"]["k2"]["probe_passed"] is False
+
+
+def test_flush_superseded_archive_nie_loeschen(tmp_path):
+    """N3: Archivstände (`.superseded-`) werden nie gelöscht (blocked)."""
+    tier3 = tmp_path / "tier3"
+    tier3.mkdir()
+    arch = tier3 / "x.superseded-1-abcd.md"
+    arch.write_text("alt", encoding="utf-8")
+    state = tmp_path / "state.json"
+    sc.mark_consolidated([], state)
+    res = sc.flush(["x.superseded-1-abcd"], tier3, state_path=state)
+    assert res["blocked"] == ["x.superseded-1-abcd"] and res["removed"] == []
+    assert arch.exists()
+
+
+def test_flush_fehlende_datei_meldet_missing(tmp_path):
+    """F1: fehlende Datei ⇒ `missing` (bereits weg); weder entfernt noch blockiert."""
+    tier3 = tmp_path / "tier3"
+    tier3.mkdir()
+    state = tmp_path / "state.json"
+    sc.mark_consolidated(["weg"], state, facts={"weg": "Inhalt"})
+    res = sc.flush(["weg"], tier3, state_path=state)
+    assert res["missing"] == ["weg"] and res["removed"] == [] and res["blocked"] == []
+
+
+def test_flush_hash_mismatch_blocked(tmp_path):
+    """F1: geänderter Fakt (Hash-Mismatch) ⇒ blocked, Datei bleibt."""
+    tier3 = tmp_path / "tier3"
+    tier3.mkdir()
+    f = tier3 / "f.md"
+    f.write_text("neu", encoding="utf-8")
+    state = tmp_path / "state.json"
+    sc.mark_consolidated(["f"], state, facts={"f": "alt"})
+    res = sc.flush(["f"], tier3, state_path=state)
+    assert res["blocked"] == ["f"] and res["removed"] == []
+    assert f.read_text(encoding="utf-8") == "neu"
 
 
 # ----------------------------------------------------------------- Runner-Hooks (lesend)

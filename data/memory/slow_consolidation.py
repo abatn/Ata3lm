@@ -17,8 +17,13 @@ Status (ehrliche Trennung, vgl. AGENTS.md-Kopf):
     und der Kaggle-Stub sind an das Projekt gebunden, KEIN Paper-Claim.
 
 **Kein Fake (Guardrail 7):** Der eigentliche Trainingsschritt Θ→Θ′ läuft **NICHT**
-hier, sondern auf **Kaggle** (separater Teil). `write_back(...)` ist ein ehrlicher
-Stub (`NotImplementedError`) – es wird kein Training simuliert/erfunden.
+hier, sondern auf **Kaggle** (separater Teil). Ohne injizierten Trainer bleibt
+`write_back(...)` ein ehrlicher Stub (`NotImplementedError`) – es wird kein Training
+simuliert/erfunden. Das **Modul erfindet nichts**; die Tests injizieren
+Kontrollfluss-Doubles. Der **geschlossene Zyklus** (Sammeln → SFT-Dataset →
+injiziertes Training → Probe → Flush) ist über `train_fn`/`probe_fn` **testbar ohne
+GPU** und gilt erst durch einen **echten externen Lauf** (Kaggle/Ollama) als
+verifiziert. `loss`/`adapter_path` werden nur durchgereicht.
 
 Caveat (ehrlich): Die PROV-O-Records (K3, `provenance.py`) binden den **Inhalt-Hash**
 und die **Aktivität**, aber NICHT den auslösenden Prompt. `collect_pending`
@@ -31,6 +36,12 @@ Funktionen/Signaturen (`collect_pending`, `build_sft_dataset`, `mark_consolidate
 `flush`, `write_back`) sowie die neuen optionalen Runner-Parameter
 `consolidation_state_path` sind §9-pflichtig und **freigegeben** (`approved`
 Batnini + Taoufik, 2026-10-08).
+
+**Nachtrag (2026-10-10, additiv):** `write_back` erhält **rückwärtskompatible**
+keyword-only optionale Injektions-Parameter `train_fn`, `probe_fn`, `tier3_dir`,
+`provenance_log`, `state_path` (Interface additiv; §9.3 = **freigegeben** —
+Batnini + Taoufik, 2026-10-11; ≥ 2 distinkte Personen). Bestehende Aufrufe (`write_back(dataset, model)`)
+bleiben unverändert (ehrlicher Stub).
 
 **N2/N3 (Auftrag Phase 2, Audit b09a0a9; §9-Freigabe `approved` Batnini + Taoufik,
 2026-10-08):** Konsolidierung wird an den **Inhalt** gebunden (`fact_sha256` je Key;
@@ -390,18 +401,117 @@ def flush(keys, tier3_dir, *, state_path=None) -> dict:
     return {"ok": True, "removed": removed, "missing": missing, "blocked": blocked}
 
 
-def write_back(dataset_path, model: Optional[str] = None) -> dict:
-    """Θ→Θ′ SFT (Write-Back). **Stub** – das Training läuft auf Kaggle (kein Fake).
+def _probe_positive(result) -> bool:
+    """Externes Probe-Signal auswerten – **fail-closed** (nur explizit positiv).
 
-    Raises:
-        NotImplementedError: immer – der eigentliche Trainingsschritt ist nicht Teil
-        dieser Vorarbeit (AGENTS.md §10.3).
+    Wahr ist nur ein ``True`` bzw. ein Dict mit ``passed is True`` oder ``ok is True``.
+    Alles andere (``None``, ``False``, leeres/negatives Dict) ⇒ **nicht** konsolidiert
+    (§10.3: Flush nur nach Erfolg; `connectors/gaama.md`: nur ein **positiver** Probe
+    erlaubt Konsolidierung – Kairos/Validation-Gated).
     """
-    raise NotImplementedError(
-        f"Slow Consolidation (Θ→Θ′ SFT) läuft auf {TRAIN_LOCATION} (separater Teil); "
-        f"diese Vorarbeit endet bei build_sft_dataset(out_path). Dataset: {dataset_path}"
-        + (f", model={model}" if model else "")
-    )
+    if isinstance(result, dict):
+        return result.get("passed") is True or result.get("ok") is True
+    return result is True
+
+
+def write_back(
+    dataset_path,
+    model: Optional[str] = None,
+    *,
+    train_fn=None,
+    probe_fn=None,
+    tier3_dir=None,
+    provenance_log=None,
+    state_path=None,
+) -> dict:
+    """Geschlossener Zyklus Θ→Θ′ (Write-Back) – **injizierbar, ohne GPU** (§10.3).
+
+    Ablauf (durchgängig fail-closed):
+      1. ``pending = collect_pending(tier3_dir, provenance_log, state_path=...)``;
+         ohne Puffer/Log oder ohne pending ⇒
+         ``{"ok": True, "flushed": [], "kept": [], "note": "keine pending"}``
+         (nichts zu tun, kein Fake).
+      2. ``build_sft_dataset(pending, dataset_path)`` – Korpus **real** schreiben.
+      3. Ohne injizierten ``train_fn`` ⇒ **``NotImplementedError``** – der eigentliche
+         Trainingsschritt läuft extern auf Kaggle (ehrlicher Stub, unverändert).
+      4. ``trained = train_fn(dataset_path, model)``; meldet ``train_fn`` keinen Erfolg
+         (``ok`` fehlt/``False``) ⇒ **kein Flush**, ``{"ok": False, ...}`` (fail-closed).
+      5. Je pending-Fakt: nur bei **positivem** ``probe_fn(item)`` (externes Signal,
+         `_probe_positive`) **und** vorhandenem ``state_path`` wird
+         ``mark_consolidated(..., success=True, probe_passed=True)`` verbucht (bindet
+         den Inhalt-Hash); sonst bleibt der Fakt im Puffer.
+      6. ``flush(keys, tier3_dir, state_path=...)`` entfernt **nur** die belegten,
+         hash-gleichen Keys (F1) aus dem externen Puffer.
+
+    **Kein Fake:** ``train_fn``/``probe_fn`` sind echte Injektionspunkte; ohne sie
+    bleibt das ehrliche Verhalten (Stub bzw. kein Flush). ``loss``/``adapter_path``
+    werden **ausschließlich** aus ``trained`` durchgereicht – nie erfunden. Die
+    Hash-Konsistenz ist über ``mark_consolidated(facts=...)`` (bindet den aktuellen
+    Fakt-Hash) **und** ``flush`` (F1: löscht nur bei Hash-Gleichheit) durchgesetzt;
+    ein geänderter Fakt bleibt damit im Puffer.
+
+    **Interface-Erweiterung (additiv/rückwärtskompatibel):** die neuen keyword-only
+    optionalen Parameter `train_fn`, `probe_fn`, `tier3_dir`, `provenance_log`,
+    `state_path` (Interface additiv; §9.3 = **freigegeben** — Batnini + Taoufik,
+    2026-10-11; ≥ 2 distinkte Personen).
+    Bestehende Aufrufe (``write_back(dataset, model)``) verhalten sich unverändert.
+    """
+    # 3) Ehrlicher Stub: ohne injizierten Trainer kein FS-Zugriff, kein Fake (§10.3).
+    if train_fn is None:
+        raise NotImplementedError(
+            f"Slow Consolidation (Θ→Θ′ SFT) läuft auf {TRAIN_LOCATION} (separater Teil); "
+            f"diese Vorarbeit endet bei build_sft_dataset(out_path). Dataset: {dataset_path}"
+            + (f", model={model}" if model else "")
+            + "; für den geschlossenen Zyklus train_fn (und probe_fn) injizieren."
+        )
+
+    # 1) Pending sammeln – nur mit echtem Puffer/Log; sonst nichts zu tun.
+    if tier3_dir is None or provenance_log is None:
+        pending: list = []
+    else:
+        pending = collect_pending(tier3_dir, provenance_log, state_path=state_path)
+    if not pending:
+        return {"ok": True, "flushed": [], "kept": [], "note": "keine pending"}
+
+    # 2) SFT-Korpus real schreiben (kein Fake-Satz).
+    build_sft_dataset(pending, dataset_path)
+
+    # 3) Externes SFT (injiziert). Kein Erfolg ⇒ fail-closed, KEIN Flush.
+    trained = train_fn(dataset_path, model)
+    if not (isinstance(trained, dict) and trained.get("ok")):
+        return {
+            "ok": False,
+            "flushed": [],
+            "kept": [p["key"] for p in pending],
+            "reason": "Training nicht erfolgreich (§10.3)",
+        }
+
+    # 4) Probe-gesteuertes Verbuchen (externes Signal; nur positive Fakten).
+    flush_keys: list = []
+    for item in pending:
+        raw = probe_fn(item) if probe_fn is not None else None
+        if state_path is not None and _probe_positive(raw):
+            mark_consolidated(
+                [item["key"]],
+                state_path,
+                success=True,
+                facts={item["key"]: item["fact"]},
+                model=model,
+                probe_passed=True,
+            )
+            flush_keys.append(item["key"])
+
+    # 5) Flush **nur** nach Beleg (oben verbucht, success=True) – F1 prüft den Hash.
+    res = flush(flush_keys, tier3_dir, state_path=state_path)
+    flushed = list(res.get("removed") or [])
+    kept = [p["key"] for p in pending if p["key"] not in flushed]
+    return {
+        "ok": bool(res.get("ok")),
+        "flushed": flushed,
+        "kept": kept,
+        "loss": trained.get("loss"),
+        "adapter_path": trained.get("adapter_path"),
+    }
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI

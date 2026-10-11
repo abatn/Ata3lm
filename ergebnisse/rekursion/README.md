@@ -130,6 +130,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 103 | `103-theta-prime-negativ.md` | System-Iteration (Θ′-Write-Back echter Lauf: `ΔEM=+1` (8→9/200) → **`rejected`**: nicht internalisiert; §9 deny) | **rejected** (Compare < 70 %) | siehe File |
 | 104 | `104-fixes-e1-e4.md` | System-Iteration (E1–E4: reflective_agent ENV, llm_retry 404-Trennung, zsre-Subjektbindung; Audit e2e-699dda4) | **approved** (Score 793/793 = 100 %) | Audit e2e-699dda4; AGENTS.md §10.2/§11, §6, §9 |
 | 105 | `105-e1-e2-e2e.md` | System-Iteration (E1/E2 echter lokaler Live-Lauf: E1 wirkt (`model.reflection=qwen-local`); 3/3 nicht reproduziert — FWR `uncertain`/Oracle „I don't know", nicht E1; E2-404-Fallback belegt) | **approved** (technischer Pfad) + Caveat | `live_run.py:40-45,273`; AGENTS.md §10.2/§11/§9.3 |
+| 106 | `106-write-back-review-fixes.md` | System-Iteration (Review-Funde 1–4 an `write_back`: Provenienz + Evidenz/Proposal + ehrliche Docstrings; additiv/fail-closed) | **approved**: Batnini + Taoufik, 2026-10-11 (§9.3) | arXiv:2608.22215 §3.4; connectors/gaama.md; AGENTS.md §10.3 |
 
 ## Guardrail
 
