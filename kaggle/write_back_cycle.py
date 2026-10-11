@@ -440,6 +440,30 @@ def _llm_endpoint_ok(base_url: str, timeout: float = 5.0) -> tuple:
         return False, f"{type(exc).__name__}: {exc} · {url}"
 
 
+def _torchao_incompatible() -> Optional[str]:
+    """Inkompatibles `torchao` erkennen (peft v0.20.0 wirft bei < 0.16.0).
+
+    Quelle (Belegt): peft v0.20.0 `src/peft/import_utils.py::is_torchao_available`
+    **raise**t `ImportError`, wenn `torchao < 0.16.0` installiert ist; die
+    LoRA-Injektion erreicht `dispatch_torchao` bei **nicht**-4-bit Basismodellen
+    (genau die Θ′-Probe) und bricht dann ab. Kaggle liefert `torchao 0.10.0`.
+    Fix: `pip uninstall -y torchao` oder `pip install -U "torchao>=0.16.0"`.
+    Nicht installiert ⇒ `None` (unkritisch).
+    """
+    try:
+        import importlib.metadata as importlib_metadata
+    except Exception:  # pragma: no cover - nur sehr alte Interpreter
+        return None
+    try:
+        version = importlib_metadata.version("torchao")
+    except Exception:
+        return None
+    digits = [int(p) for p in version.split(".")[:3] if p.isdigit()]
+    if len(digits) >= 2 and tuple(digits) < (0, 16, 0):
+        return version
+    return None
+
+
 def main(argv=None) -> int:
     args = _parse_args(argv)
     # LLM-ENV (Ollama) VOR jedem Import von fast_write_router/reflective_agent.
@@ -462,6 +486,15 @@ def main(argv=None) -> int:
         print(
             f"FEHLER: LLM-Endpoint nicht erreichbar ({llm_info}) – lokalen Ollama starten "
             f"(`ollama serve` + `ollama pull {args.llm_model}`) (fail-closed, kein Fake).",
+            file=sys.stderr,
+        )
+        return 1
+    bad_torchao = _torchao_incompatible()
+    if bad_torchao:
+        print(
+            f"FEHLER: inkompatibles torchao {bad_torchao} (< 0.16.0) – peft v0.20.0 wirft dann bei der "
+            "LoRA-Injektion der Θ′-Probe. Fix: `pip uninstall -y torchao` "
+            '(oder `pip install -U "torchao>=0.16.0"`) (fail-closed, kein Fake).',
             file=sys.stderr,
         )
         return 1

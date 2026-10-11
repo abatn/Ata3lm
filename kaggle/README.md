@@ -214,6 +214,9 @@ Der Driver nutzt als LLM einen **lokalen Ollama-Endpoint** auf der Kaggle-Maschi
 **Notebook-Zellen (vor dem Driver ausführen):**
 
 ```bash
+# 0) inkompatibles torchao entfernen (peft v0.20.0 wirft bei torchao<0.16.0;
+#    Kaggle liefert 0.10.0 → die LoRA-Injektion der nicht-4-bit Θ′-Probe bricht ab)
+!pip uninstall -y torchao
 # 1) Ollama installieren
 !curl -fsSL https://ollama.com/install.sh | sh
 # 2) Server im Hintergrund starten
@@ -221,6 +224,13 @@ Der Driver nutzt als LLM einen **lokalen Ollama-Endpoint** auf der Kaggle-Maschi
 # 3) Modell ziehen (einmalig)
 !ollama pull qwen2.5:1.5b
 ```
+
+> **Belegt (Quelle):** peft v0.20.0 `src/peft/import_utils.py::is_torchao_available`
+> **raise**t `ImportError`, wenn `torchao < 0.16.0` installiert ist; das Training lief
+> nur, weil dort der bnb-4-bit-Dispatcher zuerst greift — die **nicht**-4-bit Θ′-Probe
+> erreicht `dispatch_torchao` (Kaggle: `torchao 0.10.0`) und bricht ab.
+> Alternative zu Schritt 0: `!pip install -U "torchao>=0.16.0"`. Der Driver prüft
+> das vorab und bricht sonst **fail-closed** mit klarer Meldung ab.
 
 **Driver starten** (Repo vorher klonen; **kein Token inline** — Zugang per Kaggle-Secret
 oder öffentlichem Clone):

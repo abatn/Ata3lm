@@ -80,3 +80,40 @@ neue Flags · ENV-Setzung korrekt · Endpoint-Check **real gegen lokales Ollama*
 **Status:** `approved` (Batnini + Taoufik) — Artefakt bleibt **`unverifiziert`**: der
 echte **Kaggle-Lauf (GPU)** steht weiter aus (kein `torch`/`peft` lokal). Kaggle-Zellen
 (Ollama installieren/starten/pullen) dokumentiert in `kaggle/README.md`.
+
+## 9. Nachtrag — Kaggle-Lauf-Befund: inkompatibles `torchao` (2026-10-11)
+
+**Beobachtung (echter Kaggle-Lauf, Ausgabe):** Der Lauf kam bis zur **Θ′-Probe** und
+brach in `peft` ab:
+
+```
+peft/peft_model.py:611 → tuners_utils.py:917 → lora/model.py:281/430
+→ lora/torchao.py:160 dispatch_torchao → import_utils.py:147 is_torchao_available
+ImportError: Found an incompatible version of torchao. Found version 0.10.0,
+but only versions above 0.16.0 are supported
+```
+
+**Ursache (Belegt, Quelltext gelesen):** peft v0.20.0
+`src/peft/import_utils.py::is_torchao_available` **raise**t `ImportError`, wenn
+`torchao < 0.16.0` installiert ist (statt `False`). Die LoRA-Injektion erreicht
+`dispatch_torchao` (`lora/model.py:413-430`) nur, wenn kein früherer Dispatcher
+greift — bei **4-bit-bnb** (Training) greift `dispatch_bnb_4bit` zuerst, bei der
+**nicht**-4-bit Θ′-Probe erreicht sie `dispatch_torchao` ⇒ Abbruch. Kaggle liefert
+`torchao 0.10.0`.
+
+**Fix (Quelle: ebd.):** `pip uninstall -y torchao` (⇒ `find_spec` None ⇒
+`is_torchao_available` False ⇒ `dispatch_torchao` liefert `None`) **oder**
+`pip install -U "torchao>=0.16.0"`.
+
+**Artefakt-Änderung (nur `kaggle/write_back_cycle.py`, additiv):**
+`_torchao_incompatible()` erkennt `torchao < 0.16.0`; `main()` bricht damit
+**fail-closed** mit klarer Fix-Anweisung ab (statt kryptischem Traceback). Kaggle-Zelle
+in `kaggle/README.md` ergänzt. **Kein** Eingriff in `data/memory/*` oder peft.
+
+**Verifikation (lokal):** `ruff`/`format` grün · `ast`/Import ok · `--help` ok ·
+`_torchao_incompatible()` = `None` (torchao lokal nicht installiert, unkritisch).
+
+**Frage an den Betreiber (§9-Gate, Interface):** Reicht die **Umgebungs-Zelle**
+(`pip uninstall -y torchao`) — oder soll der Driver den inkompatiblen Baustein
+**automatisch** entfernen (zusätzliche Mutation)? Vorschlag: **Zelle** (explizit,
+nachvollziehbar, keine Laufzeit-Systemmutation).
