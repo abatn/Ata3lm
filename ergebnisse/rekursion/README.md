@@ -131,6 +131,8 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 104 | `104-fixes-e1-e4.md` | System-Iteration (E1–E4: reflective_agent ENV, llm_retry 404-Trennung, zsre-Subjektbindung; Audit e2e-699dda4) | **approved** (Score 793/793 = 100 %) | Audit e2e-699dda4; AGENTS.md §10.2/§11, §6, §9 |
 | 105 | `105-e1-e2-e2e.md` | System-Iteration (E1/E2 echter lokaler Live-Lauf: E1 wirkt (`model.reflection=qwen-local`); 3/3 nicht reproduziert — FWR `uncertain`/Oracle „I don't know", nicht E1; E2-404-Fallback belegt) | **approved** (technischer Pfad) + Caveat | `live_run.py:40-45,273`; AGENTS.md §10.2/§11/§9.3 |
 | 106 | `106-write-back-review-fixes.md` | System-Iteration (Review-Funde 1–4 an `write_back`: Provenienz + Evidenz/Proposal + ehrliche Docstrings; additiv/fail-closed) | **approved**: Batnini + Taoufik, 2026-10-11 (§9.3) | arXiv:2608.22215 §3.4; connectors/gaama.md; AGENTS.md §10.3 |
+| 107 | `107-e3-e4-e2e.md` | System-Iteration (E3 Subjektbindung echt-HF `XXX=0`; E4 Parser `main([])` ohne SystemExit; Kaggle-Lauf offen) | **approved** (lokal) + Caveat | `load_zsre_rows`; `zsre_corpus.row_to_record`; AGENTS.md §6/§10.3; Audit e2e-699dda4 |
+| 108 | `108-write-back-cycle-driver.md` | System-Iteration (V1 geschlossener Zyklus-Treiber `kaggle/write_back_cycle.py`: echte Writes/SFT/Probe/Flush; Kaggle-GPU-Lauf offen) | **approved**: Batnini + Taoufik, 2026-10-11 (§9.3) + Caveat | AGENTS.md §10.3/§9.3; arXiv:2608.22215 §3.4; connectors/gaama.md |
 
 ## Guardrail
 

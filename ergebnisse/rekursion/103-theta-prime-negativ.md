@@ -31,7 +31,7 @@ Unabhängige Nachrechnung (Substring-EM direkt aus `theta_answers_f6.jsonl`) = *
 
 ## 3. Bewertung / §9-Gate
 
-- Compare-Score ≈ **1/200 ≈ 0,5 % ≪ 70 %** ⇒ **deny** (§9) → **kein** `self_update`,
+- Compare-Score = **9/200 = 4,5 % ≪ 70 %** (bestandene Validierungen/Gesamtzahl, §9) ⇒ **deny** → **kein** `self_update`,
   **keine** positive Behauptung.
 - **Θ′ NICHT belegt** (Internalisierung messbar ≈ 0). Der **Training-Durchlauf**
   hingegen ist belegt (Fix aus Rek. 102 verifiziert).
@@ -47,7 +47,7 @@ Unabhängige Nachrechnung (Substring-EM direkt aus `theta_answers_f6.jsonl`) = *
 ## 5. Ehrliche Hypothesen (NICHT belegt — nur Auftrag für die nächste Iteration)
 
 - **Modellgröße:** Paper/§10.2 nutzt qwen3-8B; hier 0.5B.
-- **Umfang/Methodik:** 3 Epochen/50 k, strenge EM-Metrik.
+- **Umfang/Methodik:** 3 Epochen/50 k, **Teilstring-EM** (kein striktes Exact-Match).
 (Das sind Hypothesen, kein Befund.)
 
 ## 6. Nächster Schritt (Gate)
@@ -69,7 +69,7 @@ Unabhängige Nachrechnung (Substring-EM direkt aus `theta_answers_f6.jsonl`) = *
 Lernen. Token-Accuracy 0,84 vs. Exact-Match ~0,04 zeigt: Das Modell erzeugt
 **plausiblen Fließtext**, nicht die **spezifische** Antwort — Basis und Adapter
 gleichermaßen. Der Engpass liegt also **nicht** in der Ausführung, sondern in
-**Kapazität/Ziel** (0,5B, 3 Epochen, EM streng). Nächster Versuch muss **eine**
+**Kapazität/Ziel** (0,5B, 3 Epochen, **Teilstring-EM** – nicht strikt). Nächster Versuch muss **eine**
 Variable kontrolliert ändern und dieselbe `eval_f6` nutzen."
 
 **Mem-Schranke:** `mem` = Rek. 102 (Fix) + Rek. 103 (Negativ) — ≤ 3 Kontextpunkte (§6.4).

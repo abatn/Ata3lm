@@ -106,6 +106,16 @@ Kompatibilität (`trl==1.14.2` verlangt `transformers>=4.56.2`, `datasets>=4.7.0
 (`SFTConfig(max_length=...)`, `dataset_text_field`, `processing_class`, `messages`-Format)
 wurden am Tag der Erstellung im TRL-Quelltext `v1.14.2` geprüft.
 
+**Achtung – Laufzeitversionen ≠ Notebook-Pins (Audit e2e-699dda4):** Der
+veröffentlichte Kaggle-Lauf (HF `Batnini/knowledge-agent-sft-lora`, `kaggle_output.json`)
+wurde mit `!python …train_slow_consolidation.py` **direkt** ausgeführt (nicht über die
+Notebook-Zelle 1) und nutzte daher **Kaggle-Default-Versionen**:
+`transformers 5.16.1`, `peft 0.20.0`, `trl 1.15.0`, `datasets 4.8.5`,
+`accelerate 1.14.0`, `bitsandbytes 0.50.2`. Wer die **Pins** (Tabelle oben)
+reproduzieren will, muss über die Notebook-Zelle 1 installieren (oder diese
+Versionen vorab setzen). Der Lauf-Erfolg belegt damit **seine** Umgebung, nicht
+automatisch einen Notebookstart mit den Pins.
+
 ## Kaggle-Schritte (exakt)
 
 1. **Kaggle-Account**: <https://www.kaggle.com> → einloggen (verifizierte Handynummer
