@@ -42,8 +42,14 @@ EU-KI-VO Art. 14(5)) · §6 (externes Signal).
 
 **Kein Fake (Guardrail 7):** es wird nichts simuliert – echte Router-Klassifikation,
 echtes Kaggle-Training (Subprocess), echte Θ′-Generierung. Fehlt die GPU, der
-Endpoint-Key oder der Adapter, bricht das Skript **fail-closed** mit klarer
+LLM-Endpoint oder der Adapter, bricht das Skript **fail-closed** mit klarer
 Meldung ab; es werden keine Zahlen erfunden.
+
+**LLM (lokal, kein Secret):** Router + Reflective-Agent nutzen einen **lokalen
+Ollama-Endpoint** (`--llm-base-url`, Default `http://127.0.0.1:11434/v1`). Die
+Modelle (`--llm-model`, Default `qwen2.5:1.5b`) werden für `FWR_SMALL_MODEL`/
+`FWR_LARGE_MODEL`/`HELA_MODEL` gesetzt, sofern nicht per ENV vorgegeben. Ollama
+braucht keinen API-Key; der Endpoint wird real geprüft (fail-closed).
 
 **Interface-Stabilität (§9):** NEUE Datei – kein vorhandenes Interface geändert
 (`AGENTS.md`, `data/memory/*` unverändert). Nur lesende Nutzung der bestehenden
@@ -71,6 +77,8 @@ for _p in ["data/memory", "data/memory/shared", "data/memory/tier3-working", "sk
 STATUS = "Auftrag/unverifiziert-lokal"
 SOURCE = "AGENTS.md §10.3 · arXiv:2608.22215 §3.4"
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+DEFAULT_LLM_BASE_URL = "http://127.0.0.1:11434/v1"
+DEFAULT_LLM_MODEL = "qwen2.5:1.5b"
 TRAIN_SCRIPT = ROOT / "kaggle" / "train_slow_consolidation.py"
 TRAIN_OUT_NAME = "slow_consolidation_train"
 RESULT_NAME = "write_back_cycle_result.json"
@@ -319,7 +327,10 @@ class _ThetaProbe:
         if tok.pad_token is None:
             tok.pad_token = tok.eos_token
         dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-        base = AutoModelForCausalLM.from_pretrained(self.base_model, torch_dtype=dtype).cuda().eval()
+        try:  # transformers >= 4.56/5.x: `dtype` (PR #39782); sonst älterer Name
+            base = AutoModelForCausalLM.from_pretrained(self.base_model, dtype=dtype).cuda().eval()
+        except TypeError:
+            base = AutoModelForCausalLM.from_pretrained(self.base_model, torch_dtype=dtype).cuda().eval()
         # N8: Basis ZUERST messen, dann denselben Aufruf um den Adapter aufwickeln.
         adapter = PeftModel.from_pretrained(base, str(self.adapter_dir)).eval().cuda()
         self._tok, self._base, self._adapter = tok, base, adapter
@@ -372,6 +383,16 @@ def _parse_args(argv=None):
     parser.add_argument("--gpu", default="0", help="CUDA_VISIBLE_DEVICES für das Training (Default: 0)")
     parser.add_argument("--seed", type=int, default=42, help="Seed für Auswahl/Training (Default: 42)")
     parser.add_argument(
+        "--llm-base-url",
+        default=DEFAULT_LLM_BASE_URL,
+        help=f"Lokaler Ollama-Endpoint (Default: {DEFAULT_LLM_BASE_URL})",
+    )
+    parser.add_argument(
+        "--llm-model",
+        default=DEFAULT_LLM_MODEL,
+        help=f"Ollama-Modell für Router/Reflective-Agent (Default: {DEFAULT_LLM_MODEL})",
+    )
+    parser.add_argument(
         "--approver",
         action="append",
         default=None,
@@ -382,8 +403,47 @@ def _parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+# --------------------------------------------------------------- LLM (Ollama)
+def _configure_llm_env(base_url: str, model: str) -> dict:
+    """Lokalen Ollama-Endpoint + Modelle in die ENV setzen (vor jedem LLM-Import).
+
+    `fast_write_router` liest `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL` **beim Import**,
+    `reflective_agent` liest `HELA_MODEL` zur Aufrufzeit. Die ENV wird daher in
+    `main()` gesetzt, **bevor** diese Module importiert werden. Vorhandene
+    ENV-Werte haben Vorrang (kein Überschreiben). Ollama braucht keinen API-Key.
+    """
+    applied: dict = {}
+    for key, value in {
+        "OPENAI_BASE_URL": base_url,
+        "OPENAI_API_KEY": "ollama",
+        "FWR_SMALL_MODEL": model,
+        "FWR_LARGE_MODEL": model,
+        "HELA_MODEL": model,
+    }.items():
+        if not os.environ.get(key):
+            os.environ[key] = value
+            applied[key] = value
+    return applied
+
+
+def _llm_endpoint_ok(base_url: str, timeout: float = 5.0) -> tuple:
+    """Ollama-Endpoint real prüfen (`GET <base>/models`) – kein Fake (§6)."""
+    import urllib.request
+
+    url = base_url.rstrip("/") + "/models"
+    token = os.environ.get("OPENAI_API_KEY") or "ollama"
+    try:
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fester Endpoint
+            return resp.status == 200, f"HTTP {resp.status} · {url}"
+    except Exception as exc:  # noqa: BLE001 - echte Erreichbarkeit klar melden
+        return False, f"{type(exc).__name__}: {exc} · {url}"
+
+
 def main(argv=None) -> int:
     args = _parse_args(argv)
+    # LLM-ENV (Ollama) VOR jedem Import von fast_write_router/reflective_agent.
+    _configure_llm_env(args.llm_base_url, args.llm_model)
     # GPU-Wahl VOR jedem torch-Import (wie kaggle/train_slow_consolidation.py).
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
@@ -397,10 +457,11 @@ def main(argv=None) -> int:
             file=sys.stderr,
         )
         return 1
-    if not os.environ.get("OPENAI_API_KEY"):
+    llm_ok, llm_info = _llm_endpoint_ok(os.environ["OPENAI_BASE_URL"])
+    if not llm_ok:
         print(
-            "FEHLER: OPENAI_API_KEY fehlt – echte Router-Klassifikation nicht möglich "
-            "(fail-closed, kein Fake). Endpoint per ENV setzen (OPENAI_API_KEY/OPENAI_BASE_URL).",
+            f"FEHLER: LLM-Endpoint nicht erreichbar ({llm_info}) – lokalen Ollama starten "
+            f"(`ollama serve` + `ollama pull {args.llm_model}`) (fail-closed, kein Fake).",
             file=sys.stderr,
         )
         return 1
@@ -470,6 +531,8 @@ def main(argv=None) -> int:
         "seed": args.seed,
         "base_model": args.base_model,
         "gpu": gpu_info,
+        "llm_base_url": os.environ.get("OPENAI_BASE_URL"),
+        "llm_model": args.llm_model,
         "workdir": str(workdir),
         "self_update": self_update,
         "approvers": approvers,

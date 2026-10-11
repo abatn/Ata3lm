@@ -196,3 +196,45 @@ geführt.
 - Das erwartete `consolidation_sft.jsonl` stammt aus **M1** und liegt im Repo
   **noch nicht** vor; das Skript erkennt automatisch Chat-Formate
   (`messages`), ShareGPT (`conversations`/`from`+`value`) und `prompt`+`response`.
+
+## V1 — Geschlossener Write-Back-Zyklus (`write_back_cycle.py`, Ollama lokal)
+
+> **Status: `Auftrag / unverifiziert-lokal`.** Läuft nur auf **Kaggle (GPU)** und
+> fährt den **echten** §10.3-Zyklus in einem Lauf:
+> reale Fakten → **reale Writes** (§10) → `pending` → **SFT (Θ′)** → **Θ′-Probe**
+> → `write_back` (Flush nur bei positivem Probe, fail-closed).
+
+Der Driver nutzt als LLM einen **lokalen Ollama-Endpoint** auf der Kaggle-Maschine —
+**kein API-Key, kein Secret**. Default: `http://127.0.0.1:11434/v1`, Modell
+`qwen2.5:1.5b` (per `--llm-base-url` / `--llm-model` änderbar). Vorhandene ENV
+(`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `FWR_SMALL_MODEL`, `FWR_LARGE_MODEL`,
+`HELA_MODEL`) hat **Vorrang**; der Endpoint wird real geprüft (`GET /v1/models`,
+`HTTP 200`), sonst bricht das Skript **fail-closed** ab (kein Fake, Guardrail 7).
+
+**Notebook-Zellen (vor dem Driver ausführen):**
+
+```bash
+# 1) Ollama installieren
+!curl -fsSL https://ollama.com/install.sh | sh
+# 2) Server im Hintergrund starten
+!nohup ollama serve >/tmp/ollama.log 2>&1 &
+# 3) Modell ziehen (einmalig)
+!ollama pull qwen2.5:1.5b
+```
+
+**Driver starten** (Repo vorher klonen; **kein Token inline** — Zugang per Kaggle-Secret
+oder öffentlichem Clone):
+
+```bash
+python kaggle/write_back_cycle.py --n 20 --gpu 0 \
+  --approver Batnini --approver Taoufik --workdir /kaggle/working \
+  --llm-base-url http://127.0.0.1:11434/v1 --llm-model qwen2.5:1.5b
+```
+
+Ergebnis: `/kaggle/working/write_back_cycle_result.json` mit `flushed`/`kept`/`loss`/
+`adapter_path` (zuzüglich `llm_base_url`, `llm_model`, `writes`, `pending`). §9.3:
+`write-new`/`write-update` werden **nur** mit **≥ 2 distinkten** `--approver`-Namen
+geschrieben; sonst bleibt der Write auf `ask` (klar gemeldet, nicht umgangen).
+
+Nützliche Umgebungsvariablen: `OPENAI_BASE_URL`, `FWR_SMALL_MODEL`, `FWR_LARGE_MODEL`,
+`HELA_MODEL`, `BASE_MODEL`, `SEED`.

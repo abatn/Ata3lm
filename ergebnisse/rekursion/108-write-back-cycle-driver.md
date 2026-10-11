@@ -30,7 +30,8 @@ Audit `e2e-699dda4` (D3): `slow_consolidation.write_back` war ein ehrlicher Stub
 
 ```bash
 python kaggle/write_back_cycle.py --n 20 --gpu 0 \
-  --approver Batnini --approver Taoufik --workdir /kaggle/working
+  --approver Batnini --approver Taoufik --workdir /kaggle/working \
+  --llm-base-url http://127.0.0.1:11434/v1 --llm-model qwen2.5:1.5b
 ```
 
 ## 4. Verifikation (lokal)
@@ -55,3 +56,27 @@ python kaggle/write_back_cycle.py --n 20 --gpu 0 \
 - arXiv:2608.22215 §3.4 (Write-Back: erfolgreich ⇒ Flush, sonst bleibt).
 - `connectors/gaama.md` (Kairos, validation-gated: kein Write ohne positiven Probe).
 - `AGENTS.md` §10.3/§9.3; `scripts/live_run.py` (reales Schreibmuster).
+
+## 8. Nachtrag — lokales Ollama statt Secrets (2026-10-11)
+
+**Anlass:** Der Driver war an einen externen LLM-Endpoint + `OPENAI_API_KEY` gebunden
+(flaky, Secret-Handling im Notebook). Der Betreiber setzt stattdessen **lokales
+Ollama auf Kaggle** ein; Secret-Loading im Skript ist **unnötig** und wurde entfernt.
+
+**Änderung (nur `kaggle/write_back_cycle.py`, additiv):**
+- **Entfernt:** `_SECRET_ENV`, `_load_kaggle_secrets()` (Secret-Handling) inkl. Aufruf.
+- **Neu:** `_configure_llm_env()` (setzt `OPENAI_BASE_URL`=`http://127.0.0.1:11434/v1`,
+  `OPENAI_API_KEY`=`ollama`, `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL`/`HELA_MODEL`=`--llm-model`;
+  vorhandene ENV hat Vorrang) · `_llm_endpoint_ok()` (realer `GET /v1/models`,
+  fail-closed) · CLI `--llm-base-url`/`--llm-model` · Ergebnis-Felder `llm_base_url`/`llm_model`.
+- **Korrigiert:** Key-Check → **echter Endpoint-Check**; `_ThetaProbe` nutzt
+  `dtype=` (transformers ≥ 4.56/5.x, PR #39782) mit `torch_dtype`-Fallback.
+
+**Verifikation (lokal, echt):** `ruff`/`format` grün · `ast.parse` ok · `--help` zeigt
+neue Flags · ENV-Setzung korrekt · Endpoint-Check **real gegen lokales Ollama** =
+`HTTP 200` · unreachbarer Port → `False` · **33 passed** (`test_slow_consolidation`,
+`test_kaggle_train_cli`).
+
+**Status:** `approved` (Batnini + Taoufik) — Artefakt bleibt **`unverifiziert`**: der
+echte **Kaggle-Lauf (GPU)** steht weiter aus (kein `torch`/`peft` lokal). Kaggle-Zellen
+(Ollama installieren/starten/pullen) dokumentiert in `kaggle/README.md`.
