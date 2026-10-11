@@ -136,6 +136,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 109 | `109-write-back-cycle-lauf.md` | System-Iteration (echter Kaggle-Lauf: Writes 8/9/1/2, pending 8, flushed 2/kept 6, loss 4.2931; HF `Batnini/knowledge-agent-write-back` sha `c421ba59…`; Mechanik belegt, Wirkung schwach) | **approved**: Batnini + Taoufik (§9.3) + externer HF-Beleg | AGENTS.md §10.3/§6/§9.3; arXiv:2608.22215 §3.4; HF-Repo |
 | 110 | `110-quellen-verifikation.md` | Quellen-Verifikation (externe Forschungsquellen real: TiMem/SAGE/SAHOO/Dual-Layer/Kairos/FadeMem/TERSE/Progress-Mirage ✅; 2 Fehlzuordnungen korrigiert; SAS-Bootstrap = Technik; „Falsifiable Release Gates" nicht verifizierbar) | **approved** (Dokumentation, §6) | SAGE arXiv:2609.36043; Progress Mirage arXiv:2607.25152; WhyLab `neogenesislab/WhyLab-NeurIPS2026` |
 | 111 | `111-acceptance-gate.md` | System-Iteration (neues Modul `data/memory/acceptance_gate.py` + Tests: SAGE-basierter per-Item-Gate `per_item_compare`/`sign_test_p`/`bootstrap_delta_ci`/`evaluate` → accept/reject/abstain; 100 % Cov; additiv, kein Wiring) | **pending** (Code+Tests lokal; echter Eval-Lauf offen) | SAGE arXiv:2609.36043; AGENTS.md §9.1d/§6; Rek. 103 |
+| 112 | `112-paired-gate-anbindung.md` | System-Iteration (CLI `scripts/paired_gate.py`: Θ′-Probe-JSONL → externer Grader → SAGE-Entscheid; additiv, kein Runner-Wiring) | **pending** (CLI+Tests lokal; echter Lauf offen) | SAGE arXiv:2609.36043; AGENTS.md §9.1d/§6; Rek. 103/111 |
 
 ## Guardrail
 
