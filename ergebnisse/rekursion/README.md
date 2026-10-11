@@ -137,6 +137,7 @@ Pflichtfelder pro Iteration (vgl. `skills/recursive-improve/SKILL.md`):
 | 110 | `110-quellen-verifikation.md` | Quellen-Verifikation (externe Forschungsquellen real: TiMem/SAGE/SAHOO/Dual-Layer/Kairos/FadeMem/TERSE/Progress-Mirage ✅; 2 Fehlzuordnungen korrigiert; SAS-Bootstrap = Technik; „Falsifiable Release Gates" nicht verifizierbar) | **approved** (Dokumentation, §6) | SAGE arXiv:2609.36043; Progress Mirage arXiv:2607.25152; WhyLab `neogenesislab/WhyLab-NeurIPS2026` |
 | 111 | `111-acceptance-gate.md` | System-Iteration (neues Modul `data/memory/acceptance_gate.py` + Tests: SAGE-basierter per-Item-Gate `per_item_compare`/`sign_test_p`/`bootstrap_delta_ci`/`evaluate` → accept/reject/abstain; 100 % Cov; additiv, kein Wiring) | **pending** (Code+Tests lokal; echter Eval-Lauf offen) | SAGE arXiv:2609.36043; AGENTS.md §9.1d/§6; Rek. 103 |
 | 112 | `112-paired-gate-anbindung.md` | System-Iteration (CLI `scripts/paired_gate.py`: Θ′-Probe-JSONL → externer Grader → SAGE-Entscheid; additiv, kein Runner-Wiring) | **pending** (CLI+Tests lokal; echter Lauf offen) | SAGE arXiv:2609.36043; AGENTS.md §9.1d/§6; Rek. 103/111 |
+| 113 | `113-paired-gate-echtlauf.md` | System-Iteration (Gate **real** ausgeführt auf F6-Antworten: strict `accept` 6/200 vs 0/200 p=1/64; substring `abstain` 9/200 vs 8/200 — reproduziert Rek. 103; Belege JSON) | **approved** (echter lokaler Lauf) | SAGE arXiv:2609.36043; AGENTS.md §9.1d/§6; Rek. 103/111/112 |
 
 ## Guardrail
 

@@ -72,7 +72,10 @@ def main() -> None:
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    base = AutoModelForCausalLM.from_pretrained(args.base_model, torch_dtype=dtype).cuda().eval()
+    try:  # transformers >= 4.56/5.x: `dtype` (PR #39782); sonst älterer Name (vgl. Rek. 109)
+        base = AutoModelForCausalLM.from_pretrained(args.base_model, dtype=dtype).cuda().eval()
+    except TypeError:
+        base = AutoModelForCausalLM.from_pretrained(args.base_model, torch_dtype=dtype).cuda().eval()
 
     def answer(model, question: str) -> str:
         enc = tok.apply_chat_template(
