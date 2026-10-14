@@ -22,6 +22,12 @@ import random
 import time
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+import sys  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "data" / "memory"))
+from acceptance_gate import base_rate_guard, grade  # noqa: E402  P-A: einheitlicher Grader
+
 
 def load_rows(path: str, n: int) -> list:
     """JSONL (`messages` [user, assistant]) → Liste (question, answer), erste n."""
@@ -97,9 +103,7 @@ def main() -> None:
         for question, gold in rows:
             pred = answer(model, question)
             out.append(pred)
-            p = pred.lower()
-            g = gold.lower().strip()
-            if g and (g in p or p[: len(g)] == g):
+            if grade(pred, gold):  # strict EM + Antwort-Extraktion (P-A, Rek. 115)
                 hit += 1
         preds[id(model)] = out  # Antworten für den Drift-Kalibrierungs-Dump
         return hit
@@ -139,6 +143,7 @@ def main() -> None:
         "em_base_ratio": round(em_base / len(rows), 4),
         "em_adapter_ratio": round(em_adapter / len(rows), 4),
         "delta": em_adapter - em_base,
+        "base_rate_guard": base_rate_guard(em_base, len(rows)),  # None = kein Einwand
         "gpu": torch.cuda.get_device_name(0),
         "seed": args.seed,
         "answers_file": str(answers_path),

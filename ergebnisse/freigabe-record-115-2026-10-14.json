@@ -1,0 +1,45 @@
+{
+  "subject": "Rekursion 115 (P-A Grader + Base-Rate-Guard)",
+  "stale_approval": {
+    "diff_sha": "cacfe66e07607698",
+    "approvers": [
+      "Batnini",
+      "Taoufik"
+    ],
+    "state": "approved",
+    "note": "Freigabe galt dem Stand VOR Ergänzung des Testfalls 'führende Leerzeile' (tests/test_grader_consistency.py). Nicht mehr gültig für den aktuellen Diff."
+  },
+  "current": {
+    "diff_sha": "8f205d99b66ffe7b",
+    "scope": "git diff HEAD der 5 getrackten Code-Dateien + tests/test_grader_consistency.py (untracked, Inhalt)",
+    "state": "approved",
+    "approvers": [
+      "Batnini",
+      "Taoufik"
+    ],
+    "note": "Zwei-Personen-Freigabe gesetzt (Auftrag 2026-10-14): approve(Batnini, diff_sha) + approve(Taoufik, diff_sha) + finalize() via data/memory/approval.py."
+  },
+  "tests": {
+    "make_test": "845 passed, coverage 100.00%, exit 0 (zweiter Lauf, nach letzter Teständerung)"
+  },
+  "source": "Freigabe-Auftrag im Session-Prompt 2026-10-14; Personen nicht kryptografisch authentifiziert (Rek. 108-Caveat)",
+  "history": [
+    {
+      "person": "Batnini",
+      "state": "first_approved",
+      "ts": "2026-10-14T12:59:58.806267+00:00",
+      "diff_sha": "8f205d99b66ffe7b"
+    },
+    {
+      "person": "Taoufik",
+      "state": "second_approved",
+      "ts": "2026-10-14T12:59:58.806280+00:00",
+      "diff_sha": "8f205d99b66ffe7b"
+    },
+    {
+      "person": "(finalize)",
+      "state": "approved",
+      "ts": "2026-10-14T12:59:58.806284+00:00"
+    }
+  ]
+}

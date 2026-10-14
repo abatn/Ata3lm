@@ -74,6 +74,9 @@ ROOT = Path(__file__).resolve().parents[1]
 for _p in ["data/memory", "data/memory/shared", "data/memory/tier3-working", "skills"]:
     sys.path.insert(0, str(ROOT / _p))
 
+from acceptance_gate import base_rate_guard as _base_rate_guard  # noqa: E402  P-A: Run-Level-Guard
+from acceptance_gate import grade as _grade  # noqa: E402  P-A: einheitlicher Grader (stdlib-only)
+
 STATUS = "Auftrag/unverifiziert-lokal"
 SOURCE = "AGENTS.md §10.3 · arXiv:2608.22215 §3.4"
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
@@ -104,23 +107,60 @@ def _record_to_task(record) -> Optional[dict]:
     return {"question": question, "fact": correct, "correct": correct}
 
 
-def _load_tasks(zsre_file: Path, n: int, seed: Optional[int]) -> tuple:
+def _eval_questions(eval_file: Optional[Path]) -> set:
+    """Fragen der Eval-Datei (JSONL, TRL-Chat) als Menge – Held-out-Ausschluss.
+
+    Ohne Datei (None) leere Menge. Fehlt die Datei, wird **laut** abgebrochen.
+    """
+    if eval_file is None:
+        return set()
+    questions = set()
+    for line in Path(eval_file).read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        msgs = json.loads(line).get("messages") or []
+        if msgs:
+            questions.add(str(msgs[0].get("content", "")).strip())
+    return questions
+
+
+def _load_tasks(
+    zsre_file: Path,
+    n: int,
+    seed: Optional[int],
+    *,
+    split: str = "train",
+    exclude_questions: Optional[set] = None,
+) -> tuple:
     """`n` echte ZsRE-Aufgaben laden (Streaming, gesampelt) + Korpus-Meta.
 
-    Neue Quelle (§9) ⇒ Human-Gate `ask`; der Korpus wird lediglich **vorbereitet**.
+    §9.1c/P-B: Default-Split ist jetzt `train` (vorher `validation`, das mit
+    dem Eval-Korpus identisch war). `exclude_questions` schließt Eval-Fragen
+    aus dem Training aus (disjunkter Held-out-Split). Neue Quelle (§9) ⇒
+    Human-Gate `ask`; der Korpus wird lediglich **vorbereitet**.
     """
     import zsre_corpus
 
-    meta = zsre_corpus.build_zsre_corpus(zsre_file, n=n, split="validation")
+    meta = zsre_corpus.build_zsre_corpus(zsre_file, n=n, split=split)
     records = [json.loads(line) for line in Path(zsre_file).read_text(encoding="utf-8").splitlines() if line.strip()]
+    return select_tasks(records, n, seed, exclude_questions=exclude_questions), meta
+
+
+def select_tasks(records: list, n: int, seed: Optional[int], *, exclude_questions: Optional[set] = None) -> list:
+    """Reine Auswahl (ohne Netz): Records → Aufgaben, Eval-Fragen ausgeschlossen.
+
+    Disjunktheit (P-B): Fragen aus `exclude_questions` (Eval-Set) werden **vor**
+    Seed-Shuffle und Kappung entfernt, damit Training und Eval keine Frage teilen.
+    """
+    excluded = exclude_questions or set()
     tasks = []
     for record in records:
         task = _record_to_task(record)
-        if task is not None:
+        if task is not None and task["question"] not in excluded:
             tasks.append(task)
     if seed is not None:
         random.Random(seed).shuffle(tasks)
-    return tasks[:n], meta
+    return tasks[:n]
 
 
 # ------------------------------------------------------------------- Approvers
@@ -294,6 +334,18 @@ def _make_train_fn(out_dir: Path, gpu: str, seed: int, base_model: str):
 
 
 # ------------------------------------------------------------------- Θ′-Probe
+def _run_guard(probe_results: list):
+    """Run-Level-Guard für den Flush (P-A, T1): Base-Rate-Schutz über alle Probes.
+
+    Zählt Basis-Treffer (Base-Antwort == Gold, strict) und gibt den Abstain-Grund
+    aus `acceptance_gate.base_rate_guard` zurück; ``None`` = kein Einwand.
+    Ohne Ergebnisse ⇒ Einwand ("keine Items").
+    """
+    rows = [r for r in probe_results if isinstance(r, dict)]
+    base_hits = sum(1 for r in rows if r.get("gold") and _grade(r.get("base_answer", ""), r["gold"]))
+    return _base_rate_guard(base_hits, len(rows))
+
+
 class _ThetaProbe:
     """Externes Probe-Signal Θ′ (Base-vor-Adapter, N8-Muster).
 
@@ -356,7 +408,8 @@ class _ThetaProbe:
         gold = str(item.get("fact") or "").strip()
         base_answer = self._answer(self._base, question)
         adapter_answer = self._answer(self._adapter, question)
-        passed = bool(gold) and gold.lower() in adapter_answer.lower()
+        # P-A: derselbe Grader wie Flush/Gate (strict EM, Antwort-Extraktion).
+        passed = bool(gold) and _grade(adapter_answer, gold)
         return {
             "passed": passed,
             "answer": adapter_answer,
@@ -383,6 +436,11 @@ def _parse_args(argv=None):
     parser.add_argument("--gpu", default="0", help="CUDA_VISIBLE_DEVICES für das Training (Default: 0)")
     parser.add_argument("--seed", type=int, default=42, help="Seed für Auswahl/Training (Default: 42)")
     parser.add_argument(
+        "--eval-file",
+        default=None,
+        help="Eval-JSONL (TRL-Chat); deren Fragen werden aus dem Training ausgeschlossen (P-B, Held-out).",
+    )
+    parser.add_argument(
         "--llm-base-url",
         default=DEFAULT_LLM_BASE_URL,
         help=f"Lokaler Ollama-Endpoint (Default: {DEFAULT_LLM_BASE_URL})",
@@ -391,6 +449,16 @@ def _parse_args(argv=None):
         "--llm-model",
         default=DEFAULT_LLM_MODEL,
         help=f"Ollama-Modell für Router/Reflective-Agent (Default: {DEFAULT_LLM_MODEL})",
+    )
+    parser.add_argument(
+        "--fwr-small-model",
+        default=None,
+        help="Kaskade Stufe 1 (FWR_SMALL_MODEL). Default: --llm-model (P-C, Variante A).",
+    )
+    parser.add_argument(
+        "--fwr-large-model",
+        default=None,
+        help="Kaskade Stufe 2 (FWR_LARGE_MODEL). Default: --llm-model (P-C, Variante A).",
     )
     parser.add_argument(
         "--approver",
@@ -404,7 +472,7 @@ def _parse_args(argv=None):
 
 
 # --------------------------------------------------------------- LLM (Ollama)
-def _configure_llm_env(base_url: str, model: str) -> dict:
+def _configure_llm_env(base_url: str, model: str, *, small_model: Optional[str] = None, large_model: Optional[str] = None) -> dict:
     """Lokalen Ollama-Endpoint + Modelle in die ENV setzen (vor jedem LLM-Import).
 
     `fast_write_router` liest `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL` **beim Import**,
@@ -416,8 +484,8 @@ def _configure_llm_env(base_url: str, model: str) -> dict:
     for key, value in {
         "OPENAI_BASE_URL": base_url,
         "OPENAI_API_KEY": "ollama",
-        "FWR_SMALL_MODEL": model,
-        "FWR_LARGE_MODEL": model,
+        "FWR_SMALL_MODEL": small_model or model,
+        "FWR_LARGE_MODEL": large_model or model,
         "HELA_MODEL": model,
     }.items():
         if not os.environ.get(key):
@@ -467,7 +535,15 @@ def _torchao_incompatible() -> Optional[str]:
 def main(argv=None) -> int:
     args = _parse_args(argv)
     # LLM-ENV (Ollama) VOR jedem Import von fast_write_router/reflective_agent.
-    _configure_llm_env(args.llm_base_url, args.llm_model)
+    # P-C (Variante A): Kaskade-Modelle getrennt; Default = gemeinsames --llm-model.
+    # `applied` enthält die tatsächlich gesetzten Werte (Laufzeit-Protokoll).
+    applied_env = _configure_llm_env(
+        args.llm_base_url,
+        args.llm_model,
+        small_model=args.fwr_small_model,
+        large_model=args.fwr_large_model,
+    )
+    print(f"LLM-ENV (Laufzeit-Protokoll, P-C): {applied_env}", flush=True)
     # GPU-Wahl VOR jedem torch-Import (wie kaggle/train_slow_consolidation.py).
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
@@ -513,7 +589,13 @@ def main(argv=None) -> int:
 
     # 1) Reale Fakten (Erfahrung).
     try:
-        tasks, corpus_meta = _load_tasks(workdir / "zsre_validation.jsonl", args.n, args.seed)
+        eval_file = Path(args.eval_file) if getattr(args, "eval_file", None) else None
+        tasks, corpus_meta = _load_tasks(
+            workdir / "zsre_validation.jsonl",
+            args.n,
+            args.seed,
+            exclude_questions=_eval_questions(eval_file),
+        )
     except Exception as exc:  # noqa: BLE001 - echte Lade-Fehler klar melden
         print(f"FEHLER: ZsRE-Korpus nicht ladbar ({type(exc).__name__}: {exc}).", file=sys.stderr)
         return 1
@@ -554,6 +636,7 @@ def main(argv=None) -> int:
         tier3_dir=tier3_dir,
         provenance_log=provenance_log,
         state_path=state_path,
+        guard_fn=_run_guard,
     )
 
     # 7) Ergebnis-JSON.

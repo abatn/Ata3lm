@@ -142,6 +142,12 @@ note:"volle Menge aus Quelle verfuegbar; hier gesampeltes n"}`.
   externem HF-Beleg; **offen** bleiben belastbarere Probe-Metriken (mehr als
   Teilstring) und eine Wirkungsaussage über den SFT-Schritt.
 
+## 6a. Nachtrag Diff/Drift (P-D, 2026-10-14, §9.1d)
+
+- **Diff:** keiner in diesem Lauf (Lauf-Artefakt, kein Code-Patch). Nachträglich: `kaggle/write_back_cycle.py` bekam später den Held-out-Split (Rek. 114) — dieser Lauf nutzte noch `split="validation"`.
+- **Drift:** **nicht gemessen** (kein Zeilen-Δ-Wert vorhanden). Kein `n/a`: der Lauf hat keine Drift-Messung erhalten; Angabe wird nicht nachträglich erfunden.
+- **Score-Δ:** nicht separat gemessen (Teilstring-Metrik, siehe Rek. 113).
+
 ## 7. Quellen (belegt)
 
 - `AGENTS.md` §10.3 (Write-Back / Slow Consolidation), §6 (keine Erfindungen,

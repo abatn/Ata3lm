@@ -18,3 +18,6 @@ htmlcov/
 #git_token_private
 know_git.txt
 .serena/
+
+# Lokale Agent-Typdefinitionen (nicht versioniert, §9.2 Privacy)
+.agents/

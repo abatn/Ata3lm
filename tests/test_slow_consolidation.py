@@ -308,6 +308,50 @@ def test_write_back_probe_positiv_flusht(tmp_path):
     }
 
 
+def test_write_back_guard_einwand_abstain_kein_flush(tmp_path):
+    """Run-Level-Guard-Einwand ⇒ abstain: keine Verbuchung, kein Flush (T1, AGENTS.md §9.1d)."""
+    tier3, log = _fixture(tmp_path)
+    state = tmp_path / "state.json"
+    seen = []
+
+    def guard(results):
+        seen.append(len(results))
+        return "base_rate zu niedrig"
+
+    res = sc.write_back(
+        tmp_path / "sft.jsonl",
+        "qwen3-8B",
+        tier3_dir=tier3,
+        provenance_log=log,
+        state_path=state,
+        train_fn=lambda path, model: {"ok": True},
+        probe_fn=lambda item: {"passed": True},
+        guard_fn=guard,
+    )
+    assert seen == [2]  # Guard sieht alle Probe-Ergebnisse des Laufs
+    assert res["ok"] is False and res["decision"] == "abstain" and res["flushed"] == []
+    assert sorted(res["kept"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+    assert not state.exists()  # nichts verbucht
+    assert (tier3 / "hauptstadt-xylophonia.md").exists()
+
+
+def test_write_back_guard_kein_einwand_flusht(tmp_path):
+    """Guard ohne Einwand (None) ⇒ Verhalten wie ohne Guard: Flush nach positivem Probe."""
+    tier3, log = _fixture(tmp_path)
+    state = tmp_path / "state.json"
+    res = sc.write_back(
+        tmp_path / "sft.jsonl",
+        "qwen3-8B",
+        tier3_dir=tier3,
+        provenance_log=log,
+        state_path=state,
+        train_fn=lambda path, model: {"ok": True},
+        probe_fn=lambda item: {"passed": True},
+        guard_fn=lambda results: None,
+    )
+    assert res["ok"] is True and sorted(res["flushed"]) == ["hauptstadt-frankreich", "hauptstadt-xylophonia"]
+
+
 def test_write_back_probe_negativ_kein_flush(tmp_path):
     """Negativer Probe ⇒ kein Mark, kein Flush; Fakten bleiben im Puffer (§10.3)."""
     tier3, log = _fixture(tmp_path)

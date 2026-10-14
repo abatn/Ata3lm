@@ -423,6 +423,7 @@ def write_back(
     tier3_dir=None,
     provenance_log=None,
     state_path=None,
+    guard_fn=None,
 ) -> dict:
     """Geschlossener Zyklus Θ→Θ′ (Write-Back) – **injizierbar, ohne GPU** (§10.3).
 
@@ -487,19 +488,38 @@ def write_back(
         }
 
     # 4) Probe-gesteuertes Verbuchen (externes Signal; nur positive Fakten).
-    flush_keys: list = []
+    positives: list = []
+    probe_results: list = []
     for item in pending:
         raw = probe_fn(item) if probe_fn is not None else None
+        probe_results.append(raw)
         if state_path is not None and _probe_positive(raw):
-            mark_consolidated(
-                [item["key"]],
-                state_path,
-                success=True,
-                facts={item["key"]: item["fact"]},
-                model=model,
-                probe_passed=True,
-            )
-            flush_keys.append(item["key"])
+            positives.append(item)
+
+    # 4b) Run-Level-Guard (z. B. Base-Rate, AGENTS.md §9.1d/§10.3): Einwand ⇒ abstain,
+    #     KEINE Verbuchung und KEIN Flush.
+    if guard_fn is not None:
+        reason = guard_fn(probe_results)
+        if reason:
+            return {
+                "ok": False,
+                "decision": "abstain",
+                "flushed": [],
+                "kept": [p["key"] for p in pending],
+                "reason": reason,
+            }
+
+    flush_keys: list = []
+    for item in positives:
+        mark_consolidated(
+            [item["key"]],
+            state_path,
+            success=True,
+            facts={item["key"]: item["fact"]},
+            model=model,
+            probe_passed=True,
+        )
+        flush_keys.append(item["key"])
 
     # 5) Flush **nur** nach Beleg (oben verbucht, success=True) – F1 prüft den Hash.
     res = flush(flush_keys, tier3_dir, state_path=state_path)

@@ -92,6 +92,60 @@ def bootstrap_delta_ci(
     return {"delta": delta, "lo": lo, "hi": hi, "n_resamples": n_resamples, "seed": seed}
 
 
+_PUNCT = str.maketrans({c: " " for c in ".,;:!?\"'()[]{}"})
+
+
+def extract_answer(text: str) -> str:
+    """Erste nicht-leere Zeile der Modellausgabe (Antwort-Extraktion vor dem EM).
+
+    Verhindert, dass Gelaber nach der eigentlichen Antwort die Bewertung verfälscht
+    (Rek. 113: EM auf frei generiertem Text ergab 0/200 ohne Extraktion).
+    """
+    for line in str(text or "").splitlines():
+        if line.strip():
+            return line.strip()
+    return ""
+
+
+def _normalize(text: str) -> str:
+    return " ".join(str(text or "").lower().translate(_PUNCT).split())
+
+
+def grade(answer: str, gold: str, *, mode: str = "strict") -> bool:
+    """Einheitlicher Grader für Flush, Probe und Gate (P-A, Rek. 115).
+
+    ``strict`` (Default, Primärmetrik laut AGENTS.md §10.5 „Exact Match"):
+    erste Antwortzeile, normalisiert (lower, Satzzeichen weg, Whitespace
+    kollabiert), muss **gleich** dem normalisierten Gold sein. Leeres Gold → False.
+    ``substring`` (nur Sensitivität, nie Entscheidungsgrundlage): Gold ist
+    Teilstring der Antwortzeile.
+    """
+    g = _normalize(gold)
+    if not g:
+        return False
+    a = _normalize(extract_answer(answer))
+    if mode == "strict":
+        return a == g
+    if mode == "substring":
+        return g in a
+    raise ValueError(f"unknown grader mode: {mode!r}")
+
+
+def base_rate_guard(base_hits: int, n: int, *, min_base_hits: int = 1) -> str | None:
+    """Base-Rate-Schutz (SAGE arXiv:2609.36043 → abstain bei Denominator-0-Risiko).
+
+    Liefert einen Grund, wenn das Basismodell zu selten trifft, um einen Effekt
+    zu interpretieren (z. B. ``em_base == 0`` ⇒ jeder Mini-Effekt wirkt sonst
+    „signifikant"). ``None`` = kein Einwand. Ergebnis ist ein Abstain-Grund,
+    kein Accept.
+    """
+    if n <= 0:
+        return "keine Items"
+    if base_hits < min_base_hits:
+        return f"base_rate zu niedrig ({base_hits}/{n} < {min_base_hits}) → abstain"
+    return None
+
+
 def evaluate(
     base: list[bool],
     cand: list[bool],

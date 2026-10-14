@@ -52,6 +52,12 @@ python scripts/paired_gate.py --answers theta_answers_f6.jsonl --mode substring 
 - Rek. 103 (F6-Baseline), Rek. 111 (Gate-Kern), Rek. 112 (CLI).
 - HF `Batnini/knowledge-agent-sft-lora` (`theta_answers_f6.jsonl`, 200 Zeilen).
 
+## 5a. Nachtrag Diff/Drift (P-D, 2026-10-14, §9.1d)
+
+- **Diff:** keiner — dieser Lauf hat keinen Code geändert (reine Auswertung).
+- **Drift:** **nicht gemessen** (kein Zeilen-Δ, kein `drift_calibrate`-Wert). Nicht `n/a` gesetzt, weil die Auswertung nicht rein additiv gegenüber dem Modell geprüft wurde; kein Wert erfunden.
+- **Score-Δ:** strict 6/200 vs 0/200 (p=1/64); substring 9/200 vs 8/200 (abstain). Siehe oben.
+
 ## 6. Nächster Schritt
 
 - Derselbe Gate auf dem **Write-Back-Adapter** (`write_back_cycle.py`) im Kaggle-Lauf (P-109).
