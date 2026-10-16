@@ -516,6 +516,7 @@ def test_recursion_runner_hook(tmp_path):
 def test_lifecycle_runner_hook(tmp_path, monkeypatch):
     import lifecycle_runner as lr
 
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # Denken offline -> NOOP (kein Fake)
     # Isolation: der Cold-Start-Bootstrap darf NICHT die globale Referenz beschreiben.
     monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(tmp_path / "drift-reference.json"))
     tier3 = tmp_path / "tier3"

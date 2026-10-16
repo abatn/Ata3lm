@@ -340,6 +340,11 @@ def _run_guard(probe_results: list):
     Zählt Basis-Treffer (Base-Antwort == Gold, strict) und gibt den Abstain-Grund
     aus `acceptance_gate.base_rate_guard` zurück; ``None`` = kein Einwand.
     Ohne Ergebnisse ⇒ Einwand ("keine Items").
+
+    NICHT am Write-Back verdrahtet (Rek. 118): arXiv:2608.22215 §3.4 kennt nur die
+    Per-Fakt-Regel ``mean(EM) ≥ τ_flush`` ohne Base-Rate-Bedingung; neu eingeführte
+    Fakten (Base = 0) würden sonst nie geflusht. Die Funktion bleibt für andere
+    Pfade erhalten.
     """
     rows = [r for r in probe_results if isinstance(r, dict)]
     base_hits = sum(1 for r in rows if r.get("gold") and _grade(r.get("base_answer", ""), r["gold"]))
@@ -638,7 +643,6 @@ def main(argv=None) -> int:
         tier3_dir=tier3_dir,
         provenance_log=provenance_log,
         state_path=state_path,
-        guard_fn=_run_guard,
     )
 
     # 7) Ergebnis-JSON.
