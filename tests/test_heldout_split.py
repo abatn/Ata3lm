@@ -75,7 +75,7 @@ def test_flush_and_probe_share_grader_strict_decision():
     import acceptance_gate as ag
 
     assert wbc._grade is ag.grade
-    assert ag.grade("Publishing.", "publishing") is True          # normalisiert
+    assert ag.grade("Publishing.", "publishing") is True  # normalisiert
     assert ag.grade("publishing house in Beijing", "publishing") is False  # strict: kein Teilstring
     assert ag.grade("publishing\nfoo bar", "publishing") is True  # erste Zeile extrahiert
     assert ag.grade("", "publishing") is False

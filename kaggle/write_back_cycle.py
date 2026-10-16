@@ -472,7 +472,9 @@ def _parse_args(argv=None):
 
 
 # --------------------------------------------------------------- LLM (Ollama)
-def _configure_llm_env(base_url: str, model: str, *, small_model: Optional[str] = None, large_model: Optional[str] = None) -> dict:
+def _configure_llm_env(
+    base_url: str, model: str, *, small_model: Optional[str] = None, large_model: Optional[str] = None
+) -> dict:
     """Lokalen Ollama-Endpoint + Modelle in die ENV setzen (vor jedem LLM-Import).
 
     `fast_write_router` liest `FWR_SMALL_MODEL`/`FWR_LARGE_MODEL` **beim Import**,
