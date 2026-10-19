@@ -1,5 +1,6 @@
 # 127 — Code-Änderung (additive LoRA-CLI-Args) + Kaggle-Lauf B2 (Vorbereitung)
 
+**Status:** approved (Batnini + Taoufik, §9.3 Zwei-Personen, Chat 2026-10-19)
 **Datum:** 2026-10-19
 **Auftrag:** Write-Back-Verbesserung Schritt 2+3 (Code + Kaggle-Lauf B2) gemäß
 Nutzer-Prompt 2026-10-19. **Gate:** Batnini + Taoufik freigegeben (§9 Z.121,
