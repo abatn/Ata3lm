@@ -22,6 +22,14 @@ Aufruf (Kaggle) – CLI (bevorzugt) oder Umgebungsvariablen:
     MAX_LENGTH, SEED, HF_TOKEN, ZSRE_N, ZSRE_SPLIT, CAPYBARA_N, CAPYBARA_SPLIT.
     CLI-Argumente ueberschreiben die ENV-Werte.
 
+LoRA-Parametrierung (additiv, Rek 127; Defaults = bisheriges Verhalten):
+    LORA_R (Default 16), LORA_ALPHA (Default 32), LORA_DROPOUT (Default 0.05),
+    LORA_USE_RSLORA (0|1, Default 0; rsLoRA: alpha/sqrt(r), arXiv:2312.03732),
+    LORA_PLUS_RATIO (float > 0 aktiviert LoRA+: eta_B = ratio * eta_A,
+                     arXiv:2402.12354; Default 0 = deaktiviert),
+    FULL_FT (0|1, Default 0; 1 = Full Fine-Tuning ohne LoRA/Quantisierung,
+             arXiv:2405.09673).
+
 Hinweis (Hardware, belegt): bf16-Mathematik braucht Compute Capability >= 8.0
 (Ampere+). Auf Turing (T4, sm_75) faellt das Skript automatisch auf fp16 zurueck
 (`torch.cuda.get_device_capability`), weil der TRL-Fused-Kernel sonst mit
@@ -50,6 +58,11 @@ LEARNING_RATE = float(os.environ.get("LEARNING_RATE", "2e-4"))
 LORA_R = int(os.environ.get("LORA_R", "16"))
 LORA_ALPHA = int(os.environ.get("LORA_ALPHA", "32"))
 LORA_DROPOUT = float(os.environ.get("LORA_DROPOUT", "0.05"))
+# Rek 127 (additiv, §9-Gate Batnini+Taoufik erteilt): rsLoRA / LoRA+ / Full-FT.
+# Defaults = bisheriges Verhalten (use_rslora=False, lora_plus deaktiviert, LoRA aktiv).
+LORA_USE_RSLORA = os.environ.get("LORA_USE_RSLORA", "0").strip().lower() in ("1", "true", "yes")
+LORA_PLUS_RATIO = float(os.environ.get("LORA_PLUS_RATIO", "0") or "0")  # 0.0 = deaktiviert
+FULL_FT = os.environ.get("FULL_FT", "0").strip().lower() in ("1", "true", "yes")
 DATASET_NAME = "consolidation_sft.jsonl"
 
 # Datenquelle: zsre (§10.3-Korpus) | local (M1-JSONL) | capybara (DEMO)
@@ -401,24 +414,33 @@ def main(argv=None):
     #  https://github.com/huggingface/accelerate/blob/v1.15.0/src/accelerate/accelerator.py#L563-L584
     #  https://github.com/huggingface/peft/blob/v0.21.2/src/peft/tuners/lora/layer.py#L1100-L1113
     #  https://huggingface.co/docs/peft/main/en/developer_guides/quantization
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=compute_dtype,
-    )
+    # Rek 127 (additiv): LoRA-Parametrierung je nach FULL_FT / LORA_USE_RSLORA.
+    # Defaults = bisheriges Verbatim-Verhalten (LoRA r=16, kein rsLoRA, kein LoRA+).
+    if FULL_FT:
+        # Full Fine-Tuning: kein LoRA, keine 4-Bit-Quantisierung (Vergleichsreferenz,
+        # arXiv:2405.09673). Modell in compute_dtype, alle Parameter trainierbar.
+        bnb_config = None
+        lora_config = None
+    else:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=compute_dtype,
+        )
+        lora_config = LoraConfig(
+            r=LORA_R,
+            lora_alpha=LORA_ALPHA,
+            lora_dropout=LORA_DROPOUT,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules="all-linear",  # QLoRA-Stil (PEFT-Doku)
+            use_rslora=LORA_USE_RSLORA,  # rsLoRA: alpha/sqrt(r) statt alpha/r (arXiv:2312.03732)
+        )
+
     model_init_kwargs = {"dtype": compute_dtype}
     if hf_token:
         model_init_kwargs["token"] = hf_token
-
-    lora_config = LoraConfig(
-        r=LORA_R,
-        lora_alpha=LORA_ALPHA,
-        lora_dropout=LORA_DROPOUT,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules="all-linear",  # QLoRA-Stil (PEFT-Doku)
-    )
 
     sft_args = SFTConfig(
         output_dir=ADAPTER_DIR,
@@ -442,14 +464,39 @@ def main(argv=None):
         report_to="none",
     )
 
-    trainer = SFTTrainer(
+    # Rek 127 (additiv): Trainer-Aufruf je nach Modus.
+    # - Default (LoRA): peft_config + quantization_config wie bisher.
+    # - FULL_FT: peft_config=None, quantization_config=None (trainiert alle Parameter).
+    # - LORA_PLUS_RATIO > 0: zusätzlicher LoRA+-Optimizer (arXiv:2402.12354),
+    #   eta_B = ratio * eta_A; braucht Trainer-Init VOR Optimizer-Erzeugung.
+    trainer_kwargs = dict(
         model=BASE_MODEL,
         args=sft_args,
         train_dataset=dataset,
-        peft_config=lora_config,
-        quantization_config=bnb_config,
         processing_class=tokenizer,
     )
+    if not FULL_FT:
+        trainer_kwargs["peft_config"] = lora_config
+        trainer_kwargs["quantization_config"] = bnb_config
+
+    trainer = SFTTrainer(**trainer_kwargs)
+
+    if LORA_PLUS_RATIO > 0 and not FULL_FT:
+        # LoRA+: getrennte LRs für A (eta_A = LEARNING_RATE) und B (eta_B = ratio * eta_A).
+        # Quelle: peft.optim.create_loraplus_optimizer (peft >= 0.11, geprüft peft 0.21.2).
+        from peft.optim import create_loraplus_optimizer
+
+        optimizer_cls = type(trainer.optimizer) if trainer.optimizer is not None else None
+        if optimizer_cls is None:
+            from transformers import AdamW
+
+            optimizer_cls = AdamW
+        trainer.optimizer = create_loraplus_optimizer(
+            model=trainer.model,
+            optimizer_cls=optimizer_cls,
+            optim_args={"lr": LEARNING_RATE},
+            loraplus_lr_ratio=LORA_PLUS_RATIO,
+        )
 
     train_result = trainer.train()
     trainer.save_model(ADAPTER_DIR)
@@ -484,6 +531,9 @@ def main(argv=None):
         "learning_rate": LEARNING_RATE,
         "lora_r": LORA_R,
         "lora_alpha": LORA_ALPHA,
+        "lora_use_rslora": LORA_USE_RSLORA,
+        "lora_plus_ratio": LORA_PLUS_RATIO,
+        "full_ft": FULL_FT,
         "compute_dtype": str(compute_dtype).replace("torch.", ""),
         "amp": "disabled (fp16=False, bf16=False)",
         "compute_capability": f"sm_{cc_major}{cc_minor}",

@@ -287,7 +287,19 @@ def _gpu_available() -> tuple:
     return True, torch.cuda.get_device_name(0)
 
 
-def _make_train_fn(out_dir: Path, gpu: str, seed: int, base_model: str):
+def _make_train_fn(
+    out_dir: Path,
+    gpu: str,
+    seed: int,
+    base_model: str,
+    *,
+    lora_r: Optional[int] = None,
+    lora_alpha: Optional[int] = None,
+    learning_rate: Optional[float] = None,
+    use_rslora: bool = False,
+    full_ft: bool = False,
+    lora_plus_ratio: Optional[float] = None,
+):
     """`train_fn(dataset, model)` = **echter** Subprocess des Kaggle-Trainingsskripts.
 
     Aufruf: `python kaggle/train_slow_consolidation.py --dataset <corpus> --out
@@ -296,6 +308,9 @@ def _make_train_fn(out_dir: Path, gpu: str, seed: int, base_model: str):
     (`BASE_MODEL`, `SEED`) gesetzt. Erfolg nur bei `kaggle_output.json` →
     `{"ok": True, "loss": …, "adapter_path": …}`; sonst `{"ok": False}`
     (fail-closed ⇒ `write_back` flusht nicht).
+
+    Rek 127 (additiv): optionale LoRA-Parameter werden als ENV durchgereicht,
+    **nur** wenn gesetzt (Default = bisheriges Verhalten des Train-Skripts).
     """
 
     def train_fn(dataset_path, model):
@@ -303,6 +318,19 @@ def _make_train_fn(out_dir: Path, gpu: str, seed: int, base_model: str):
         env = dict(os.environ)
         env["BASE_MODEL"] = str(model or base_model)
         env["SEED"] = str(seed)
+        # Rek 127: LoRA-ENV nur bei explizitem Arg (additiv, kein Default-Override).
+        if lora_r is not None:
+            env["LORA_R"] = str(lora_r)
+        if lora_alpha is not None:
+            env["LORA_ALPHA"] = str(lora_alpha)
+        if learning_rate is not None:
+            env["LEARNING_RATE"] = str(learning_rate)
+        if use_rslora:
+            env["LORA_USE_RSLORA"] = "1"
+        if full_ft:
+            env["FULL_FT"] = "1"
+        if lora_plus_ratio is not None:
+            env["LORA_PLUS_RATIO"] = str(lora_plus_ratio)
         cmd = [
             sys.executable,
             str(TRAIN_SCRIPT),
@@ -473,6 +501,36 @@ def _parse_args(argv=None):
         help="Natürliche Person für die §9.3-Zwei-Personen-Freigabe (mehrfach). "
         "Mit ≥ 2 distinkten Namen wird `self_update` aktiviert; sonst bleibt der Write auf `ask`.",
     )
+    # Rek 127 (additiv, §9-Gate Batnini+Taoufik): LoRA-Parameter für den
+    # Kaggle-Lauf B2. Default None = bisheriges Verhalten (ENV-unverändert).
+    parser.add_argument(
+        "--lora-r", type=int, default=None, help="LoRA-Rang r (ENV LORA_R; Default im Train-Skript: 16)"
+    )
+    parser.add_argument(
+        "--lora-alpha", type=int, default=None, help="LoRA-Alpha (ENV LORA_ALPHA; Default im Train-Skript: 32)"
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+        help="Learning Rate eta_A (ENV LEARNING_RATE; Default im Train-Skript: 2e-4)",
+    )
+    parser.add_argument(
+        "--use-rslora",
+        action="store_true",
+        help="rsLoRA-Skalierung alpha/sqrt(r) aktivieren (ENV LORA_USE_RSLORA=1; arXiv:2312.03732)",
+    )
+    parser.add_argument(
+        "--full-ft",
+        action="store_true",
+        help="Full Fine-Tuning ohne LoRA/Quantisierung (ENV FULL_FT=1; arXiv:2405.09673)",
+    )
+    parser.add_argument(
+        "--lora-plus-ratio",
+        type=float,
+        default=None,
+        help="LoRA+-Ratio lambda: eta_B = lambda * eta_A (ENV LORA_PLUS_RATIO; arXiv:2402.12354)",
+    )
     return parser.parse_args(argv)
 
 
@@ -634,7 +692,18 @@ def main(argv=None) -> int:
 
     # 4)+5) Echtes Training + echte Θ′-Probe (Injektionspunkte von write_back).
     train_out = workdir / TRAIN_OUT_NAME
-    train_fn = _make_train_fn(train_out, args.gpu, args.seed, args.base_model)
+    train_fn = _make_train_fn(
+        train_out,
+        args.gpu,
+        args.seed,
+        args.base_model,
+        lora_r=args.lora_r,
+        lora_alpha=args.lora_alpha,
+        learning_rate=args.learning_rate,
+        use_rslora=args.use_rslora,
+        full_ft=args.full_ft,
+        lora_plus_ratio=args.lora_plus_ratio,
+    )
     probe_fn = _ThetaProbe(args.base_model, train_out / "adapter", _questions_by_key(tasks))
 
     # 6) Geschlossener Zyklus (Flush nur nach positivem Probe + Hash-Gleichheit).
@@ -662,6 +731,13 @@ def main(argv=None) -> int:
         "workdir": str(workdir),
         "self_update": self_update,
         "approvers": approvers,
+        # Rek 127: LoRA-Parameter des Laufs (additiv, Provenienz).
+        "lora_r": args.lora_r,
+        "lora_alpha": args.lora_alpha,
+        "learning_rate": args.learning_rate,
+        "use_rslora": args.use_rslora,
+        "full_ft": args.full_ft,
+        "lora_plus_ratio": args.lora_plus_ratio,
         "writes": counts,
         "write_details": details,
         "provenance_log": provenance_log,
