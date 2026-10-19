@@ -114,7 +114,9 @@ def test_store_file_freigabe_zwei_personen(tmp_path):
     )
     assert ok["ok"] is True and ok["provenance"]["approval"]["state"] == "approved"
     assert provenance.verify_record(ok["provenance"])["ok"] is True  # Freigabe gebunden (K3)
-    bad = wg.store_file(target=tmp_path / "bad.md", content="neu", now=1.0, require_approval=True, approvers=["Solo"], verified=True)
+    bad = wg.store_file(
+        target=tmp_path / "bad.md", content="neu", now=1.0, require_approval=True, approvers=["Solo"], verified=True
+    )
     assert bad["ok"] is False and bad["approval"] == "first_approved"
     assert not (tmp_path / "bad.md").exists()
 

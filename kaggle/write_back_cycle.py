@@ -627,9 +627,7 @@ def main(argv=None) -> int:
 
     questions_dict = _questions_by_key(tasks)
     pending = (
-        slow_consolidation.collect_pending(
-            tier3_dir, provenance_log, state_path=state_path, questions=questions_dict
-        )
+        slow_consolidation.collect_pending(tier3_dir, provenance_log, state_path=state_path, questions=questions_dict)
         if provenance_log
         else []
     )
