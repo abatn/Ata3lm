@@ -134,7 +134,7 @@ def _phase_compare(ctx: dict) -> dict:
     score = (ctx["successes"] / n) if n else 0.0
     gate = _compare_gate(score) if observed else gate_labels.ASK
     signal = (
-        "externes Ground-Truth-Signal"
+        "Aufrufer-Report (kein externes Probe)"
         if observed
         else "kein externes Signal (unbeobachtet) – kein Ground-Truth-Claim (§1/§6)"
     )
@@ -145,6 +145,7 @@ def _phase_compare(ctx: dict) -> dict:
         "gate": gate,
         "signal": signal,
         "observed": observed,
+        "self_report": self_report,
     }
 
 

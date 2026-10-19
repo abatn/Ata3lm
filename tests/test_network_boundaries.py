@@ -104,6 +104,7 @@ def test_gateway_provenance_io_failure_cannot_leave_unrecorded_write(tmp_path):
         tier3_dir=tmp_path / "d" / "t3",
         mandate_obj=_mandate(),
         provenance_log=blocker / "sub2" / "provenance.jsonl",
+        verified=True,
     )
     assert r4["ok"] is False and "Rollback" in r4["reason"]
     assert not list((tmp_path / "d" / "s").glob("*.md"))  # kein unprotokollierter Write
@@ -259,6 +260,7 @@ def test_k8_changed_source_and_ontology_need_bound_approval(tmp_path):
         approval_obj=obj,
         source_ref="NEUE-QUELLE",  # Kopffeld nach der Freigabe geändert
         ontology_ref="NEUER-BEZUG",
+        verified=True,
     )
     assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
     assert not structured.exists() and not tier3.exists()  # kein Write bei Replay
@@ -280,6 +282,7 @@ def test_k8_revision_links_to_preceding_entity(tmp_path):
         structured_dir=s,
         tier3_dir=t3,
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r1["ok"] is True
     r2 = wg.store(
@@ -291,6 +294,7 @@ def test_k8_revision_links_to_preceding_entity(tmp_path):
         structured_dir=s,
         tier3_dir=t3,
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r2["ok"] is True
     prior_id = r1["provenance"]["entity"]["@id"]  # entity:<sha256(body ALT)>
@@ -329,6 +333,7 @@ def test_k8_all_structured_entrypoints_have_required_fields(tmp_path, monkeypatc
         structured_dir=tmp_path / "s",
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert g["ok"] is True
     gateway_doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")

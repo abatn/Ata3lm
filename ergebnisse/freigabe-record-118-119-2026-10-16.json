@@ -1,0 +1,39 @@
+{
+  "subject": "Rekursion 118 + 119 (Write-Back: Base-Rate-Guard aus dem Flush entfernt + Testergebnis)",
+  "current": {
+    "diff_sha": "4bd63cb",
+    "diff_sha_kind": "GIT-COMMIT-KURZFORM (4bd63cb58ba550cb3252789bb878b31432fd5e88), KEIN sha256-Diff-SHA wie in freigabe-record-115-2026-10-14.json — ehrlich gekennzeichnet, damit der Wert nicht als line-level Diff-Hash gelesen wird.",
+    "scope": "kaggle/write_back_cycle.py (guard_fn=_run_guard entfernt, Docstring _run_guard ergänzt), tests/test_slow_consolidation.py (monkeypatch.delenv), ergebnisse/rekursion/118-write-back-guard-fix.md, ergebnisse/rekursion/119-write-back-guard-fix-test.md",
+    "state": "approved",
+    "approvers": [
+      "Batnini",
+      "Taoufik"
+    ],
+    "note": "Zwei-Personen-Freigabe (Auftrag 2026-10-16, §9.3): approve('Batnini', diff_sha='4bd63cb') + approve('Taoufik', diff_sha='4bd63cb') + finalize() via data/memory/approval.py. Beide Approver haben denselben Wert bestätigt (der Commit)."
+  },
+  "tests": {
+    "teil_lauf_vor_fix": "43 passed, 1 deselected (tests/test_heldout_split.py + tests/test_grader_consistency.py + tests/test_slow_consolidation.py, -k 'not lifecycle_runner_hook'); Exit-Code 1 nur wegen Coverage-Schwelle (fail-under=100, 21 % bei Teil-Lauf)",
+    "teil_lauf_nach_fix": "44 passed (test_lifecycle_runner_hook: 1 passed in 1.67s)",
+    "offen": "Vollstaendiger 'make test' mit 100 % Coverage in diesem Schritt nicht ausgefuehrt (Rek. 119, Abschnitt 'Offen')"
+  },
+  "source": "Freigabe-Auftrag im Session-Prompt 2026-10-16 ('§9.3 approved: Batnini + Taoufik, 2026-10-16. Commit 4bd63cb gepusht'); ts = Zeitpunkt der Record-Erzeugung ueber data/memory/approval.py am 2026-10-16, nicht der Zeitpunkt der menschlichen Entscheidung; Personen nicht kryptografisch authentifiziert (Rek. 108-Caveat)",
+  "history": [
+    {
+      "person": "Batnini",
+      "state": "first_approved",
+      "ts": "2026-10-16T17:24:55.729959+00:00",
+      "diff_sha": "4bd63cb"
+    },
+    {
+      "person": "Taoufik",
+      "state": "second_approved",
+      "ts": "2026-10-16T17:24:55.729972+00:00",
+      "diff_sha": "4bd63cb"
+    },
+    {
+      "person": "(finalize)",
+      "state": "approved",
+      "ts": "2026-10-16T17:24:55.729976+00:00"
+    }
+  ]
+}

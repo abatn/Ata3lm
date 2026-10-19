@@ -6,6 +6,7 @@ genau ein Gateway. STOPP: kein Aufrufer schreibt direkt; Freigabe + Drift VOR Mu
 
 import json
 
+import bias_monitor
 import mandate
 import provenance
 import write_gateway as wg
@@ -84,6 +85,23 @@ def test_store_file_drift_deny_kein_write(tmp_path):
     assert r["ok"] is False and r["gate"] == "deny" and not (tmp_path / "d.md").exists()
 
 
+def test_store_file_echter_drift_ueber_tau_ask(tmp_path):
+    """§9.1c: ECHTER Drift-Index (JSD, bias_monitor.BiasDriftMonitor) über τ → ask VOR der Mutation."""
+    drift = bias_monitor.BiasDriftMonitor(baseline={"write-update": 1.0}, tau=0.10)
+    r = wg.store_file(
+        target=tmp_path / "drift.md",
+        content="x",
+        now=1.0,
+        origin="user",
+        verified=True,
+        drift=drift,
+        drift_label="write-new",
+    )
+    assert r["ok"] is False and r["gate"] == "ask"
+    assert "Drift-Gate ask" in r["reason"] and not (tmp_path / "drift.md").exists()
+    assert drift.history[-1]["DI"] > drift.tau
+
+
 def test_store_file_freigabe_zwei_personen(tmp_path):
     ok = wg.store_file(
         target=tmp_path / "ok.md",
@@ -92,10 +110,11 @@ def test_store_file_freigabe_zwei_personen(tmp_path):
         require_approval=True,
         approvers=["Batnini", "Verifier2"],
         activity="self-update",
+        verified=True,
     )
     assert ok["ok"] is True and ok["provenance"]["approval"]["state"] == "approved"
     assert provenance.verify_record(ok["provenance"])["ok"] is True  # Freigabe gebunden (K3)
-    bad = wg.store_file(target=tmp_path / "bad.md", content="neu", now=1.0, require_approval=True, approvers=["Solo"])
+    bad = wg.store_file(target=tmp_path / "bad.md", content="neu", now=1.0, require_approval=True, approvers=["Solo"], verified=True)
     assert bad["ok"] is False and bad["approval"] == "first_approved"
     assert not (tmp_path / "bad.md").exists()
 
@@ -164,6 +183,7 @@ def test_store_non_write_ohne_und_mit_historie(tmp_path):
         tier3_dir=t3,
         history_dir=tmp_path / "hist",
         mandate_obj=_mandate(),
+        verified=True,
     )
     hist = list((tmp_path / "hist").glob("*.non-write.jsonl"))
     assert len(hist) == 1 and json.loads(hist[0].read_text(encoding="utf-8"))["class"] == "non-write"
@@ -180,6 +200,7 @@ def test_store_write_new_layout(tmp_path):
         structured_dir=tmp_path / "s",
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] and r["action"] == "write-new" and r["gate"] == "allow"
     assert (tmp_path / "s" / "was-ist-2-2.md").exists() and (tmp_path / "t3" / "was-ist-2-2.md").exists()
@@ -203,6 +224,7 @@ def test_store_write_update_layout_mit_tier1_supersede(tmp_path):
         tier3_dir=tmp_path / "t3",
         tier1_dir=t1,
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] and r["action"] == "write-update"
     # structured: alter Stand archiviert (Supersede), tier3-Arbeitskopie aktualisiert (N4)
@@ -225,6 +247,7 @@ def test_store_write_update_ohne_tier1_dir(tmp_path):
         structured_dir=tmp_path / "s",
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] and r["superseded_tier1"] is None and r["superseded"]["old_found"] is False
 
@@ -248,6 +271,7 @@ def test_store_reihenfolge_der_gates_fix(tmp_path):
         approvers=["Batnini", "Verifier2"],
         drift=drift,
         shared_tier=tier,
+        verified=True,
     )
     assert r["ok"] is True
     names = [s[0] for s in r["steps"]]
@@ -294,6 +318,7 @@ def test_store_poisoning_und_leerer_fakt_sperren(tmp_path):
         structured_dir=tmp_path / "s",
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r2["ok"] is False and "Provenienz (K3)" in r2["reason"] and not (tmp_path / "s").exists()
 
@@ -381,6 +406,7 @@ def test_store_lock_konflikt_kein_write(tmp_path):
         structured_dir=s,
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] is False and r["gate"] == "ask" and "lock" in r["reason"]
     assert not (s / "gesetz-x.md").exists()
@@ -411,6 +437,7 @@ def test_store_file_freigabe_replay_anderer_inhalt_wird_abgelehnt(tmp_path):
         require_approval=True,
         approval_obj=old,
         activity="self-update",
+        verified=True,
     )
     assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
     assert not target.exists()  # kein Write bei Replay
@@ -427,7 +454,13 @@ def test_store_file_freigabe_gleicher_inhalt_wird_akzeptiert(tmp_path):
     obj.approve("Verifier2", diff_sha=sha)
     obj.finalize()
     r = wg.store_file(
-        target=target, content="NEU", now=1.0, require_approval=True, approval_obj=obj, activity="self-update"
+        target=target,
+        content="NEU",
+        now=1.0,
+        require_approval=True,
+        approval_obj=obj,
+        activity="self-update",
+        verified=True,
     )
     assert r["ok"] is True and r["provenance"]["approval"]["diff_sha"] == sha
 
@@ -452,6 +485,7 @@ def test_store_freigabe_replay_anderer_inhalt_wird_abgelehnt(tmp_path):
         mandate_obj=_mandate(),
         self_update=True,
         approval_obj=old,
+        verified=True,
     )
     assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
     assert not structured.exists()
@@ -488,6 +522,7 @@ def test_store_write_update_tier1_konflikt_ist_teilfehler(tmp_path):
         tier3_dir=tmp_path / "t3",
         tier1_dir=t1,
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] is False and r["gate"] == "ask" and r.get("partial") is True
     assert (s / "gesetz-x.md").exists()  # strukturierter Teil wurde geschrieben ...
@@ -509,6 +544,7 @@ def test_store_non_write_historie_haengt_an(tmp_path):
             tier3_dir=t3,
             history_dir=tmp_path / "hist",
             mandate_obj=_mandate(),
+            verified=True,
         )
     hist = list((tmp_path / "hist").glob("*.non-write.jsonl"))
     assert len(hist) == 1
@@ -536,6 +572,7 @@ def test_a1_freigabe_nur_primziel_deckt_also_write_nicht(tmp_path):
         approval_obj=obj,
         activity="self-update",
         also_write=[extra],
+        verified=True,
     )
     assert r["ok"] is False and r["gate"] == "deny" and "Replay" in r["reason"]
     assert not prim.exists() and not extra.exists()  # kein nicht-genehmigtes Ziel geschrieben
@@ -559,6 +596,7 @@ def test_a1_freigabe_ueber_alle_ziele_wird_akzeptiert(tmp_path):
         approval_obj=obj,
         activity="self-update",
         also_write=[extra],
+        verified=True,
     )
     assert r["ok"] is True and len(r["written"]) == 2
     assert r["provenance"]["approval"]["diff_sha"] == sha
@@ -672,7 +710,7 @@ def _structured_store(tmp_path, **kw):
 
 def test_k8_structured_traegt_pflichtfelder_und_body(tmp_path):
     """K8: `structured` trägt §6-Kopf; `tier3` bleibt Body-only (K3-Hash/§10.3 intakt)."""
-    r = _structured_store(tmp_path)
+    r = _structured_store(tmp_path, verified=True)
     assert r["ok"] is True
     doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")
     for feld in ("ontologie-bezug", "quelle", "evidence"):
@@ -684,7 +722,7 @@ def test_k8_structured_traegt_pflichtfelder_und_body(tmp_path):
 
 
 def test_k8_ontology_ref_und_source_ref_im_kopf(tmp_path):
-    r = _structured_store(tmp_path, ontology_ref="Denken (5)", source_ref="AGENTS.md §9.1c")
+    r = _structured_store(tmp_path, ontology_ref="Denken (5)", source_ref="AGENTS.md §9.1c", verified=True)
     assert r["ok"] is True
     doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")
     assert "Denken (5)" in doc and "AGENTS.md §9.1c" in doc
@@ -692,7 +730,7 @@ def test_k8_ontology_ref_und_source_ref_im_kopf(tmp_path):
 
 def test_k8_ohne_refs_ehrlich_offen_kein_fake(tmp_path):
     """K8/A5: ohne Ontologie-Ref wird „offen" markiert; die Quelle ist der reale Record-Ort (§6)."""
-    _structured_store(tmp_path)
+    _structured_store(tmp_path, origin="tool:verified", verified=True)
     doc = (tmp_path / "s" / "was-ist-x.md").read_text(encoding="utf-8")
     assert "offen (§4" in doc  # Ontologie-Bezug offen (A5)
     assert "tool:verified" in doc  # Quelle = realer PROV-O-Ort (kein Fake)
@@ -720,6 +758,7 @@ def test_n6_legacy_body_only_structured_file_bleibt_body(tmp_path):
         structured_dir=s,
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] is True
     expected = f"entity:{provenance.content_hash('X ist ALT')[:16]}"
@@ -752,6 +791,7 @@ def test_n4_freigabe_mit_gebundenen_refs_wird_akzeptiert(tmp_path):
         approval_obj=obj,
         source_ref="AGENTS.md",
         ontology_ref="Denken (5)",
+        verified=True,
     )
     assert r["ok"] is True and r["provenance"]["approval"]["diff_sha"] == sha
     assert "Denken (5)" in structured.read_text(encoding="utf-8")
@@ -771,6 +811,7 @@ def test_n1_store_provenance_log_ist_verzeichnis_kein_write(tmp_path):
         tier3_dir=tmp_path / "t3",
         mandate_obj=_mandate(),
         provenance_log=log,
+        verified=True,
     )
     assert r["ok"] is False and "Verzeichnis" in r["reason"]
     assert not (tmp_path / "s").exists()  # Akzeptanz: provenance_log=Verzeichnis => KEIN Write
@@ -814,6 +855,7 @@ def test_n1_teilpfad_tier1_konflikt_protokolliert_exakt_einmal(tmp_path):
         tier3_dir=tmp_path / "t3",
         tier1_dir=t1,
         mandate_obj=_mandate(),
+        verified=True,
     )
     assert r["ok"] is False and r.get("partial") is True
     lines = (tmp_path / "t3" / "provenance.jsonl").read_text(encoding="utf-8").splitlines()

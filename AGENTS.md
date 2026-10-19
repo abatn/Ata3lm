@@ -105,6 +105,8 @@ steuern es nie allein.
 7. Echte Verifikation: **Tests/Compare nur mit echten Quellen/LLM/Endpoint** –
    Fake- oder skriptete Antworten sind **verboten**; „offline/kein Geld" ist keine
    Ausrede (Auftrag, 2026-10-03).
+8. Python-Umgebung: alle Läufe über `.venv` — `make test` und `pytest`
+   laufen mit `.venv/bin/python` (Auftrag, 2026-10-18).
 
 ## 9. Automatisches Gate (Zusatz zu Human-Gate)
 

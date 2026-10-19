@@ -66,7 +66,7 @@ def _valid_approval(approval) -> bool:
         return False
     approvers = approval.get("approvers") or ()
     return (
-        approval.get("state") == "approved" and len({a for a in approvers if a}) >= 2 and bool(approval.get("diff_sha"))
+        approval.get("state") == "approved" and len({a.strip().lower() for a in approvers if a}) >= 2 and bool(approval.get("diff_sha"))
     )
 
 

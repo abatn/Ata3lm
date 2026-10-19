@@ -1,0 +1,18 @@
+{
+  "nodes": {
+    "n0": {"content": "t=4 Rekursion: Solver berechne_durchschnitt (Bug: Integer-Division)"},
+    "n1": {"content": "t=5 Rekursion: Solver finde_minimum (Bug: erstes Element)"},
+    "n2": {"content": "Rekursions-Zyklus: Observe -> Compare -> Revise"},
+    "n3": {"content": "Fast Write Routing entscheidet, was geschrieben wird"},
+    "n4": {"content": "HMM-Traegheit in Revise (SEAA)"},
+    "n5": {"content": "isolierter Fakt ohne Verbindungen"}
+  },
+  "edges": {
+    "n0": {"n2": 0.5},
+    "n1": {"n2": 0.5},
+    "n2": {"n0": 0.5, "n1": 0.5, "n3": 0.4, "n4": 0.4},
+    "n3": {"n2": 0.4},
+    "n4": {"n2": 0.4},
+    "n5": {}
+  }
+}

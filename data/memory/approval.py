@@ -52,7 +52,7 @@ class TwoPersonApproval:
             return {"ok": False, "state": self.state, "reason": "keine natürliche Person angegeben"}
         if self.state == "approved":
             return {"ok": False, "state": self.state, "reason": "bereits approved"}
-        if person in self.approvers:
+        if person.strip().lower() in [a.strip().lower() for a in self.approvers]:
             return {
                 "ok": False,
                 "state": self.state,
@@ -68,7 +68,7 @@ class TwoPersonApproval:
             }
         if self.diff_sha is None and diff_sha is not None:
             self.diff_sha = diff_sha
-        self.approvers.append(person)
+        self.approvers.append(person.strip().lower())
         self.state = "first_approved" if len(self.approvers) == 1 else "second_approved"
         self.history.append({"person": person, "state": self.state, "ts": _now(), "diff_sha": diff_sha})
         return {"ok": True, "state": self.state, "approvers": list(self.approvers), "diff_sha": self.diff_sha}

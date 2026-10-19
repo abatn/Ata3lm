@@ -53,6 +53,7 @@ LARGE_MODEL = os.environ.get("FWR_LARGE_MODEL", "nvidia/nemotron-3-ultra-550b-a5
 # Paper-λ Tabelle 1 (Belegt): Config (λ_s=0.08, λ_e=0.005) – ENV-überschreibbar.
 LAMBDA_S_DEFAULT = 0.08
 LAMBDA_E_DEFAULT = 0.005
+FWR_TIMEOUT_DEFAULT = 120.0  # Auftrag 2026-10-18: kein 600-s-SDK-Default (Hang-Risiko im Live-Test)
 
 _client = None
 
@@ -66,12 +67,19 @@ def _env_float(name: str, default: float) -> float:
 
 
 def _get_client():
-    """Lazy OpenAI-Client (A9): kein Crash beim Import ohne OPENAI_API_KEY."""
+    """Lazy OpenAI-Client (A9): kein Crash beim Import ohne OPENAI_API_KEY.
+
+    Härung (gemessen 2026-10-18): `timeout` ist gebunden (ENV `FWR_TIMEOUT`,
+    Default 120 s) und die SDK-internen Retries sind aus, weil Retry-Logik
+    **eigentlich** bei `_ask`/`tests/_live.call` liegt (eine Instanz, keine Kaskade).
+    """
     global _client
     if _client is None:
         _client = OpenAI(
             api_key=os.environ.get("OPENAI_API_KEY", ""),
             base_url=os.environ.get("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+            timeout=_env_float("FWR_TIMEOUT", FWR_TIMEOUT_DEFAULT),
+            max_retries=0,
         )
     return _client
 

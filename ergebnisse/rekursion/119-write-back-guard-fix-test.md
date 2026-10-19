@@ -17,11 +17,12 @@ pytest tests/test_heldout_split.py tests/test_grader_consistency.py tests/test_s
   geführt. Der Test hing über mehr als 15 Minuten bei `lifecycle_runner.run_cycle(...)`
   (echte API-Aufrufe, siehe `tests/conftest.py`). Der Lauf wurde beendet.
   Dieser Test ist daher **nicht verifiziert**, weder grün noch rot.
+  *(Nachtrag nach dem Fix: `test_lifecycle_runner_hook` verifiziert — `1 passed`, siehe „Endstand".)*
 - Der volle `make test` mit 100 % Coverage wurde in diesem Schritt nicht ausgeführt.
 
 ## Relevante Tests (alle grün)
 
-- `test_heldout_split.py`: 4 Tests (u. a. `test_base_rate_guard_abstains_on_zero_base`)
+- `test_heldout_split.py`: 8 Tests (u. a. `test_base_rate_guard_abstains_on_zero_base`)
 - `test_grader_consistency.py`: 4 Tests (u. a. `test_run_guard_base_rate_flags_zero_base_hits`)
 - `test_slow_consolidation.py`: alle Write-Back-Tests grün, darunter
   `test_write_back_guard_einwand_abstain_kein_flush` (Guard direkt über den
@@ -54,7 +55,7 @@ Keine Modellparameter- oder Prompt-Änderung → n/a.
 
 - ~~`test_lifecycle_runner_hook` vollständig klären~~ → **behoben** (siehe unten).
 - Vollständiger `make test` mit 100 % Coverage.
-- Nicht committet, nicht gepusht.
+- ~~Nicht committet, nicht gepusht~~ → **committet & gepusht** (`4bd63cb`).
 
 ## Lifecycle-Test: Ursache + Fix
 
@@ -75,6 +76,12 @@ exakt dasselbe Muster wie `test_lifecycle_runner.py:22`
 +    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # Denken offline -> NOOP (kein Fake)
      monkeypatch.setenv("LIFECYCLE_DRIFT_REFERENCE", str(tmp_path / "drift-reference.json"))
 ```
+
+## Endstand (nach Fix)
+
+**Nach Fix: 44 passed** (`test_lifecycle_runner_hook`: `1 passed in 1.67s`) —
+Teil-Lauf oben (43 passed, 1 deselected) + der zuvor hängende Hook-Test.
+Vollständiger `make test` mit 100 % Coverage bleibt offen.
 
 ## Freigabe (§9.3)
 

@@ -424,6 +424,7 @@ def write_back(
     provenance_log=None,
     state_path=None,
     guard_fn=None,
+    questions=None,
 ) -> dict:
     """Geschlossener Zyklus Θ→Θ′ (Write-Back) – **injizierbar, ohne GPU** (§10.3).
 
@@ -444,6 +445,9 @@ def write_back(
       6. ``flush(keys, tier3_dir, state_path=...)`` entfernt **nur** die belegten,
          hash-gleichen Keys (F1) aus dem externen Puffer.
 
+    Jeder Rückgabe-Pfad trägt ``probe_results`` (echtes Probe-Signal je Fakt;
+    Audit H1-H5 — Evidenz §9.1d; leer, wenn noch nicht geprobt wurde).
+
     **Kein Fake:** ``train_fn``/``probe_fn`` sind echte Injektionspunkte; ohne sie
     bleibt das ehrliche Verhalten (Stub bzw. kein Flush). ``loss``/``adapter_path``
     werden **ausschließlich** aus ``trained`` durchgereicht – nie erfunden. Die
@@ -453,7 +457,9 @@ def write_back(
 
     **Interface-Erweiterung (additiv/rückwärtskompatibel):** die neuen keyword-only
     optionalen Parameter `train_fn`, `probe_fn`, `tier3_dir`, `provenance_log`,
-    `state_path` (Interface additiv; §9.3 = **freigegeben** — Batnini + Taoufik,
+    `state_path`, `questions` (Key→echte Frage; wird an ``collect_pending``
+    durchgereicht, damit Train- und Probe-Frage übereinstimmen — §10.3)
+    (Interface additiv; §9.3 = **freigegeben** — Batnini + Taoufik,
     2026-10-11; ≥ 2 distinkte Personen).
     Bestehende Aufrufe (``write_back(dataset, model)``) verhalten sich unverändert.
     """
@@ -470,9 +476,9 @@ def write_back(
     if tier3_dir is None or provenance_log is None:
         pending: list = []
     else:
-        pending = collect_pending(tier3_dir, provenance_log, state_path=state_path)
+        pending = collect_pending(tier3_dir, provenance_log, state_path=state_path, questions=questions)
     if not pending:
-        return {"ok": True, "flushed": [], "kept": [], "note": "keine pending"}
+        return {"ok": True, "flushed": [], "kept": [], "note": "keine pending", "probe_results": []}
 
     # 2) SFT-Korpus real schreiben (kein Fake-Satz).
     build_sft_dataset(pending, dataset_path)
@@ -485,6 +491,7 @@ def write_back(
             "flushed": [],
             "kept": [p["key"] for p in pending],
             "reason": "Training nicht erfolgreich (§10.3)",
+            "probe_results": [],
         }
 
     # 4) Probe-gesteuertes Verbuchen (externes Signal; nur positive Fakten).
@@ -507,6 +514,7 @@ def write_back(
                 "flushed": [],
                 "kept": [p["key"] for p in pending],
                 "reason": reason,
+                "probe_results": probe_results,
             }
 
     flush_keys: list = []
@@ -531,6 +539,7 @@ def write_back(
         "kept": kept,
         "loss": trained.get("loss"),
         "adapter_path": trained.get("adapter_path"),
+        "probe_results": probe_results,
     }
 
 

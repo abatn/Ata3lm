@@ -36,3 +36,18 @@ Die Kaskade aus §10.2 (Stufe 1 klein, Stufe 2 groß) wird real getrennt; Laufze
 ## 7. Nicht behauptet (§7)
 
 - Keine Wirkungsaussage zu Θ′.
+
+## 8. Provenienz-Nachtrag — Freigabe (2026-10-18)
+
+- **Freigabe-Status:** `approved`: Batnini + Taoufik, 2026-10-14 (Auftrag;
+  **kein Diff-SHA gebunden**) + Caveat
+- **Quelle des Status (wortgleich):** offizieller Index
+  `ergebnisse/rekursion/README.md:143`
+- **Anlass:** Guardrail 3 / §6 verlangt den Freigabe-Status **in dieser Datei**;
+  er stand bisher nur im Index (Prüfung `tests/test_agents_law.py`
+  `test_provenienz_jeder_rekursion` meldete „Freigabe fehlt:
+  116-kaskade-variante-a.md").
+- **Ehrlich:** Nachtrag aus der bestehenden offiziellen Quelle — **keine neue
+  Freigabe erteilt**; es existiert kein `ergebnisse/freigabe-record-*` für 116
+  (geprüft: vorhanden sind nur die Records für 115 und 118/119), daher weiterhin
+  **kein** gebundener Diff-SHA — wie im Index vermerkt.

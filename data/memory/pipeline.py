@@ -70,6 +70,13 @@ def route_and_store(
     Parameter `gdi_drift` (Default None) wird 1:1 an `write_gateway.store`
     durchgereicht (kalibriertes GDI-Pre-Write-Gate VOR der Mutation, §9.1c).
     Default None ⇒ unverändertes Verhalten.
+
+    **FIX 5 (§6, §9.1d):** `origin="tool:verified"` + `verified=True` werden
+    **explizit** übergeben (nicht mehr über den Default von `write_gateway.store`).
+    Beibehaltung bisherigen Verhaltens, KEINE eigene Verifikation — die Pipeline
+    führt selbst keine Konsens-/Verifikation durch; `verified=True` bewahrt nur das
+    bisherige (Vor-FIX-5)-Verhalten. Behauptung nur als Verhaltensbeibehaltung,
+    nicht als geprüft (§6).
     """
     res = write_gateway.store(
         question=question,
@@ -86,6 +93,8 @@ def route_and_store(
         approval_obj=approval_obj,
         approvers=approvers,
         agent="pipeline",
+        origin="tool:verified",
+        verified=True,
         ontology_ref=ontology_ref,
         source_ref=source_ref,
     )

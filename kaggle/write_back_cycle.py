@@ -23,8 +23,8 @@ Dieses Skript fährt den **realen** geschlossenen §10.3-Zyklus in einem Lauf:
      "adapter_path": …}` (sonst `{"ok": False}`).
   5. **Probe (externes Signal, §6):** `probe_fn(item)` generiert **Base-vor-
      Adapter** (N8-Muster, `kaggle/e2e_theta_probe.py`) und prüft, ob
-     `item["fact"]` als Teilstring in der Θ′-Antwort steht →
-     `{"passed": bool, "answer": …}`.
+     `item["fact"]` per strict EM (`acceptance_gate.grade`, `_grade`) in der
+     Θ′-Antwort nachgewiesen wird → `{"passed": bool, "answer": …}`.
   6. **Write-Back:** `slow_consolidation.write_back(dataset, model,
      train_fn=…, probe_fn=…, tier3_dir=…, provenance_log=…, state_path=…)` –
      Flush nur nach positivem Probe **und** Hash-Gleichheit (F1–F3, fail-closed).
@@ -173,7 +173,7 @@ def _resolve_approvers(approvers: Optional[list]) -> tuple:
     """
     distinct: list = []
     for person in approvers or []:
-        name = (person or "").strip()
+        name = (person or "").strip().lower()
         if name and name not in distinct:
             distinct.append(name)
     return len(distinct) >= 2, distinct
@@ -356,8 +356,8 @@ class _ThetaProbe:
 
     Lädt das Basis-Modell **vor** dem Aufwickeln des LoRA-Adapters (N8:
     `kaggle/e2e_theta_probe.py`) und generiert je Probe beide Antworten. Ein Fakt
-    gilt als konsolidiert, wenn die Θ′-Antwort das Gold (`item["fact"]`) als
-    Teilstring enthält (Paper-Test §3.4, ohne Retrieval). Lazy geladen, damit ohne
+    gilt als konsolidiert, wenn die Θ′-Antwort das Gold (`item["fact"]`)
+    per strict EM (`acceptance_gate.grade`) erfüllt (Paper-Test §3.4, ohne Retrieval). Lazy geladen, damit ohne
     pending kein GPU-Speicher belegt wird; ohne GPU/Adapter klarer Fehler.
     """
 
@@ -625,8 +625,13 @@ def main(argv=None) -> int:
 
     import slow_consolidation
 
+    questions_dict = _questions_by_key(tasks)
     pending = (
-        slow_consolidation.collect_pending(tier3_dir, provenance_log, state_path=state_path) if provenance_log else []
+        slow_consolidation.collect_pending(
+            tier3_dir, provenance_log, state_path=state_path, questions=questions_dict
+        )
+        if provenance_log
+        else []
     )
 
     # 4)+5) Echtes Training + echte Θ′-Probe (Injektionspunkte von write_back).
@@ -643,6 +648,7 @@ def main(argv=None) -> int:
         tier3_dir=tier3_dir,
         provenance_log=provenance_log,
         state_path=state_path,
+        questions=questions_dict,
     )
 
     # 7) Ergebnis-JSON.
@@ -667,6 +673,7 @@ def main(argv=None) -> int:
         "kept": write_back.get("kept"),
         "loss": write_back.get("loss"),
         "adapter_path": write_back.get("adapter_path"),
+        "probe_results": write_back.get("probe_results"),
         "write_back": write_back,
         "zsre": corpus_meta,
         "dataset": str(dataset_path),

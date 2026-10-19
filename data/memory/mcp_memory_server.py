@@ -225,7 +225,10 @@ def write(scope: str, key: str, content: str, trust: str = "green") -> dict:
         activity=f"mcp-write:{scope}",
         agent="mcp-memory-server",
         origin="tool:verified",
-        verified=True,  # Tri-Color-Gate + Trust-DB = Write-Time-Validation (§9.2c)
+        verified=True,  # FIX 6: EXPLIZIT gesetzt (unabhängig vom Default `verified=False` in
+        # write_gateway.store_file); gestützt auf das Tri-Color-Gate + die Trust-DB-Prüfung
+        # davor (red → rejected, fehlende Trust-DB → fail-closed). Grüne Vorschläge bleiben
+        # als `status="proposed"` markiert (§9.2c).
         structured=(scope == "structured"),
         provenance_log=(SCOPES.get("tier3") or path.parent) / "provenance.jsonl",
     )

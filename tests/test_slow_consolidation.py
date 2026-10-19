@@ -255,7 +255,7 @@ def test_write_back_leer_pending_note_kein_training(tmp_path):
     """Ohne Puffer/Log nichts zu tun ⇒ Note; das Training wird NICHT aufgerufen (§10.3)."""
     calls = []
     res = sc.write_back(tmp_path / "sft.jsonl", train_fn=lambda *a, **k: calls.append(a) or {"ok": True})
-    assert res == {"ok": True, "flushed": [], "kept": [], "note": "keine pending"}
+    assert res == {"ok": True, "flushed": [], "kept": [], "note": "keine pending", "probe_results": []}
     assert calls == []  # kein Trainingslauf ohne pending
 
 

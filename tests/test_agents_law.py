@@ -45,7 +45,7 @@ def test_gate_schwellen_drift_und_zwei_personen():
 
 def test_provenienz_jeder_rekursion():
     """§6/Guardrail 3: jede Iteration hat Freigabe-Status und Quelle."""
-    files = sorted(REK.glob("0[0-9][0-9]-*.md"))
+    files = sorted(REK.glob("[0-9][0-9][0-9]-*.md"))
     assert len(files) >= 30, f"zu wenige Rekursions-Dateien: {len(files)}"
     for f in files:
         if f.name.startswith("000-"):
@@ -77,7 +77,7 @@ def test_versionierung_alle_vN():
 def test_rekursion_index_vollstaendig():
     """§3/Provenienz: jede Rekursion (außer Template) ist im README-Index gelistet."""
     index = (REK / "README.md").read_text(encoding="utf-8")
-    files = sorted(REK.glob("0[0-9][0-9]-*.md"))
+    files = sorted(REK.glob("[0-9][0-9][0-9]-*.md"))
     assert files, "keine Rekursions-Dateien gefunden"
     for f in files:
         if f.name.startswith("000-"):

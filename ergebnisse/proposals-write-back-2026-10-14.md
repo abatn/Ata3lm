@@ -1,6 +1,6 @@
 # Proposals P-A bis P-D — Write-Back-Zyklus (Θ→Θ′)
 
-> Datum: 2026-10-14 · Status: **pending** (Human-Gate `ask`, §9)
+> Datum: 2026-10-14 · Status: **umgesetzt** (f8000ab, Rek. 114-116; ursprünglich Human-Gate `ask`, §9)
 > Template: `ergebnisse/proposal-template.md` · Gesetz: `AGENTS.md` §6, §7, §9, §9.1c/d, §10.2, §10.3
 > Keine Code-Änderung in diesem Dokument. Implementierung erst nach Freigabe.
 
@@ -12,8 +12,8 @@
 | Write-Back-Lauf, strict | `0/0` → `abstain` | **extern**: wie oben |
 | Eval-Datei | 200 Zeilen, git-getrackt | `ergebnisse/zsre-eval-f6.jsonl` (`wc -l`, `git ls-files` verifiziert) |
 | Leakage | 20/20 Fragen, 8/8 `pending_keys` ⊂ Eval | Nutzer-Messung; Split-Quelle `kaggle/write_back_cycle.py:114`, `scripts/drift_calibrate.py:102` |
-| Grader Flush | Teilstring | `kaggle/write_back_cycle.py:359` |
-| Grader Probe | Teilstring (Präfix redundant) | `kaggle/e2e_theta_probe.py:102` |
+| Grader Flush | strict (seit Rek. 115) | `kaggle/write_back_cycle.py:417` (`_grade` = `acceptance_gate.grade`; Docstring Z. 359-360) |
+| Grader Probe | strict (seit Rek. 115; Präfix-Sonderfall entfällt) | `kaggle/e2e_theta_probe.py:106` |
 | Grader Gate | Default `strict` | `scripts/paired_gate.py` (Argparse `--mode`) |
 | Kaskade-Setup | `FWR_SMALL_MODEL` = `FWR_LARGE_MODEL` | `kaggle/write_back_cycle.py:419-420` |
 | Kaskade-Defaults | nano-30b / ultra-550b (verschieden) | `data/memory/fast_write_router.py:50-51` |
@@ -43,7 +43,7 @@
 |---|---|
 | π | Basis `Qwen/Qwen2.5-0.5B-Instruct` + Write-Back-Adapter |
 | Score (substring, extern) | `em_adapter 22` (em_base 8) |
-| Score (strict, extern) | `0/0` → abstain |
+| Score (strict, extern) | `0/0` → abstain (Abstain-Konsequenz **historisch**: seit `4bd63cb`/Rek. 118 entscheidet der Flush nur noch pro Fakt, kein Run-Level-Abstain) |
 | Signal-Quelle | Eval-Set `ergebnisse/zsre-eval-f6.jsonl` (siehe P-B: nicht disjunkt) |
 | Drift-Referenz | aktueller Git-Stand vor Iteration |
 
@@ -90,7 +90,7 @@ Geplant (noch nicht angewendet):
 **Gate-Ergebnis: `ask`.** Offene Entscheidung: Modus `strict` oder `substring` (siehe Rückfrage).
 
 ### 8. Freigabe
-- Status: **pending**.
+- Status: **umgesetzt** (f8000ab, Rek. 114-116).
 
 ---
 
@@ -149,7 +149,7 @@ Geplant (noch nicht angewendet):
 **Gate-Ergebnis: `ask`.**
 
 ### 8. Freigabe
-- Status: **pending**.
+- Status: **umgesetzt** (f8000ab, Rek. 114-116).
 - **Offen:** Herkunft von `train_f6` (50 000 Zeilen, Rek. 103) ist **nicht verifiziert**; Disjunktheit dazu ist unbekannt.
 
 ---
@@ -217,7 +217,7 @@ Eine von zwei Varianten, **Entscheidung durch den Menschen**:
 **Gate-Ergebnis: `ask`.** Entscheidung: Variante A oder B (siehe Rückfrage).
 
 ### 8. Freigabe
-- Status: **pending**.
+- Status: **umgesetzt** (f8000ab, Rek. 114-116).
 
 ---
 
@@ -266,7 +266,7 @@ Jede Rekursion enthält Score-Δ, Diff und Drift gemäß `ergebnisse/proposal-te
 **Gate-Ergebnis: `ask`** (vorsichtshalber, da freigegebene Iterationen nachträglich verändert werden).
 
 ### 8. Freigabe
-- Status: **pending**.
+- Status: **umgesetzt** (f8000ab, Rek. 114-116).
 
 ---
 
