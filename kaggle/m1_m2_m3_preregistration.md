@@ -1,10 +1,14 @@
 # Preregistration M1/M2/M3 (read-only, Kaggle-GPU) — B2′-Annahmenprüfung
 
-> Ort: `/tmp/opencode/` (Arbeitsstand, **kein Repo-File**). Kein git, keine Repo-Änderung.
+> Ort: **im Repo** (`kaggle/m1_m2_m3_preregistration.md`; Arbeitsfassung lag unter
+> `/tmp/opencode/M1_M2_M3_PREREGISTRATION.md`). Repo-Stand: Commit `e93f230`.
 > Grundlage: `AGENTS.md` §6 (Rohtext), §9 (`AGENTS.md:116-124`), §9.1d (`:178-182`),
 > §9.3 (`:231`), Guardrails `:99-109`. Stand 2026-10-20.
-> Hinweis: **Rek 129 enthält aktuell 4 Annahmen, keine 9 Regeln.** Die Regeln hier werden
-> erst mit Go in `ergebnisse/rekursion/129-b2-prime-annahmenpruefung.md` übernommen.
+> Hinweis: Die 9 Regeln sind in `ergebnisse/rekursion/129-b2-prime-annahmenpruefung.md` §7.2
+> **übernommen** (Rek 129, Commit `487c282`). Amendment A1 (R3a/R3b) ist hier enthalten.
+> **Amendment A2** (write-new-taugliche Regeln: „M1 schlecht ⇒ Basis defekt" ist für
+> write-new-Fakten nicht informativ) ist **nicht freigegeben** und liegt als Proposal
+> `ergebnisse/proposals/P-131-kontrollierter-rslora-ab.md` vor (§9.1d).
 > Doc-Ziel der Indexzeile: **`ergebnisse/rekursion/README.md:156`** (die Wurzel-`README.md`
 > hat nur 70 Zeilen und keine Rekursionstabelle).
 

@@ -416,18 +416,27 @@ def main() -> int:
         with inst2.disable_adapter():
             canary_rows = measure(inst2, "canary_disable_adapter", "base#2")
         m2r_rows = measure(inst2, "M2_repeat", "base#2")
-        # Struktur-Witness: injizierte lora_Module und trainierte lora_B
+        # Struktur-Witness: injizierte lora_Module und trainierte lora_B.
+        # PEFT registriert die Adapter als nn.ModuleDict je Adapter-Name
+        # (peft/tuners/lora/layer.py:134/263) => der Modulpfad lautet
+        # "...lora_A.<adapter_name>"; der LoraLayer selbst traegt lora_A UND lora_B.
         lora_modules_total, lora_b_nonzero = 0, 0
-        for name, mod in inst2.named_modules():
-            if name.endswith("lora_A") and hasattr(mod, "weight"):
-                lora_modules_total += 1
-                bmod = getattr(mod, "lora_B", None)
-                if bmod is not None and hasattr(bmod, "weight"):
-                    try:
-                        if float(bmod.weight.detach().abs().max().item()) > 0:
-                            lora_b_nonzero += 1
-                    except Exception:  # noqa: BLE001
-                        pass
+        for _name, mod in inst2.named_modules():
+            a_dict = getattr(mod, "lora_A", None)
+            b_dict = getattr(mod, "lora_B", None)
+            if a_dict is None or b_dict is None:
+                continue
+            lora_modules_total += 1
+            for lora_b in b_dict.values():
+                weight = getattr(lora_b, "weight", None)
+                if weight is None:
+                    continue
+                try:
+                    if float(weight.detach().abs().max().item()) > 0:
+                        lora_b_nonzero += 1
+                        break
+                except Exception:  # noqa: BLE001
+                    pass
         del inst2
         torch.cuda.empty_cache()
         if not vram_free():
@@ -574,6 +583,11 @@ def main() -> int:
         failed.append("positive_control")
     if coll["M1_base"]["collapse"] or coll["M1b_base"]["collapse"]:
         failed.append("base_collapse")
+    # Regel 9 (Preregistration:99) verlangt Degeneration in M1/M1b/M2/M3.
+    if coll["M2_b2prime"]["collapse"]:
+        failed.append("m2_collapse")
+    if coll["M3_b2"]["collapse"]:
+        failed.append("m3_collapse")
 
     if failed:
         rule_no = 9
@@ -610,6 +624,22 @@ def main() -> int:
                 )
         if coll["M1_base"]["collapse"] or coll["M1b_base"]["collapse"]:
             rules.append((9, "Base degeneriert (identische Antwort bei >= COLLAPSE_MIN) — Diagnose blockiert"))
+        if coll["M2_b2prime"]["collapse"]:
+            rules.append(
+                (
+                    9,
+                    f"M2 degeneriert ({coll['M2_b2prime']['top_count']}/{n} identische Antwort "
+                    f"{coll['M2_b2prime']['top_answer']!r}) — Diagnose blockiert, kein P-1/P-2/P-3-Zweig",
+                )
+            )
+        if coll["M3_b2"]["collapse"]:
+            rules.append(
+                (
+                    9,
+                    f"M3 degeneriert ({coll['M3_b2']['top_count']}/{n} identische Antwort "
+                    f"{coll['M3_b2']['top_answer']!r}) — Diagnose blockiert, kein P-1/P-2/P-3-Zweig",
+                )
+            )
     else:
         # gepaarte Basisreferenzen: M1b (Instanz #2) fuer M2, M1c (Instanz #3) fuer M3
         b2, b3 = c_m1b["strict"], c_m1c["strict"]

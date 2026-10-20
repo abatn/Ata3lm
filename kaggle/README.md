@@ -294,14 +294,17 @@ python kaggle/m1_m2_m3_probe.py \
   --ref-b2prime-json write_back_cycle_result.json \
   --expect-ref-sha 5a9ed27a19a1881a8d06eab1e150df3eb476baa4979d4da0422acc9b62501304 \
   --expect-probes 15 \
-  --repo-root /kaggle/working/knowledge-agent \
+  --repo-root /kaggle/working/Ata3lm \
   --out-dir /kaggle/working/m1_m2_m3_out
 ```
 
 Pins: Probe-Set `c0ea0219…` · B2′-Adapter `a595d437…` · B2-Adapter `e3be2c85…` ·
 Altlauf-Result-JSON `5a9ed27a…` (**SHA256 der Datei, kein Git-Commit**). Das Repo wird
-geklont (`git clone` ⇒ `knowledge-agent/`); `data/memory/acceptance_gate.py` wird für den
-fail-closed Grader-Crosscheck gebraucht (`--repo-root`).
+geklont — der Klonname ist der **Repo-Name** (`Ata3lm`), nicht `knowledge-agent`:
+`git clone https://github.com/abatn/Ata3lm.git /kaggle/working/Ata3lm`.
+`data/memory/acceptance_gate.py` wird für den fail-closed Grader-Crosscheck gebraucht
+(`--repo-root` **muss** auf die Klonwurzel zeigen, sonst wird der Crosscheck übersprungen
+und der Lauf protokolliert `grader_crosscheck: skipped` — siehe Rek 130 §4 M1).
 
 > **Ehrlicher Vorbehalt:** der B2′-Lauf pinte **keine** Base-Revision und lief mit ungepinntem
 > Tokenizer (`write_back_cycle.py:411`) ⇒ `--base-revision`/`--tokenizer-revision` **müssen**
