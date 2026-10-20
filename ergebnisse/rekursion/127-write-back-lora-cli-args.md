@@ -128,7 +128,13 @@ All checks passed!
 **Status:** Befehl vorbereitet. **Kaggle-Lauf NICHT gestartet** — der Agent
 kann Kaggle nicht selbst ausführen (fail-closed, kein Fake).
 
-### B2 (rsLoRA, r=64) — VOLLSTÄNDIG (mit Code)
+### B2′ (rsLoRA, r=64) — VOLLSTÄNDIG (mit Code)
+
+> **Korrektur-Nachtrag (docs-only, 2026-10-20, Rek 129):** Der hier vorbereitete
+> **rsLoRA**-Lauf ist der später als **B2′** dokumentierte Lauf (Rek 129). Der
+> tatsächlich ausgeführte Lauf „B2" (Rek 128) lief mit **altem Code-Stand ohne
+> `use_rslora`** (Feld `lora_use_rslora` fehlt, Rek 128 §1/§5) — rsLoRA-Skalierung
+> war dort **nicht** aktiv. **B2 ist also kein rsLoRA-Lauf.**
 
 ```bash
 !NUM_EPOCHS=15 LORA_R=64 LORA_ALPHA=256 LORA_USE_RSLORA=1 \

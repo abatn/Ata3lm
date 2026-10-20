@@ -1,4 +1,4 @@
-# 128 — Kaggle-Lauf B2 (rsLoRA-Versuch): flushed=15 aber Adapter-Wirkung weiterhin 0
+# 128 — Kaggle-Lauf B2 (r=64/α=256, **ohne** rsLoRA — `lora_use_rslora` fehlt, s. §1): flushed=15 — Adapter-Wirkung **nicht entscheidbar** (s. §4)
 
 **Datum:** 2026-10-19
 **Auftrag:** Kaggle-Lauf B2 auswerten (Rek 127 §5-Befehl), Rohdaten von HF
@@ -74,8 +74,19 @@ Gemessene Einzelproben (alle 15, Rohtext `probe_results`):
 **Zusammenfassung:**
 - `em_base = 15/15` → Das **Basis-Modell kennt bereits ALLE 15 Gold-Antworten**.
 - `answer != base_answer = 0/15` → Der **Adapter hat keine einzige Antwort verändert**.
+
+> **Superseded-Vermerk (docs-only, 2026-10-20, Rek 129):** `em_base` ist das JSON-Feld
+> `base_answer`; es wurde **nach** `PeftModel.from_pretrained` aus demselben in-place
+> gewrappten Modell erzeugt (`kaggle/write_back_cycle.py:420-421, 442-443`) ⇒ es misst
+> das **Adapter-Modell**, nicht das Basismodell. „Das Basis-Modell kennt alle 15" ist
+> damit **nicht belegt**, und `answer == base_answer` ist **strukturell erzwungen**
+> (kein Wirkungsnachweis). Der adapter-seitige Score `15/15` bleibt gültig, ist aber
+> ein Score auf den **15 Trainingszeilen** (Dataset-Hash `18caaae7…` identisch zu den
+> Proben) — **keine** saubere Baseline, **kein** Lern-/Generalisierungsbeleg.
+> **Rohzahlen bleiben unverändert.**
 - `flushed = 15` → Der Flush-Criterium `grade(adapter_answer, gold)` ist wahr,
-  **weil base_answer == gold**, nicht weil der Adapter gelernt hat.
+  **weil die Adapter-Antwort == gold** ist, nicht weil der Adapter gelernt hat
+  (`em_base` ist kontaminiert, s. §4).
 
 **Warum flushed=2 in Rek 125, aber flushed=15 hier?**
 
@@ -98,13 +109,13 @@ andere Router-Klassifikationen / ZsRE-Sample-Variation bei gleichem Seed).
 | `LORA_R=64 LORA_ALPHA=256` wurden angewendet | **belegt** (`kaggle_output.json`) |
 | Loss 1.31 (Rek 125: 2.29) | **belegt** (Rohtext) |
 | flushed=15, kept=0 | **belegt** (Rohtext) |
-| **Adapter-Effekt = 0** (`answer == base_answer` bei 15/15) | **belegt** (Rohtext, `probe_results`) |
-| em_base = 15/15 (Basis kennt alle Gold) | **belegt** (Rohtext) |
+| **Adapter-Effekt = 0** (`answer == base_answer` bei 15/15) | **belegt** (Rohtext, `probe_results`) — **aber nicht entscheidbar**: die Gleichheit ist strukturell erzwungen (In-place-Wrap, `kaggle/write_back_cycle.py:420-421/442-443`) |
+| em_base = 15/15 (Basis kennt alle Gold) | **belegt** (Rohtext) — „Basis kennt alle Gold" **nicht** belegt; `base_answer` misst das gewrappte Modell |
 | **rsLoRA war NICHT aktiv** (`use_rslora=None` ⇒ alter Code) | **belegt** (`kaggle_output.json`) |
 | `LORA_USE_RSLORA=1` erreichte das Train-Skript nicht | **belegt** (Feld fehlt) |
-| r=64 + α=256 verändert Adapter-Wirkung | **widerlegt** (0/15 geändert) |
+| r=64 + α=256 verändert Adapter-Wirkung | **nicht entscheidbar** (`answer == base_answer` 15/15 ist strukturell erzwungen, s. §4/Superseded-Vermerk) |
 | Write-Back steigert QA-EM | **nicht belegt** (Δ = 0) |
-| flushed=15 = Adapter hat 15 gelernt | **widerlegt** (flushed = em_base, nicht Adapter-Leistung) |
+| flushed=15 = Adapter hat 15 gelernt | **nicht belegt** (Flush = `grade(adapter_answer, gold)`, `kaggle/write_back_cycle.py:445`; `em_base` ist kontaminiert) |
 
 ## 5. Ursache des fehlenden rsLoRA (§6)
 
@@ -127,7 +138,9 @@ diese ENV-Variablen nicht (Feld existiert nicht im Output).
 | Neue Quelle | keine | n/a |
 
 **Entscheidung: deny.** Kein `self_update`. Keine positive Behauptung, dass
-Write-Back funktioniert. **Auch mit r=64 + α=256 bleibt der Adapter wirkungslos.**
+Write-Back funktioniert. **Ob der Adapter mit r=64 + α=256 wirkt, ist mit diesem Lauf
+nicht entscheidbar** (In-place-Wrap, s. §4/Superseded-Vermerk) — kein Wirkungsnachweis, aber auch
+kein Nullwirkungsbeleg.
 
 ## 7. Offene Fragen (pending, §6)
 

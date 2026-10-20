@@ -93,3 +93,11 @@ Basis `Qwen/Qwen2.5-0.5B-Instruct` vs. Adapter `Batnini/knowledge-agent-sft-lora
 (Kaggle T4, Seed 42): **`em_base = 22/200 (0.11)`, `em_adapter = 22/200 (0.11)`, `Δ = 0`**.
 ⇒ Die Hypothese „Θ′ internalisiert die Fakten" ist **NICHT belegt** → Status **`rejected`** (§6/§9).
 Details/Ursachen: `ergebnisse/e2e-theta-2026-10-07.md`.
+
+**Superseded-Vermerk (docs-only, 2026-10-20, Rek 129):** Dieser Lauf ist **pre-N8** —
+`em_base` wurde nach dem Adapter-Wrap gemessen und ist kontaminiert
+(`em_base == em_adapter == 22/200`; Rek 077:37-39). Das **Δ = 0 ist als Vergleich
+ungültig**; es belegt keine Adapter-Nullwirkung. Ein Lauf nach dem N8-Fix (gleiches Setup: 0.5B / n=200 / Seed 42)
+ergab `em_base=3`, `em_adapter=22`, Δ=+19 (`kaggle/e2e_theta_result.json:3-10`, Rek 077:69-72)
+— Substring-Ära (strict Grader erst Rek 115:15); Adapter-Identität/Probe-Quelle/Metrik
+undokumentiert (Rek 129 `A3`). **Rohzahlen unverändert.**

@@ -21,6 +21,16 @@ LoRA-Adapter änderte die Antworten nicht. Die Korrekturen aus `235d529`
 `probe_results` im Output) waren auf Kaggle nicht aktiv, weil der Nutzer den
 Code-Stand `4bd63cb` ausführte.
 
+> **Superseded-Vermerk (docs-only, 2026-10-20, Rek 129):** Beide Vorgänger sind
+> **kein** belastbarer Gegenbeleg — e2e-theta (2026-10-07) ist **pre-N8**
+> (kontaminierte `em_base`, Rek 077:37-39; `ergebnisse/e2e-theta-2026-10-07.md`),
+> Rek 109 ist **Substring-Ära** (strict Grader erst Rek 115:15). Aus „Δ ≈ 0" ist
+> deshalb **nicht** ableitbar, dass der Adapter die Antworten nicht änderte.
+> Ebenso ist die Gleichheit `answer == base_answer` **strukturell erzwungen**
+> (`kaggle/write_back_cycle.py:420-421` Wrap vor `:442`): beide Felder messen
+> dasselbe Adapter-Modell — daraus folgt **kein** „keine einzige Antwort verändert"
+> und **kein** „Adapter-Effekt = 0". **Rohzahlen bleiben unverändert.**
+
 **Mandat des Nutzers:** Lauf mit korrigiertem Code (`5650b3c`) auf 3B-Modell
 wiederholen, Ergebnis hochladen, Rek-Doc schreiben.
 
