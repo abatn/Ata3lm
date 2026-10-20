@@ -16,6 +16,8 @@
 |---|---|
 | `train_slow_consolidation.py` | Kanonischer, in sich geschlossener Trainingscode (Single Source of Truth). |
 | `train_slow_consolidation.ipynb` | Kaggle-Notebook (aus der `.py` generiert, identische Logik) — empfohlen zum Ausführen. |
+| `m1_m2_m3_probe.py` | **Read-only**-Messskript (Diagnose M1/M1b/M1c/M2/M3 + Canary, **kein** Training/Write-Back) — siehe „V2" unten. |
+| `m1_m2_m3_preregistration.md` | Prä-registrierte Regeln/Schwellen für den Messlauf (Amendment A1) — vor dem Lauf fixiert. |
 | `README.md` | Diese Anleitung. |
 
 Was das Skript tut: lädt ein SFT-Dataset (siehe `SFT_SOURCE`), lädt ein **reales**
@@ -248,3 +250,62 @@ geschrieben; sonst bleibt der Write auf `ask` (klar gemeldet, nicht umgangen).
 
 Nützliche Umgebungsvariablen: `OPENAI_BASE_URL`, `FWR_SMALL_MODEL`, `FWR_LARGE_MODEL`,
 `HELA_MODEL`, `BASE_MODEL`, `SEED`.
+
+---
+
+## V2 — Read-only-Messlauf M1/M2/M3 (Diagnose, **kein** Training)
+
+Zweck: klären, ob der B2′-Lauf (rsLoRA, r=64/α=256) wirklich **degeneriert** ist
+(14/15 „Jamaica") oder ob nur die **Messung** kaputt war (N8-Kontamination:
+`write_back_cycle.py:420-421` wrapt die Basis, bevor `:442` misst — der
+`base_answer` misst also das Adapter-Modell). Rek 129 (`A1`–`A4`), `A3` bleibt offen.
+
+**Eigenschaften (`m1_m2_m3_probe.py`):**
+
+- **read-only** — kein Training, kein Write-Back, kein `self_update`; schreibt ausschließlich
+  `status.json`, `manifest.json`, `per_item.jsonl` in `--out-dir` (+ HF-Cache).
+  `write_back_cycle.py` wird **nicht** verwendet (trainiert + schreibt).
+- **Reihenfolge fix** (Preregistration `m1_m2_m3_preregistration.md`): `M1` (Basis, unwrapped) →
+  `M1_repeat` (Determinismus) → `M1b` (Basis, unwrapped, **Canary-Referenz auf derselben
+  Instanz**) → `M2` (B2′) → `canary` (`disable_adapter()`, muss `M1b` item-für-item = 100 %) →
+  `M2_repeat` → **Positivkontrolle** (M2 ≠ canary) → `M1c` (Basis) → `M3` (B2).
+- **9 prä-registrierte Regeln** (Amendment A1): 1 P-1 deskriptiv · 2 Adapterschaden nicht
+  spezifisch rsLoRA · 3 P-3 Base/Prompt/Daten · 4 Adapterschaden auf schwacher Base ·
+  5 P-2a (N8) · 6 P-2b (Altlauf-Vergleich) · 7 Adapter hilft · 8 No-op · 9 **Vorbedingung**
+  (Canary-Fail/Positivkontrolle-Fail/Determinismus-Fail/Noise>Budget/Degeneration ≥ 12/15/nicht
+  zuordenbar) ⇒ `unentschieden`.
+- **Fail-closed**: ohne CUDA, ohne `torch`/`peft`, `torchao<0.16`, abweichende SHA-Pins,
+  unerwartetes `use_rslora`, `base_model_name_or_path ≠ --base-model` ⇒ `status.json` mit
+  `status="nicht ausgefuehrt"` und **ohne** Zahlen.
+
+**Befehl (Kaggle, GPU):**
+
+```bash
+python kaggle/m1_m2_m3_probe.py \
+  --dataset probe15_questions.jsonl \
+  --base-model Qwen/Qwen2.5-3B-Instruct \
+  --base-revision <40-hex-commit> \
+  --tokenizer-revision <40-hex-commit> \
+  --adapter-b2prime /kaggle/working/adapters/b2prime \
+  --adapter-b2      /kaggle/working/adapters/b2 \
+  --expect-dataset-sha   c0ea0219c6a56b50601f85f211b14b5902d8103a73ecf37059560fe5d74b4328 \
+  --expect-b2prime-sha   a595d437f4fcb0c6030840d9e70e7ff6818a5e490943aabe19f00c3dee6ba9c5 \
+  --expect-b2-sha        e3be2c8518433696a6aa5b088a43823facc099b20c7beab385e9352ec3023f2e \
+  --ref-b2prime-json write_back_cycle_result.json \
+  --expect-ref-sha 5a9ed27a19a1881a8d06eab1e150df3eb476baa4979d4da0422acc9b62501304 \
+  --expect-probes 15 \
+  --repo-root /kaggle/working/knowledge-agent \
+  --out-dir /kaggle/working/m1_m2_m3_out
+```
+
+Pins: Probe-Set `c0ea0219…` · B2′-Adapter `a595d437…` · B2-Adapter `e3be2c85…` ·
+Altlauf-Result-JSON `5a9ed27a…` (**SHA256 der Datei, kein Git-Commit**). Das Repo wird
+geklont (`git clone` ⇒ `knowledge-agent/`); `data/memory/acceptance_gate.py` wird für den
+fail-closed Grader-Crosscheck gebraucht (`--repo-root`).
+
+> **Ehrlicher Vorbehalt:** der B2′-Lauf pinte **keine** Base-Revision und lief mit ungepinntem
+> Tokenizer (`write_back_cycle.py:411`) ⇒ `--base-revision`/`--tokenizer-revision` **müssen**
+> dieselbe Auflösung wählen, sonst kann ein abweichendes Chat-Template die Antworten verändern.
+> M1/M2/M3 messen **Memorization** der 15 Trainingszeilen (M3 hat das Ceiling 15/15) ⇒
+> P-1 (rsLoRA-Überskalierung) vs. P-3 (Basis/Prompt/Daten) ist mit diesem Lauf **nicht**
+> trennbar; der kausale Test ist ein kontrollierter Trainings-A/B (§9.1d → §9.3).
