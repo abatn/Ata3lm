@@ -3,7 +3,8 @@
 > Datum: 2026-10-20 · Template: `ergebnisse/proposal-template.md`
 > Gesetz: `AGENTS.md` §6 (Rohtext), §9 (`:116-124`), §9.1c (`:165-176`), §9.1d (`:178-182`),
 > §9.3 (`:214-234`), §10.3 (`:271-276`) · Guardrails 1/2/3/5/6/7/8 (`:97-109`)
-> Status: **pending** — §9.3-Zwei-Personen-Freigabe **nicht gestartet**; §9-Gate `deny` (unverändert).
+> Status: **approved** — §9.3-Zwei-Personen-Freigabe erteilt (Batnini + Taoufik, 2026-10-21);
+> §9-Gate `deny` für Lernen/`self_update` (Score 6,7 %) bleibt unverändert.
 > Anlass: `ergebnisse/rekursion/130-m1-m2-m3-lauf-b2-prime-messung.md` (Messung), Rek 129 (A1–A4).
 > Kein `self_update`, kein Git-Commit, kein Training durch den Agenten — Ausführung: Mensch auf Kaggle (GPU).
 
@@ -221,7 +222,8 @@ antworten kann; der Primär-Diskriminator wird **M3 vs. M2 innerhalb derselben M
 | Interface-Änderung? | nein (`LORA_USE_RSLORA` existiert, CLI/Schema unverändert) | — |
 | Drift ≤ Bound? | Code/Doku ja (5,63 % ≪ 10 %); **Modell-Drift offen** (nach Lauf) | **ask** |
 
-- **Gate-Ergebnis: `ask`** — der Score verbietet Lernen/`self_update` (deny), die Messung selbst
+- **Gate-Ergebnis: `ask`** — **Human-Gate erteilt** (§9.3: Batnini + Taoufik, 2026-10-21); der
+  Score verbietet Lernen/`self_update` (deny), die Messung selbst
   (A/B-Experiment + Messskript-Korrektur) bleibt erlaubt, **aber** nur nach:
   1. **Human-Gate** des Nutzers (dieses Proposal),
   2. **§9.3-Zwei-Personen-Freigabe** (mind. 2 distinkte Personen: Batnini + Taoufik;
@@ -234,10 +236,26 @@ antworten kann; der Primär-Diskriminator wird **M3 vs. M2 innerhalb derselben M
 
 ## 8. Freigabe
 
-- **Status:** `pending`
+- **Status:** `approved` — Flow `pending → first_approved → second_approved → approved`
+  (`AGENTS.md:231`): **first_approved: Batnini**, **second_approved: Taoufik**, 2026-10-21
+  (2 distinkte Personen ✓, `AGENTS.md:233-234`)
 - **Human-Gate-Referenz:** `ergebnisse/rekursion/130-m1-m2-m3-lauf-b2-prime-messung.md`,
   `ergebnisse/rekursion/129-b2-prime-annahmenpruefung.md`
-- **§9.3:** nicht gestartet — Freigaben von Batnini und Taoufik stehen aus
+- **§9.3:** **gestartet und abgeschlossen** (2026-10-21) — die Freigabe deckt **das Experiment**
+  (A/B-Lauf + Messskript-Korrekturen), nicht das `self_update`/Lernen (Gate `deny` bleibt)
+- **Auflagen vor dem Lauf (erhoben am 2026-10-21 nach dem ersten Startversuch):**
+  1. **Datensatz-Identität:** der Trainingsdatensatz muss byte-identisch zur Baseline sein
+     (SHA256 `18caaae7c6f7f506a0cdd132d15f23c0e7044b07d894b73eb68b302605b01c7c`, Zeilen-Aggregat
+     `8d42c0da…`) **oder** mindestens inhaltsgleich (kanonischer Digest über
+     (key, question, gold) = `e481dd2f51a3de09eed038d3a31662e1b9ca263659ee03a65718bb0d29292c5a`);
+     der hochgeladene Stand `de24a66743ff74e2d15b2a893c4881b54fecd440239e9b6ae687e8d2f70e301d`
+     erfüllt das **nicht** ⇒ sonst kein attribuierbarer Vergleich (§6, Guardrail 5/7)
+  2. **Umgebung = Baseline:** transformers 5.16.1, peft 0.20.0, trl 1.16.0, bitsandbytes 0.50.2,
+     datasets 4.8.5, accelerate 1.14.0, torch 2.11.0+cu128, torchao ≥ 0.16 (Baseline:
+     `wb_b2prime/kaggle_output.json` `library_versions`; `trl` fehlte im Kaggle-Image ⇒
+     `ModuleNotFoundError: No module named 'trl'`)
+  3. **Klon aktualisieren:** `git -C /kaggle/working/Ata3lm pull --ff-only` — der Klon vom
+     2026-10-20 18:51 ist älter als der Fix `41348ec` (Regel-9-Lücke, Witness) ⇒ sonst M4 erneut
 - **Bereits umgesetzt (wartet auf Commit-Freigabe):** 3a (Messskript 2 Stellen, README,
   Prereg-Kopfzeilen) — reine Messintegrität, kein Eingriff in `write_back_cycle.py`, kein Training
 - **Ausführung (menschlich, Kaggle GPU):** zwei Läufe mit identischem Code, nur `LORA_USE_RSLORA`
@@ -251,4 +269,4 @@ antworten kann; der Primär-Diskriminator wird **M3 vs. M2 innerhalb derselben M
 - [x] Diff (line-level) — §3a (Code/Doku) und §3b (Modellebene)
 - [x] Drift-Wert + Bound-Vergleich — §5 (5,63 % Code/Doku; Modell-Drift offen, nach Lauf zu berichten)
 - [x] Quelle(n) mit Link — §6 (arXiv + Code + HF-Artefakte)
-- [x] Gate-Ergebnis + Freigabe-Status — §7 (`ask`), §8 (`pending`)
+- [x] Gate-Ergebnis + Freigabe-Status — §7 (`ask`, Human-Gate erteilt), §8 (`approved`: Batnini + Taoufik, 2026-10-21)

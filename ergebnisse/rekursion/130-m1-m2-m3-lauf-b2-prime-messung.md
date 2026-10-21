@@ -220,11 +220,16 @@ Antworten); **Verifikation**: Write-Back-Messung mit Base **vor** dem Wrap (N8-F
 `kaggle/e2e_theta_probe.py:122-123`) plus Canary `disable_adapter()` 15/15.
 Danach §9.3 (`AGENTS.md:231`, Batnini + Taoufik) → erst dann Code-Fix.
 
-> **Stand 2026-10-20 (nach Go des Nutzers):** Proposal **P-131** angelegt:
-> `ergebnisse/proposals/P-131-kontrollierter-rslora-ab.md` (Status `pending`; Gate `ask`;
-> §9.3 nicht gestartet; Drift Code/Doku 5,63 % ≪ 10 %-Bound; **Amendment A2** der Regeltabelle
-> nur beantragt). Die drei Mess-Mängel aus §8 sind im Arbeitsbaum behoben (Commit-Freigabe
-> ausstehend). Kein `self_update`, kein Git-Commit, kein Training.
+> **Stand 2026-10-21:** Proposal **P-131** angelegt und **freigegeben**:
+> `ergebnisse/proposals/P-131-kontrollierter-rslora-ab.md` — §9.3 **approved** (first_approved:
+> Batnini, second_approved: Taoufik, 2026-10-21; `AGENTS.md:231`); Gate für Lernen/`self_update`
+> bleibt `deny` (6,7 %); Drift Code/Doku 5,63 % ≪ 10 %-Bound; **Amendment A2** der Regeltabelle
+> bleibt beantragt. Die drei Mess-Mängel aus §8 sind behoben und gepusht (`41348ec`), CI grün
+> (`e3b95cf`). **Auflagen vor dem Lauf** (P-131 §8): Datensatz-Identität (SHA `18caaae7…` bzw.
+> kanonischer Digest `e481dd2f…`), Umgebung = Baseline (`trl==1.16.0` fehlte im Kaggle-Image),
+> Klon-Update (`git pull`) — der erste Startversuch am 2026-10-21 trainierte **nicht**
+> (fehlendes `trl`, falscher Datensatz-Hash `de24a667…`, veralteter Klon) ⇒ kein Artefakt,
+> kein Schaden, kein `self_update`.
 
 ## 8. Self-Feedback t+1
 
