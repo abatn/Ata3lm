@@ -20,7 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 3  # ci_drift braucht den Vorcommit (HEAD~1); gitleaks scannt HEAD~2..HEAD
+          fetch-depth: 0  # volle Historie: ci_drift braucht HEAD~1, gitleaks scannt <HEAD>^..<HEAD>
+                           # (Großeltern nötig, sobald mehrere Commits auf einmal gepusht werden)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
