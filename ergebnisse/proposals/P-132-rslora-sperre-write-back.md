@@ -187,11 +187,17 @@ Neu: `tests/test_write_back_cycle_rslora_guard.py` (3 Tests, ohne GPU/LLM):
 
   | Artefakt | geänderte Zeilen | Gesamtzeilen | Δ |
   |---|---|---|---|
-  | `kaggle/write_back_cycle.py` | +24 / −2 | 780 | **3,33 %** |
-  | `tests/test_write_back_lora_args.py` | +3 / −2 | 261 | **1,92 %** |
-  | `tests/test_write_back_cycle_rslora_guard.py` (neu) | +~45 | 0 → 45 | neue Datei |
-  | `kaggle/README.md` | +6 | 314 | **1,91 %** |
-  | **Gesamt (Code/Tests/Doku, ohne neue Datei)** | **+78 / −4** | **1355** | **6,05 %** |
+  | `kaggle/write_back_cycle.py` | +27 / −1 | 806 | **3,35 %** |
+  | `tests/test_write_back_lora_args.py` | +4 / −3 | 262 | **2,67 %** |
+  | `tests/test_write_back_cycle_rslora_guard.py` (neu) | +90 | 0 → 90 | neue Datei |
+  | `kaggle/README.md` | +9 / −0 | 323 | **2,79 %** |
+  | **Gesamt (Code/Tests/Doku, ohne neue Datei)** | **+40 / −4** | **1391** | **3,02 %** |
+  | **Gesamt inkl. neuer Testdatei** | **+130 / −4** | **1481** | **9,05 %** |
+
+  **Ist-Messung nach der Umsetzung** (`git diff --numstat`, 2026-10-22): die Tabelle enthält die
+  **gemessenen** Werte; die Planwerte der Antragsfassung (+24/−2, +3/−2, +6, +~45) sind damit
+  überholt. Der Gesamt-Drift **einschließlich** der neuen Testdatei liegt mit 9,05 % **unter** dem
+  10-%-Bound (`AGENTS.md:171-176`); ohne die neue Datei sind es 3,02 %.
 
   ⇒ **unter** dem Drift-Bound 10 % (`AGENTS.md:171-176`) — **kein** §9.1c-Auslöser durch Code.
 - **Drift Modell-Parameter:** Der Eingriff **trainiert nichts**, erzeugt also keine neue Parameterdrift.

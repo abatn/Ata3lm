@@ -213,6 +213,15 @@ Der Driver nutzt als LLM einen **lokalen Ollama-Endpoint** auf der Kaggle-Maschi
 `HELA_MODEL`) hat **Vorrang**; der Endpoint wird real geprüft (`GET /v1/models`,
 `HTTP 200`), sonst bricht das Skript **fail-closed** ab (kein Fake, Guardrail 7).
 
+> **P-132 (2026-10-22):** rsLoRA (`--use-rslora` / ENV `LORA_USE_RSLORA`) ist im
+> **Write-Back-Zyklus** (`kaggle/write_back_cycle.py`) **gesperrt** (fail-closed). Beleg:
+> kontrollierter A/B (P-131, Lauf 2026-10-22) — rsLoRA (α/√r = 32) ⇒ 1/15 = 6,7 % mit
+> Degeneration 13/15 „Jamaica“, non-rsLoRA (α/r = 4) ⇒ 15/15, bei identischen
+> Daten/Code/Seed/Umgebung (`ergebnisse/rekursion/132-ab-rslora-p1-bestaetigt.md` §4;
+> Proposal `ergebnisse/proposals/P-132-rslora-sperre-write-back.md`, §9.3 Batnini +
+> Taoufik, 2026-10-22). Für kontrollierte Forschung bleibt ENV `LORA_USE_RSLORA` in
+> `kaggle/train_slow_consolidation.py` verfügbar (dort ohne Write-Back-Flush).
+
 **Notebook-Zellen (vor dem Driver ausführen):**
 
 ```bash

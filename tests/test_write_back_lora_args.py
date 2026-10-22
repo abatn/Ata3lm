@@ -131,7 +131,7 @@ def test_wbc_train_fn_sets_env_only_when_args_set(tmp_path):
 
 
 def test_wbc_train_fn_sets_env_when_args_provided(tmp_path):
-    """ENV wird gesetzt, wenn Args explizit übergeben werden."""
+    """ENV wird gesetzt, wenn Args explizit übergeben werden (rsLoRA gesperrt, P-132)."""
     wbc = _load_wbc()
     out_dir = tmp_path / "train_out"
 
@@ -143,7 +143,7 @@ def test_wbc_train_fn_sets_env_when_args_provided(tmp_path):
         lora_r=64,
         lora_alpha=256,
         learning_rate=1e-4,
-        use_rslora=True,
+        use_rslora=False,
         full_ft=False,
         lora_plus_ratio=10.0,
     )
@@ -172,7 +172,8 @@ def test_wbc_train_fn_sets_env_when_args_provided(tmp_path):
     assert captured_env["LORA_R"] == "64"
     assert captured_env["LORA_ALPHA"] == "256"
     assert captured_env["LEARNING_RATE"] == "0.0001"
-    assert captured_env["LORA_USE_RSLORA"] == "1"
+    # P-132: rsLoRA ist im Write-Back-Pfad gesperrt ⇒ kein ENV-Override.
+    assert "LORA_USE_RSLORA" not in captured_env
     assert captured_env["LORA_PLUS_RATIO"] == "10.0"
     assert "FULL_FT" not in captured_env  # full_ft=False
 

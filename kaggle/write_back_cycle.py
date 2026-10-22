@@ -326,7 +326,8 @@ def _make_train_fn(
         if learning_rate is not None:
             env["LEARNING_RATE"] = str(learning_rate)
         if use_rslora:
-            env["LORA_USE_RSLORA"] = "1"
+            # P-132: Defense in Depth – der Write-Back-Pfad setzt rsLoRA nicht.
+            raise RuntimeError(_rslora_blocked())
         if full_ft:
             env["FULL_FT"] = "1"
         if lora_plus_ratio is not None:
@@ -597,8 +598,33 @@ def _torchao_incompatible() -> Optional[str]:
     return None
 
 
+def _rslora_blocked() -> Optional[str]:
+    """rsLoRA im Write-Back-Zyklus ist gesperrt (P-132; Belege: Rek 132 §4).
+
+    Quelle (Belegt): kontrollierter A/B (P-131, Lauf 2026-10-22) — identischer
+    Code/Daten/Seed/Umgebung, einzige Variable `LORA_USE_RSLORA`:
+    Arm rsLoRA (α/√r = 32) → 1/15 = 6,7 % mit Degeneration 13/15 "Jamaica";
+    Arm non-rsLoRA (α/r = 4) → 15/15 ohne Degeneration.
+    Belege: `ergebnisse/rekursion/132-ab-rslora-p1-bestaetigt.md`; HF
+    `Batnini/knowledge-agent-write-back` → `probe/ab_2026-10-22/`.
+    Für kontrollierte Forschung bleibt ENV `LORA_USE_RSLORA` in
+    `kaggle/train_slow_consolidation.py` verfügbar (dort ohne Write-Back-Flush).
+    """
+    return (
+        "rsLoRA (--use-rslora) ist im Write-Back-Zyklus gesperrt (P-132): der kontrollierte A/B "
+        "(P-131, Lauf 2026-10-22) belegt den Kollaps kausal – Arm rsLoRA (α/√r=32) 1/15 = 6,7 % mit "
+        "Degeneration 13/15 'Jamaica', Arm non-rsLoRA (α/r=4) 15/15 ohne Degeneration bei identischen "
+        "Daten/Code/Seed/Umgebung (Rek 132 §4). Für kontrollierte Forschung: ENV LORA_USE_RSLORA in "
+        "kaggle/train_slow_consolidation.py (dort ohne Write-Back-Flush)."
+    )
+
+
 def main(argv=None) -> int:
     args = _parse_args(argv)
+    # P-132: fail-closed vor jedem Seiteneffekt (kein LLM-/GPU-ENV, kein Training).
+    if args.use_rslora:
+        print(f"FEHLER: {_rslora_blocked()}", file=sys.stderr)
+        return 1
     # LLM-ENV (Ollama) VOR jedem Import von fast_write_router/reflective_agent.
     # P-C (Variante A): Kaskade-Modelle getrennt; Default = gemeinsames --llm-model.
     # `applied` enthält die tatsächlich gesetzten Werte (Laufzeit-Protokoll).
